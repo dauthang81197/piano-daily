@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Piano Daily — Beginner</title>
+<style>
+/* Governed by: DESIGN.md Colors/Typography/Layout&Spacing/Shapes/Components (card-sheet, tag-genre, ad-slot, button-primary)
+   EXPERIENCE.md: Information Architecture (Level page), Component Patterns (Thẻ Sheet, Lưới Sheet, Tag Genre), Responsive & Platform */
+:root{
+  --surface:#FAF6EF; --surface-bright:#FFFFFF; --surface-container-lowest:#FFFFFF;
+  --surface-container-low:#F5EFE4; --surface-container:#EFE7D8; --surface-container-high:#E6DCC8;
+  --on-surface:#241B14; --on-surface-variant:#5B4A3A; --outline:#8A7860; --outline-variant:#D8CBB0;
+  --primary:#5C3A21; --on-primary:#FFFFFF; --secondary:#A97D2F; --on-secondary:#FFFFFF;
+  --level-beginner:#5E7856; --hot-accent:#C9432E;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--surface);color:var(--on-surface);font-family:'Be Vietnam Pro',Arial,sans-serif;}
+.frame{max-width:1200px;margin:0 auto;}
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 64px;border-bottom:1px solid var(--outline-variant);background:var(--surface-bright);}
+.logo{font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:var(--primary);}
+nav a{margin-left:28px;font-size:14px;color:var(--on-surface);text-decoration:none;}
+nav a.active{color:var(--secondary);font-weight:600;}
+.hero{padding:56px 64px;text-align:center;}
+.hero h1{font-family:'Playfair Display',Georgia,serif;font-size:48px;font-weight:500;margin:0 0 12px;}
+.hero p{color:var(--on-surface-variant);font-size:15px;margin:0 0 24px;}
+.searchbar{max-width:520px;margin:0 auto;display:flex;border:1px solid var(--outline-variant);border-radius:0.25rem;overflow:hidden;background:var(--surface-container-lowest);}
+.searchbar input{flex:1;border:0;padding:14px 16px;font-size:15px;font-family:inherit;background:transparent;outline:none;}
+.searchbar button{border:0;background:var(--secondary);color:var(--on-secondary);padding:0 22px;font-weight:600;font-size:14px;}
+.tags{padding:0 64px 32px;display:flex;flex-wrap:wrap;gap:8px;}
+.tag{padding:6px 14px;border-radius:0.25rem;background:var(--surface-container);color:var(--on-surface-variant);font-size:13px;}
+.tag.selected{background:var(--secondary);color:var(--on-secondary);}
+.grid{padding:0 64px 64px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.card{background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:0.5rem;overflow:hidden;}
+.thumb{position:relative;height:150px;background:var(--surface-container-high);display:flex;align-items:center;justify-content:center;color:var(--outline);font-size:13px;}
+.badge-level{position:absolute;top:10px;left:10px;background:var(--level-beginner);color:#fff;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:3px 8px;border-radius:0.25rem;}
+.badge-hot{position:absolute;top:10px;right:10px;background:var(--hot-accent);color:#fff;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:3px 8px;border-radius:0.25rem;}
+.card-body{padding:16px;}
+.card-body h3{font-family:'Playfair Display',Georgia,serif;font-size:17px;font-weight:500;margin:0 0 6px;}
+.meta{color:var(--on-surface-variant);font-size:12px;margin:0 0 8px;}
+.formats{font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--on-surface-variant);}
+.ad{margin:0 64px 64px;border:1px dashed var(--outline-variant);background:var(--surface-container);border-radius:0.25rem;padding:24px;text-align:center;color:var(--on-surface-variant);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header>
+    <div class="logo">Piano Daily</div>
+    <nav>
+      <a href="#">Trang chủ</a>
+      <a href="#">Tìm kiếm</a>
+      <a href="#" class="active">Beginner</a>
+      <a href="#">Intermediate</a>
+      <a href="#">Advanced</a>
+      <a href="#">Expert</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Sheet Piano Beginner</h1>
+    <p>128 bản nhạc Beginner kèm MIDI &amp; MP3 — cập nhật 27/09/2026</p>
+    <div class="searchbar">
+      <input type="text" placeholder="Tìm tên bài, tác giả, hoặc lời bài hát...">
+      <button>Tìm kiếm</button>
+    </div>
+  </div>
+
+  <div class="tags">
+    <div class="tag selected">Classical Piano</div>
+    <div class="tag">Piano for Kids</div>
+    <div class="tag">Fingers Exercise</div>
+    <div class="tag">Easy Piano</div>
+    <div class="tag">Hymns</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="thumb">Ảnh trang 1 — Czerny No.7<span class="badge-level">Beginner</span><span class="badge-hot">Hot</span></div>
+      <div class="card-body">
+        <h3>Czerny — Practical Method for Beginners, No. 7</h3>
+        <p class="meta">Carl Czerny · 13.500 lượt xem · 1 trang</p>
+        <p class="formats">Sheet · Chords · Mp4/Midi</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb">Ảnh trang 1 — Ode to Joy (Easy)<span class="badge-level">Beginner</span></div>
+      <div class="card-body">
+        <h3>Ode to Joy — Easy Piano Arrangement</h3>
+        <p class="meta">Ludwig van Beethoven · 8.200 lượt xem · 2 trang</p>
+        <p class="formats">Sheet · Mp4/Midi</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb">Ảnh trang 1 — Für Elise (Simplified)<span class="badge-level">Beginner</span></div>
+      <div class="card-body">
+        <h3>Für Elise — Simplified for Beginners</h3>
+        <p class="meta">Ludwig van Beethoven · 21.000 lượt xem · 3 trang</p>
+        <p class="formats">Sheet · Chords · Mp4/Midi</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="ad">Quảng cáo</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Piano Daily — Czerny No. 7 (Chi tiết Sheet)</title>
+<style>
+/* Governed by: DESIGN.md Colors/Typography/Components (card-sheet, button-download, MIDI player, badge)
+   EXPERIENCE.md: Key Flow UJ-1/UJ-2, Component Patterns (MIDI player, Nhóm nút Download), State Patterns (thiếu định dạng), Accessibility Floor */
+:root{
+  --surface:#FAF6EF; --surface-bright:#FFFFFF; --surface-container-lowest:#FFFFFF;
+  --surface-container-low:#F5EFE4; --surface-container:#EFE7D8;
+  --on-surface:#241B14; --on-surface-variant:#5B4A3A; --outline-variant:#D8CBB0;
+  --primary:#5C3A21; --on-primary:#FFFFFF; --secondary:#A97D2F; --on-secondary:#FFFFFF;
+  --level-beginner:#5E7856;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--surface);color:var(--on-surface);font-family:'Be Vietnam Pro',Arial,sans-serif;}
+.frame{max-width:1200px;margin:0 auto;padding:0 64px 64px;}
+.breadcrumb{padding:20px 0;font-size:13px;color:var(--on-surface-variant);}
+.layout{display:grid;grid-template-columns:2fr 1fr;gap:40px;}
+h1{font-family:'Playfair Display',Georgia,serif;font-size:32px;font-weight:500;margin:0 0 8px;}
+.badge-level{display:inline-block;background:var(--level-beginner);color:#fff;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;border-radius:0.25rem;margin-right:8px;}
+.meta{color:var(--on-surface-variant);font-size:13px;margin:12px 0 24px;}
+.downloads{display:flex;gap:12px;margin-bottom:32px;}
+.btn-download{background:var(--secondary);color:var(--on-secondary);border:0;padding:12px 22px;border-radius:0.5rem;font-weight:600;font-size:14px;}
+.player{background:var(--on-surface);color:#F5EEE1;border-radius:0.75rem;padding:24px;margin-bottom:32px;}
+.player-controls{display:flex;align-items:center;gap:16px;margin-bottom:20px;font-size:13px;}
+.play-btn{width:36px;height:36px;border-radius:9999px;background:var(--secondary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.seek{flex:1;height:4px;background:rgba(255,255,255,0.25);border-radius:9999px;position:relative;}
+.seek::after{content:'';position:absolute;left:0;top:0;height:100%;width:20%;background:var(--secondary);border-radius:9999px;}
+.keys{display:flex;height:80px;}
+.key{flex:1;background:#F5EEE1;border:1px solid #241B14;position:relative;}
+.key.active{background:var(--secondary);}
+.note-label{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:#241B14;}
+.disclaimer{font-size:11px;color:#C9BFA8;margin-top:12px;}
+.sheet-image{background:var(--surface-bright);border:1px solid var(--outline-variant);border-radius:0.5rem;padding:32px;text-align:center;color:var(--on-surface-variant);margin-bottom:24px;}
+.sidebar .card-sheet{background:var(--surface-container-low);border:1px solid var(--outline-variant);border-radius:0.5rem;padding:16px;margin-bottom:16px;}
+.sidebar h4{font-family:'Playfair Display',Georgia,serif;font-size:16px;margin:0 0 4px;}
+.sidebar .meta-small{font-size:12px;color:var(--on-surface-variant);margin:0;}
+.related-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--on-surface-variant);margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="breadcrumb">Piano Daily › Carl Czerny › Practical Method for Beginners, No. 7</div>
+  <div class="layout">
+    <div>
+      <span class="badge-level">Beginner</span>
+      <h1>Czerny — Practical Method for Beginners, Op. 599, No. 7</h1>
+      <p class="meta">Độ khó: 15/100 — cả hai tay ở vị trí thoải mái · 13.500 lượt xem · Cập nhật 24/09/2026 · Thể loại: Piano, Fingers Exercise</p>
+
+      <div class="downloads">
+        <button class="btn-download">Download PDF</button>
+        <button class="btn-download">Download .mp3</button>
+        <button class="btn-download">Download .mid</button>
+      </div>
+
+      <div class="player">
+        <div class="player-controls">
+          <div class="play-btn">▶</div>
+          <span>0:09 / 0:38</span>
+          <div class="seek"></div>
+          <span>Tốc độ: 1x ▾</span>
+        </div>
+        <div class="keys">
+          <div class="key"></div><div class="key active"><span class="note-label">C</span></div><div class="key"></div>
+          <div class="key active"><span class="note-label">E</span></div><div class="key"></div><div class="key"></div>
+          <div class="key active"><span class="note-label">G</span></div><div class="key"></div><div class="key"></div>
+        </div>
+        <p class="disclaimer">Đây là bản mô phỏng, chỉ để tham khảo khi luyện tập — không thay thế bản ghi âm gốc.</p>
+      </div>
+
+      <div class="sheet-image">[ Ảnh trang nhạc — trang 1/1, render từ PDF ]</div>
+    </div>
+
+    <div class="sidebar">
+      <button class="btn-download" style="width:100%;margin-bottom:20px;">Download PDF (1 trang)</button>
+      <p class="related-title">Cùng series</p>
+      <div class="card-sheet">
+        <h4>No. 1-2</h4>
+        <p class="meta-small">Carl Czerny · 150.000 lượt xem</p>
+      </div>
+      <div class="card-sheet">
+        <h4>No. 6</h4>
+        <p class="meta-small">Carl Czerny · 12.500 lượt xem</p>
+      </div>
+      <div class="card-sheet">
+        <h4>No. 5</h4>
+        <p class="meta-small">Carl Czerny · 9.800 lượt xem</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

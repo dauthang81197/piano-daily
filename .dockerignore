@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+apps/api/src/generated
+.git
+.idea
+.env
+.env.*
+!.env.example
+_bmad
+_bmad-output
+.agents
+.claude
+**/.DS_Store

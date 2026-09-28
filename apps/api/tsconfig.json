@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src", "test", "prisma.config.ts", "vitest.config.mts", "vitest.integration.config.mts"]
+}

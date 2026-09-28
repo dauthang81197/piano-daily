@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+@import '@piano-daily/tokens/theme.css';
+
+@layer base {
+  html {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    font-family: var(--font-sans);
+  }
+}

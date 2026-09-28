@@ -1,0 +1,96 @@
+@import 'tailwindcss';
+@import '@piano-daily/tokens/theme.css';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/*
+ * shadcn/ui theo thương hiệu "Ivory & Walnut".
+ * Token (màu, radius, font) do @piano-daily/tokens nắm; ở đây chỉ ánh xạ các biến ngữ nghĩa
+ * của shadcn (--primary, --background, --ring…) sang token. Không định nghĩa lại
+ * --color-primary / --color-secondary / --radius-* để token luôn là nguồn duy nhất.
+ * Admin chỉ dùng giao diện sáng (không có .dark).
+ */
+
+@theme inline {
+  --font-heading: var(--font-display);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-2xl: calc(var(--radius-xl) * 1.25);
+  --radius-3xl: calc(var(--radius-xl) * 1.5);
+  --radius-4xl: calc(var(--radius-xl) * 2);
+}
+
+:root {
+  --background: var(--color-surface);
+  --foreground: var(--color-on-surface);
+  --card: var(--color-surface-container-low);
+  --card-foreground: var(--color-on-surface);
+  --popover: var(--color-surface-container-lowest);
+  --popover-foreground: var(--color-on-surface);
+  /* Nút chính màu walnut. */
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-on-primary);
+  --secondary: var(--color-secondary);
+  --secondary-foreground: var(--color-on-secondary);
+  --muted: var(--color-surface-container);
+  --muted-foreground: var(--color-on-surface-variant);
+  --accent: var(--color-surface-container-high);
+  --accent-foreground: var(--color-on-surface);
+  --destructive: var(--color-error);
+  --border: var(--color-outline-variant);
+  --input: var(--color-outline-variant);
+  /* Focus ring màu brass. */
+  --ring: var(--color-secondary);
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-secondary);
+  --chart-3: var(--color-level-intermediate);
+  --chart-4: var(--color-level-beginner);
+  --chart-5: var(--color-tertiary);
+  --sidebar: var(--color-surface-container-low);
+  --sidebar-foreground: var(--color-on-surface);
+  --sidebar-primary: var(--color-primary);
+  --sidebar-primary-foreground: var(--color-on-primary);
+  --sidebar-accent: var(--color-surface-container);
+  --sidebar-accent-foreground: var(--color-on-surface);
+  --sidebar-border: var(--color-outline-variant);
+  --sidebar-ring: var(--color-secondary);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

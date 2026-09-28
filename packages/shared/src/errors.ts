@@ -3,13 +3,17 @@ import { z } from 'zod';
 /**
  * Danh mục mã lỗi duy nhất của API (SCREAMING_SNAKE).
  * Mọi response lỗi phải dùng một mã trong danh mục này.
- * Các story sau bổ sung mã mới tại đây (vd. UNAUTHORIZED ở Story 1.2).
+ * Các story sau bổ sung mã mới tại đây.
  */
 export const ErrorCode = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   NOT_FOUND: 'NOT_FOUND',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

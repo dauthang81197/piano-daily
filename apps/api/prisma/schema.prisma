@@ -1,5 +1,6 @@
-// Story 1.1: chỉ datasource + generator. Model đầu tiên (User) do Story 1.2 thêm.
 // URL kết nối nằm trong prisma.config.ts (Prisma 7).
+// Quy ước: model PascalCase, bảng/cột snake_case qua @map/@@map, PK UUIDv7 (uuidv7() của Postgres 18),
+// thời gian timestamptz UTC.
 
 generator client {
   provider     = "prisma-client"
@@ -9,4 +10,44 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ── identity ─────────────────────────────────────────────────
+
+/// Phải trùng enum `Role` trong packages/shared (có test kiểm tra).
+enum Role {
+  SUPER_ADMIN
+  EDITOR
+}
+
+model User {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Luôn lưu dạng chữ thường (login so khớp không phân biệt hoa thường).
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  name         String
+  role         Role
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+/// Refresh token xoay vòng. Chỉ lưu sha256 của token; bản rõ chỉ nằm trong cookie của client.
+model RefreshToken {
+  id        String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }

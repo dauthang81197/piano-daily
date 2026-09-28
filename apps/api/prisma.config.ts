@@ -10,6 +10,7 @@ export default defineConfig({
   schema: path.join(__dirname, 'prisma/schema.prisma'),
   migrations: {
     path: path.join(__dirname, 'prisma/migrations'),
+    seed: 'tsx prisma/seed.ts',
   },
   datasource: {
     // `prisma generate` không cần URL; `migrate deploy` sẽ báo lỗi rõ nếu thiếu.

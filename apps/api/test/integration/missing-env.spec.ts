@@ -15,7 +15,11 @@ describe('Khởi động API khi thiếu biến môi trường', () => {
     // các biến khác trong .env (nếu có) là giá trị hợp lệ từ .env.example.
     const result = spawnSync(process.execPath, [mainJs], {
       cwd: apiDir,
-      env: { PATH: process.env.PATH ?? '', DATABASE_URL: '' },
+      env: {
+        PATH: process.env.PATH ?? '',
+        DATABASE_URL: '',
+        JWT_ACCESS_SECRET: 'test-only-jwt-access-secret-0123456789abcdef',
+      },
       encoding: 'utf8',
       timeout: 15_000,
     });

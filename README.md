@@ -26,6 +26,9 @@ pnpm install
 cp .env.example .env          # chỉnh nếu cần; mọi biến đều được liệt kê ở đây
 ```
 
+Trong `.env`, đặt `JWT_ACCESS_SECRET` (bắt buộc, ≥ 32 ký tự) và thông tin SUPER_ADMIN
+(`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`).
+
 > Nếu Corepack báo lỗi thiếu `bin/pnpm.cjs`, cache của nó bị hỏng: xoá
 > `~/.cache/node/corepack/v1/pnpm/12.6.0` rồi chạy lại `corepack enable`.
 
@@ -35,6 +38,7 @@ cp .env.example .env          # chỉnh nếu cần; mọi biến đều đượ
 docker compose up -d --build
 docker compose ps             # postgres/seaweedfs/api healthy; web/admin running
 curl localhost:4000/health    # {"status":"ok","db":"up"}
+pnpm --filter @piano-daily/api db:seed   # tạo SUPER_ADMIN từ .env (chạy trên host, trỏ tới Postgres cổng 5432)
 ```
 
 - Web: <http://localhost:3000> · Admin: <http://localhost:3001> · API: <http://localhost:4000>
@@ -48,6 +52,7 @@ Chỉ bật hạ tầng trong Docker, các app chạy trên máy:
 ```bash
 docker compose up -d postgres seaweedfs
 pnpm --filter @piano-daily/api exec prisma migrate deploy   # khi có migration mới
+pnpm --filter @piano-daily/api db:seed                      # SUPER_ADMIN từ .env (idempotent)
 pnpm dev
 ```
 
@@ -84,4 +89,5 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
 - **Log:** pino JSON (`nestjs-pino`), mỗi request có `requestId` (nhận `X-Request-Id` hợp lệ hoặc tự sinh). Không log secret, cookie, header authorization hay IP thô.
 - **Prisma:** generator `prisma-client`, output `apps/api/src/generated` (không commit), `moduleFormat = "cjs"`, `@prisma/adapter-pg`; `apps/api/prisma.config.ts` tự nạp `.env`.
 - **Phiên bản pin chính xác:** `typescript` 6.0.3; `prisma`, `@prisma/client`, `@prisma/adapter-pg` 7.10.0 (có `overrides` trong `pnpm-workspace.yaml`).
+- **Xác thực (deny-by-default):** guard JWT toàn cục; route không cần đăng nhập phải gắn `@Public()` và nằm trong allowlist của `apps/api/test/integration/public-routes.spec.ts`. Endpoint `/auth/{login,refresh,logout,me,change-password}`: access token 15 phút trong body, refresh token xoay vòng trong cookie `HttpOnly; Secure; SameSite=Strict; Path=/auth`. IP khách chỉ lấy qua `getClientIp()`.
 - **Client mỏng:** web và admin chỉ gọi API qua HTTP; ESLint chặn import Prisma/S3/pg trong hai app này.

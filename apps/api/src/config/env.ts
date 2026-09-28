@@ -22,6 +22,16 @@ export const envSchema = z.object({
     emptyAsUndefined,
     z.url({ protocol: /^postgres(ql)?$/, error: 'phải là URL postgresql://' }),
   ),
+  /** Khoá ký access JWT (HS256). */
+  JWT_ACCESS_SECRET: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(32, { error: 'cần ít nhất 32 ký tự' })
+      .refine((v) => !v.startsWith('change-me'), { error: 'vẫn là giá trị mẫu, hãy sinh khoá ngẫu nhiên' }),
+  ),
+  /** Hạn refresh token (ngày); cookie `Max-Age` khớp với hạn này. */
+  REFRESH_TOKEN_TTL_DAYS: z.preprocess(emptyAsUndefined, z.coerce.number().int().positive().max(365).default(30)),
 });
 
 export type Env = z.infer<typeof envSchema>;

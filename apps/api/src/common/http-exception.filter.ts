@@ -5,6 +5,9 @@ import { Logger } from 'nestjs-pino';
 
 const STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.BAD_REQUEST]: ErrorCode.VALIDATION_FAILED,
+  [HttpStatus.UNAUTHORIZED]: ErrorCode.UNAUTHORIZED,
+  [HttpStatus.FORBIDDEN]: ErrorCode.FORBIDDEN,
+  [HttpStatus.TOO_MANY_REQUESTS]: ErrorCode.TOO_MANY_REQUESTS,
   [HttpStatus.UNPROCESSABLE_ENTITY]: ErrorCode.VALIDATION_FAILED,
   [HttpStatus.NOT_FOUND]: ErrorCode.NOT_FOUND,
   [HttpStatus.PAYLOAD_TOO_LARGE]: ErrorCode.VALIDATION_FAILED,
@@ -16,6 +19,10 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   NOT_FOUND: 'Không tìm thấy tài nguyên được yêu cầu.',
   VALIDATION_FAILED: 'Dữ liệu gửi lên không hợp lệ.',
   SERVICE_UNAVAILABLE: 'Dịch vụ tạm thời không sẵn sàng. Vui lòng thử lại sau.',
+  UNAUTHORIZED: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
+  FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
+  INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
+  TOO_MANY_REQUESTS: 'Bạn thao tác quá nhanh. Vui lòng đợi một phút rồi thử lại.',
 };
 
 /**

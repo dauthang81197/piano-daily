@@ -65,6 +65,8 @@ services:
       PORT: 4000
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgresql://${POSTGRES_USER:-piano}:${POSTGRES_PASSWORD:-piano}@postgres:5432/${POSTGRES_DB:-piano_daily}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Thiếu JWT_ACCESS_SECRET trong .env (xem .env.example)}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
     ports:
       - '4000:4000'
     depends_on:

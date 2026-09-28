@@ -9,5 +9,5 @@
     "outDir": "dist",
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src", "test", "prisma.config.ts", "vitest.config.mts", "vitest.integration.config.mts"]
+  "include": ["src", "test", "prisma", "prisma.config.ts", "vitest.config.mts", "vitest.integration.config.mts"]
 }

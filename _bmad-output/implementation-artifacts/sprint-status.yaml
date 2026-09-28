@@ -1,0 +1,92 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 09-28-2026 10:17
+last_updated: 09-28-2026 10:17
+project: Piano Daily
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: backlog
+  1-1-khoi-tao-monorepo-va-moi-truong-local: backlog
+  1-2-api-xac-thuc-admin-voi-guard-deny-by-default: backlog
+  1-3-admin-app-dang-nhap-layout-va-doi-mat-khau: backlog
+  1-4-quan-ly-composer-genre-va-series: backlog
+  1-5-tao-va-sua-thong-tin-sheet-draft: backlog
+  1-6-upload-pdf-tu-dong-tao-thumbnail-va-anh-tung-trang: backlog
+  1-7-upload-midi-va-mp3: backlog
+  1-8-publish-archive-danh-dau-hot-va-don-file: backlog
+  1-9-seed-du-lieu-mau: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-khung-site-cong-khai-song-ngu: backlog
+  2-2-trang-duyet-theo-level: backlog
+  2-3-tu-lam-moi-cache-khi-admin-thay-doi-noi-dung: backlog
+  2-4-tim-kiem-toan-van-voi-bo-loc: backlog
+  2-5-trang-composer-va-genre: backlog
+  2-6-trang-chi-tiet-sheet: backlog
+  2-7-dem-luot-xem-chong-trung: backlog
+  2-8-midi-player-voi-phim-dan-ao: backlog
+  2-9-nghe-nhanh-ngay-tren-the-sheet: backlog
+  2-10-xem-truoc-sheet-draft-tu-admin: backlog
+  2-11-seo-metadata-json-ld-va-sitemap: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-dat-gia-sheet-va-danh-dau-mien-phi: backlog
+  3-2-tai-ngay-sheet-mien-phi: backlog
+  3-3-tao-don-hang-paypal-phia-server: backlog
+  3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent: backlog
+  3-5-tai-file-da-mua-qua-token-va-trang-tai: backlog
+  3-6-modal-thanh-toan-tren-trang-chi-tiet: backlog
+  3-7-email-link-tai-va-mua-lai-cung-email: backlog
+  3-8-webhook-paypal: backlog
+  3-9-tu-huy-don-pending-qua-han: backlog
+  3-10-dat-gia-hang-loat: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-danh-sach-va-chi-tiet-don-hang: backlog
+  4-2-gui-lai-email-va-gia-han-token: backlog
+  4-3-hoan-tien-tu-admin: backlog
+  4-4-cai-dat-site: backlog
+  4-5-quan-ly-vi-tri-quang-cao: backlog
+  4-6-hien-thi-quang-cao-tren-site-cong-khai: backlog
+  4-7-dashboard-doanh-thu-va-luot-dung: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-trien-khai-production-tren-vps-sau-cloudflare: backlog
+  5-2-backup-hang-dem-va-kiem-tra-khoi-phuc: backlog
+  5-3-ci-va-giam-sat-toi-thieu: backlog
+  5-4-checklist-bat-thanh-toan-that: backlog
+  epic-5-retrospective: optional

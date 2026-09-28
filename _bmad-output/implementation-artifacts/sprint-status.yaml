@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-28-2026 10:17
-last_updated: 09-28-2026 13:41
+last_updated: 09-28-2026 14:23
 project: Piano Daily
 project_key: NOKEY
 tracking_system: file-system
@@ -38,7 +38,7 @@ development_status:
   epic-1: in-progress
   1-1-khoi-tao-monorepo-va-moi-truong-local: review
   1-2-api-xac-thuc-admin-voi-guard-deny-by-default: review
-  1-3-admin-app-dang-nhap-layout-va-doi-mat-khau: backlog
+  1-3-admin-app-dang-nhap-layout-va-doi-mat-khau: review
   1-4-quan-ly-composer-genre-va-series: backlog
   1-5-tao-va-sua-thong-tin-sheet-draft: backlog
   1-6-upload-pdf-tu-dong-tao-thumbnail-va-anh-tung-trang: backlog

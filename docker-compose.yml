@@ -67,6 +67,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-piano}:${POSTGRES_PASSWORD:-piano}@postgres:5432/${POSTGRES_DB:-piano_daily}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Thiếu JWT_ACCESS_SECRET trong .env (xem .env.example)}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      # Origin duy nhất được CORS cho phép (kèm credentials): admin app.
+      CORS_ADMIN_ORIGIN: ${CORS_ADMIN_ORIGIN:-http://localhost:3001}
     ports:
       - '4000:4000'
     depends_on:
@@ -97,6 +99,9 @@ services:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
+      args:
+        # Inline vào bundle lúc build: URL API mà trình duyệt (trên host) gọi.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     ports:
       - '3001:3001'
     depends_on:

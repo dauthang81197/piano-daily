@@ -26,8 +26,8 @@ pnpm install
 cp .env.example .env          # chỉnh nếu cần; mọi biến đều được liệt kê ở đây
 ```
 
-Trong `.env`, đặt `JWT_ACCESS_SECRET` (bắt buộc, ≥ 32 ký tự) và thông tin SUPER_ADMIN
-(`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`).
+Trong `.env`, đặt `JWT_ACCESS_SECRET` (bắt buộc, ≥ 32 ký tự), `CORS_ADMIN_ORIGIN` (bắt buộc, origin của admin —
+mặc định `http://localhost:3001`) và thông tin SUPER_ADMIN (`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`).
 
 > Nếu Corepack báo lỗi thiếu `bin/pnpm.cjs`, cache của nó bị hỏng: xoá
 > `~/.cache/node/corepack/v1/pnpm/12.6.0` rồi chạy lại `corepack enable`.
@@ -42,6 +42,8 @@ pnpm --filter @piano-daily/api db:seed   # tạo SUPER_ADMIN từ .env (chạy t
 ```
 
 - Web: <http://localhost:3000> · Admin: <http://localhost:3001> · API: <http://localhost:4000>
+- Admin: mở <http://localhost:3001> -> chuyển về `/login`, đăng nhập bằng `ADMIN_EMAIL` / `ADMIN_PASSWORD` đã seed.
+  `NEXT_PUBLIC_API_URL` được inline lúc build (compose truyền qua `build.args`); đổi giá trị thì build lại admin.
 - Các app chạy bản build production (ổn định). API chạy `prisma migrate deploy` trước khi listen.
 - Dừng: `docker compose down` (thêm `-v` để xoá dữ liệu Postgres/SeaweedFS).
 
@@ -91,3 +93,11 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
 - **Phiên bản pin chính xác:** `typescript` 6.0.3; `prisma`, `@prisma/client`, `@prisma/adapter-pg` 7.10.0 (có `overrides` trong `pnpm-workspace.yaml`).
 - **Xác thực (deny-by-default):** guard JWT toàn cục; route không cần đăng nhập phải gắn `@Public()` và nằm trong allowlist của `apps/api/test/integration/public-routes.spec.ts`. Endpoint `/auth/{login,refresh,logout,me,change-password}`: access token 15 phút trong body, refresh token xoay vòng trong cookie `HttpOnly; Secure; SameSite=Strict; Path=/auth`. IP khách chỉ lấy qua `getClientIp()`.
 - **Client mỏng:** web và admin chỉ gọi API qua HTTP; ESLint chặn import Prisma/S3/pg trong hai app này.
+- **Phiên admin (client):** access token chỉ nằm trong bộ nhớ JS; tải lại trang thì khôi phục bằng `/auth/refresh`
+  (cookie httpOnly). Gặp 401 thì refresh một lần rồi gửi lại (`apiFetch` trong `apps/admin/src/lib/api/client.ts`).
+  Các tab tuần tự hoá refresh bằng Web Locks (`pd-auth-refresh`); đăng xuất phát tới mọi tab qua `BroadcastChannel('pd-auth')`.
+  Mọi trang admin là client component nằm sau `AuthGate` (nhóm route `(admin)`); không dùng middleware Next.
+- **CORS:** allowlist tường minh — chỉ `CORS_ADMIN_ORIGIN`, kèm `credentials`; origin khác không nhận header `Access-Control-Allow-*`. Mọi response có `Vary: Origin`.
+- **Ràng buộc triển khai (cookie refresh `Secure; SameSite=Strict`):** admin và API phải cùng *site* — cùng tên miền
+  đăng ký, vd. `admin.<domain>` và `api.<domain>` — và chạy HTTPS ở mọi nơi ngoài `localhost`. Khác site thì trình duyệt
+  không gửi cookie refresh (đăng nhập được nhưng tải lại trang là mất phiên); chạy HTTP thì cookie `Secure` không được lưu.

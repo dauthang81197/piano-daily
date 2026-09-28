@@ -3,6 +3,7 @@ import type { DynamicModule, INestApplication, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 export const TEST_JWT_ACCESS_SECRET = 'test-only-jwt-access-secret-0123456789abcdef';
+export const TEST_CORS_ADMIN_ORIGIN = 'http://admin.piano-daily.test:3001';
 
 /**
  * Dựng app Nest như production (`configureApp`) với DATABASE_URL cho trước.
@@ -16,6 +17,7 @@ export async function createApp(
   process.env.DATABASE_URL = databaseUrl;
   process.env.LOG_LEVEL = 'silent';
   process.env.JWT_ACCESS_SECRET = TEST_JWT_ACCESS_SECRET;
+  process.env.CORS_ADMIN_ORIGIN = TEST_CORS_ADMIN_ORIGIN;
   const { AppModule } = await import('../../src/app.module.js');
   const { configureApp } = await import('../../src/bootstrap.js');
   const moduleRef = await Test.createTestingModule({ imports: [AppModule, ...extraImports] }).compile();

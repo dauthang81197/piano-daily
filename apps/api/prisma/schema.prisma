@@ -1,0 +1,12 @@
+// Story 1.1: chỉ datasource + generator. Model đầu tiên (User) do Story 1.2 thêm.
+// URL kết nối nằm trong prisma.config.ts (Prisma 7).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

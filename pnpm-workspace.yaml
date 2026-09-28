@@ -1,0 +1,30 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Pin chính xác các gói có ghi chú "exact" trong bảng Stack (Architecture Spine).
+overrides:
+  typescript: 6.0.3
+  prisma: 7.10.0
+  '@prisma/client': 7.10.0
+  '@prisma/adapter-pg': 7.10.0
+
+# Chỉ các gói cần build script (binary native / engine) mới được chạy script cài đặt.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  '@swc/core': true
+  sharp: true
+  esbuild: true
+  '@nestjs/core': true
+  unrs-resolver: true
+  '@tailwindcss/oxide': true
+
+minimumReleaseAgeExclude:
+  - '@turbo/darwin-64@2.11.5'
+  - '@turbo/darwin-arm64@2.11.5'
+  - '@turbo/linux-64@2.11.5'
+  - '@turbo/linux-arm64@2.11.5'
+  - '@turbo/windows-64@2.11.5'
+  - '@turbo/windows-arm64@2.11.5'
+  - turbo@2.11.5

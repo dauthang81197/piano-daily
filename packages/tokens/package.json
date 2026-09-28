@@ -1,0 +1,26 @@
+{
+  "name": "@piano-daily/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design token \"Ivory & Walnut\" dạng Tailwind v4 @theme.",
+  "files": [
+    "theme.css"
+  ],
+  "exports": {
+    "./theme.css": {
+      "style": "./theme.css",
+      "default": "./theme.css"
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "vitest": "5.0.2",
+    "typescript": "6.0.3"
+  },
+  "type": "module"
+}

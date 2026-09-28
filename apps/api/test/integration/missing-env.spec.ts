@@ -19,6 +19,7 @@ describe('Khởi động API khi thiếu biến môi trường', () => {
         PATH: process.env.PATH ?? '',
         DATABASE_URL: '',
         JWT_ACCESS_SECRET: 'test-only-jwt-access-secret-0123456789abcdef',
+        CORS_ADMIN_ORIGIN: 'http://localhost:3001',
       },
       encoding: 'utf8',
       timeout: 15_000,

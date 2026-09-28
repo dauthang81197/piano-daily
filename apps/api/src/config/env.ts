@@ -32,6 +32,16 @@ export const envSchema = z.object({
   ),
   /** Hạn refresh token (ngày); cookie `Max-Age` khớp với hạn này. */
   REFRESH_TOKEN_TTL_DAYS: z.preprocess(emptyAsUndefined, z.coerce.number().int().positive().max(365).default(30)),
+  /**
+   * Origin của admin app — origin duy nhất được CORS cho phép (kèm `credentials`).
+   * Chuẩn hoá về dạng `scheme://host[:port]` (bỏ path, dấu `/` cuối) để so khớp đúng header `Origin`.
+   */
+  CORS_ADMIN_ORIGIN: z.preprocess(
+    emptyAsUndefined,
+    z
+      .url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })
+      .transform((value) => new URL(value).origin),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

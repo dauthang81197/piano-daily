@@ -20,6 +20,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lo
 COPY --from=pruner /repo/out/full/ .
 # turbo prune không mang theo file cấu hình gốc dùng chung.
 COPY --from=pruner /repo/tsconfig.base.json ./
+# URL API mà trình duyệt gọi: `NEXT_PUBLIC_*` được Next inline vào bundle lúc build, nên phải có ở bước build
+# (compose truyền qua `build.args`). Đổi URL thì phải build lại image.
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm turbo run build --filter=@piano-daily/admin
 
 FROM node:24.21-bookworm-slim AS runner

@@ -85,7 +85,15 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  /*
+   * Focus ring brass 2px, độ đậm đầy đủ trên mọi phần tử bấm được (UX-DR16). Component shadcn tự vẽ
+   * `ring-2 ring-ring` (và `outline-none`); đây là mặc định cho phần tử thuần (link, button, input…).
+   */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   html {
     @apply font-sans;

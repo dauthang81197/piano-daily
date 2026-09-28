@@ -4,6 +4,7 @@ import { EnvValidationError, validateEnv } from '../../src/config/env';
 const valid = {
   DATABASE_URL: 'postgresql://piano:piano@localhost:5432/piano_daily',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
+  CORS_ADMIN_ORIGIN: 'http://localhost:3001',
 };
 
 describe('validateEnv', () => {
@@ -41,6 +42,29 @@ describe('validateEnv', () => {
     }
   });
 
+  it('CORS_ADMIN_ORIGIN chuẩn hoá về origin (bỏ path và dấu / cuối)', () => {
+    expect(validateEnv({ ...valid, CORS_ADMIN_ORIGIN: 'https://admin.example.com/' }).CORS_ADMIN_ORIGIN).toBe(
+      'https://admin.example.com',
+    );
+    expect(validateEnv({ ...valid, CORS_ADMIN_ORIGIN: 'http://localhost:3001/login' }).CORS_ADMIN_ORIGIN).toBe(
+      'http://localhost:3001',
+    );
+  });
+
+  it.each([
+    ['thiếu', undefined, 'CORS_ADMIN_ORIGIN (thiếu)'],
+    ['không phải URL', 'localhost:3001', 'CORS_ADMIN_ORIGIN'],
+    ['không phải http(s)', 'ftp://admin.example.com', 'CORS_ADMIN_ORIGIN'],
+  ])('CORS_ADMIN_ORIGIN %s -> lỗi nêu tên biến', (_label, origin, expected) => {
+    try {
+      validateEnv({ ...valid, CORS_ADMIN_ORIGIN: origin });
+      expect.unreachable();
+    } catch (err) {
+      expect((err as EnvValidationError).variables).toEqual(['CORS_ADMIN_ORIGIN']);
+      expect((err as Error).message).toContain(expected);
+    }
+  });
+
   it('ép kiểu PORT sang số', () => {
     expect(validateEnv({ ...valid, PORT: '5000' }).PORT).toBe(5000);
   });
@@ -50,7 +74,7 @@ describe('validateEnv', () => {
     ['rỗng', { DATABASE_URL: '' }],
   ])('DATABASE_URL %s -> lỗi nêu tên biến', (_label, raw) => {
     try {
-      validateEnv({ JWT_ACCESS_SECRET: valid.JWT_ACCESS_SECRET, ...raw });
+      validateEnv({ JWT_ACCESS_SECRET: valid.JWT_ACCESS_SECRET, CORS_ADMIN_ORIGIN: valid.CORS_ADMIN_ORIGIN, ...raw });
       expect.unreachable();
     } catch (err) {
       expect(err).toBeInstanceOf(EnvValidationError);
@@ -75,6 +99,7 @@ describe('validateEnv', () => {
       expect.unreachable();
     } catch (err) {
       expect((err as EnvValidationError).variables.sort()).toEqual([
+        'CORS_ADMIN_ORIGIN',
         'DATABASE_URL',
         'JWT_ACCESS_SECRET',
         'LOG_LEVEL',

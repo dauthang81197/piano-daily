@@ -13,7 +13,8 @@
     "JWT_ACCESS_SECRET",
     "REFRESH_TOKEN_TTL_DAYS",
     "NEXT_PUBLIC_API_URL",
-    "API_INTERNAL_URL"
+    "API_INTERNAL_URL",
+    "CORS_ADMIN_ORIGIN"
   ],
   "tasks": {
     "generate": {
@@ -29,6 +30,9 @@
       "dependsOn": [
         "^build",
         "generate"
+      ],
+      "env": [
+        "NEXT_PUBLIC_API_URL"
       ],
       "outputs": [
         "dist/**",

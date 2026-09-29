@@ -7,7 +7,7 @@ import type { Prisma } from '../../generated/client';
  *
  * - `has_chords` = lyrics & chords không rỗng; `has_video` = có `youtube_url` (Story 1.5).
  * - `has_sheet` = có PDF hiện hành; `page_count` = số PAGE_IMAGE hiện hành (Story 1.6).
- * - `has_midi`, `has_mp3` giữ nguyên (Story 1.7).
+ * - `has_midi` = có MIDI hiện hành; `has_mp3` = có MP3 hiện hành (Story 1.7).
  */
 export async function recomputeDerived(sheetId: string, tx: Prisma.TransactionClient): Promise<void> {
   const rows = await tx.$queryRaw<{ lyrics_chords: string | null; youtube_url: string | null }[]>`
@@ -17,6 +17,8 @@ export async function recomputeDerived(sheetId: string, tx: Prisma.TransactionCl
   // Tuần tự: cùng một kết nối của transaction.
   const pdfCount = await tx.sheetFile.count({ where: { sheetId, type: 'PDF', supersededAt: null } });
   const pageCount = await tx.sheetFile.count({ where: { sheetId, type: 'PAGE_IMAGE', supersededAt: null } });
+  const midiCount = await tx.sheetFile.count({ where: { sheetId, type: 'MIDI', supersededAt: null } });
+  const mp3Count = await tx.sheetFile.count({ where: { sheetId, type: 'MP3', supersededAt: null } });
   await tx.sheet.update({
     where: { id: sheetId },
     data: {
@@ -24,6 +26,8 @@ export async function recomputeDerived(sheetId: string, tx: Prisma.TransactionCl
       hasVideo: Boolean(row.youtube_url),
       hasSheet: pdfCount > 0,
       pageCount,
+      hasMidi: midiCount > 0,
+      hasMp3: mp3Count > 0,
     },
   });
 }

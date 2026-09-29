@@ -241,6 +241,38 @@ export const sheetPdfSchema = z.object({
 });
 export type SheetPdf = z.infer<typeof sheetPdfSchema>;
 
+/**
+ * Thông tin MIDI hiện hành (Story 1.7). `noteJsonUrl` là URL public của note-JSON dẫn xuất
+ * (`MIDI_JSON`, ghi một lần lúc upload) — file `.mid` gốc không bao giờ có URL public (AD-7).
+ */
+export const sheetMidiSchema = z.object({
+  originalName: z.string().nullable(),
+  size: z.number().int().nonnegative(),
+  uploadedAt: z.string(),
+  durationSeconds: z.number().nonnegative(),
+  noteCount: z.number().int().nonnegative(),
+  noteJsonUrl: z.string(),
+});
+export type SheetMidi = z.infer<typeof sheetMidiSchema>;
+
+/**
+ * Thông tin MP3 hiện hành (Story 1.7). `previewUrl` là presigned GET URL ngắn hạn (TTL 5 phút, sinh
+ * lại mỗi lần response) cho admin nghe thử — file gốc không bao giờ có URL public (AD-6, AD-7).
+ */
+export const sheetMp3Schema = z.object({
+  originalName: z.string().nullable(),
+  size: z.number().int().nonnegative(),
+  uploadedAt: z.string(),
+  previewUrl: z.string(),
+});
+export type SheetMp3 = z.infer<typeof sheetMp3Schema>;
+
+/** Loại file gỡ được qua `DELETE /admin/sheets/:id/files/:type` (chữ thường, so khớp không phân biệt hoa thường). */
+export const REMOVABLE_FILE_TYPES = ['pdf', 'midi', 'mp3'] as const;
+export type RemovableFileType = (typeof REMOVABLE_FILE_TYPES)[number];
+export const REMOVE_FILE_TYPE_ERROR = 'Loại file không hợp lệ. Chỉ gỡ được pdf, midi hoặc mp3.';
+export const removeFileTypeSchema = z.enum(REMOVABLE_FILE_TYPES, { error: REMOVE_FILE_TYPE_ERROR });
+
 export const sheetSchema = z.object({
   id: z.string(),
   publicId: z.number().int().positive(),
@@ -267,6 +299,8 @@ export const sheetSchema = z.object({
   /** Ảnh từng trang của PDF hiện hành, theo thứ tự trang. */
   pages: z.array(sheetPageSchema),
   pdf: sheetPdfSchema.nullable(),
+  midi: sheetMidiSchema.nullable(),
+  mp3: sheetMp3Schema.nullable(),
   viewCount: z.number().int().nonnegative(),
   isHot: z.boolean(),
   status: sheetStatusSchema,

@@ -1,14 +1,19 @@
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env';
+
+/** TTL mặc định của presigned URL cho preview MP3 (5 phút, tinh thần AD-6: "chỉ phát signed URL ngắn hạn"). */
+const DEFAULT_PRESIGN_TTL_SECONDS = 300;
 
 /** Vùng lưu trữ: prefix đầu tiên của key quyết định bucket. */
 export type StorageZone = 'public' | 'private';
@@ -110,6 +115,16 @@ export class StorageService implements OnModuleInit, OnModuleDestroy {
   publicUrl(key: string): string {
     if (zoneOf(key) !== 'public') throw new Error('Không có URL public cho object private');
     return `${this.publicBaseUrl}/${key}`;
+  }
+
+  /**
+   * Presigned GET URL ngắn hạn cho object private (admin preview MP3, AD-6). Chỉ nhận key `private/`;
+   * tính HMAC cục bộ (không round-trip S3). Sinh lại mỗi lần gọi, không lưu DB.
+   */
+  presignPrivateUrl(key: string, ttlSeconds = DEFAULT_PRESIGN_TTL_SECONDS): Promise<string> {
+    if (zoneOf(key) !== 'private') throw new Error('presignPrivateUrl chỉ nhận key private/');
+    const command = new GetObjectCommand({ Bucket: this.buckets.private, Key: key });
+    return getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
   }
 
   private async put(zone: StorageZone, key: string, body: Buffer, contentType: string): Promise<void> {

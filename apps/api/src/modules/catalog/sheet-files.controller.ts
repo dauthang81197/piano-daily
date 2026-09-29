@@ -3,12 +3,15 @@ import {
   Body,
   type CallHandler,
   Controller,
+  Delete,
   type ExecutionContext,
+  HttpCode,
   HttpStatus,
   Injectable,
   type NestInterceptor,
   Param,
   PayloadTooLargeException,
+  type PipeTransform,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -17,9 +20,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ErrorCode,
   PDF_MAX_BYTES,
-  PDF_TOO_LARGE_MESSAGE,
+  removeFileTypeSchema,
   type Sheet,
+  UPLOAD_HARD_LIMIT_MESSAGE,
   uploadFileTypeSchema,
+  type UploadableFileType,
 } from '@piano-daily/shared';
 import type { Observable } from 'rxjs';
 import { z } from 'zod';
@@ -33,12 +38,17 @@ interface MulterFile {
   originalname: string;
 }
 
-/** Field text của multipart: chỉ `type` (Story 1.6: `PDF`). Field lạ bị bỏ qua. */
+/** Field text của multipart: `type` (Story 1.7: `PDF`, `MIDI` hoặc `MP3`). Field lạ bị bỏ qua. */
 const uploadBodySchema = z.object({ type: uploadFileTypeSchema }, { error: 'Thiếu field type.' });
 type UploadBody = z.output<typeof uploadBodySchema>;
 
-/** Multer (bộ nhớ) cho field `file`: tối đa 20MB, một file, ít field. Tên file trong multipart đọc theo UTF-8. */
-const MulterPdfInterceptor = FileInterceptor('file', {
+/**
+ * Multer (bộ nhớ) cho field `file`: trần cứng dùng chung `PDF_MAX_BYTES` (20MB) cho MỌI type — DoS guard
+ * trước khi biết `type` (busboy có thể đọc field `file` trước field `type` trong multipart), tránh phụ
+ * thuộc thứ tự field. `SheetsService` kiểm dung lượng chính xác theo `type` sau khi đã nhận đủ file
+ * (vd. MIDI > 2MB → 413 với thông điệp riêng).
+ */
+const MulterSheetFileInterceptor = FileInterceptor('file', {
   limits: { fileSize: PDF_MAX_BYTES, files: 1, fields: 10, parts: 12 },
   defParamCharset: 'utf8',
 });
@@ -51,15 +61,15 @@ const MULTIPART_INVALID_MESSAGE =
  * (field file sai tên, quá nhiều file/part, multipart hỏng) thành 400 `VALIDATION_FAILED` tại `file`.
  */
 @Injectable()
-class PdfUploadInterceptor implements NestInterceptor {
-  private readonly multer = new MulterPdfInterceptor();
+class SheetFileUploadInterceptor implements NestInterceptor {
+  private readonly multer = new MulterSheetFileInterceptor();
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     try {
       return await this.multer.intercept(context, next);
     } catch (err) {
       if (err instanceof PayloadTooLargeException) {
-        throw new AppException(ErrorCode.FILE_TOO_LARGE, HttpStatus.PAYLOAD_TOO_LARGE, PDF_TOO_LARGE_MESSAGE);
+        throw new AppException(ErrorCode.FILE_TOO_LARGE, HttpStatus.PAYLOAD_TOO_LARGE, UPLOAD_HARD_LIMIT_MESSAGE);
       }
       if (err instanceof BadRequestException) {
         throw new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, [
@@ -71,24 +81,53 @@ class PdfUploadInterceptor implements NestInterceptor {
   }
 }
 
-/** Upload file của Sheet (Story 1.6: PDF). Route `/admin/*` được guard JWT global bảo vệ. */
+/**
+ * `:type` của `DELETE /admin/sheets/:id/files/:type` — chữ thường, không phân biệt hoa thường
+ * (`removeFileTypeSchema`); sai thì 400 `VALIDATION_FAILED` tại `type`.
+ */
+@Injectable()
+class RemoveFileTypeParamPipe implements PipeTransform<string, UploadableFileType> {
+  transform(value: string): UploadableFileType {
+    const result = removeFileTypeSchema.safeParse(value.toLowerCase());
+    if (!result.success) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, [
+        { path: 'type', message: result.error.issues[0]?.message ?? 'Loại file không hợp lệ.' },
+      ]);
+    }
+    return result.data.toUpperCase() as UploadableFileType;
+  }
+}
+
+/** Upload/gỡ file của Sheet (Story 1.6: PDF; Story 1.7: MIDI, MP3). Route `/admin/*` được guard JWT global bảo vệ. */
 @Controller('admin/sheets')
 export class SheetFilesController {
   constructor(private readonly sheets: SheetsService) {}
 
   @Post(':id/files')
-  @UseInterceptors(PdfUploadInterceptor)
+  @UseInterceptors(SheetFileUploadInterceptor)
   upload(
     @Param('id', UuidParamPipe) id: string,
-    @Body({ schema: uploadBodySchema }) _body: UploadBody,
+    @Body({ schema: uploadBodySchema }) body: UploadBody,
     @UploadedFile() file: MulterFile | undefined,
   ): Promise<Sheet> {
     if (!file) {
       throw new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, [
-        { path: 'file', message: 'Vui lòng chọn file PDF để upload.' },
+        { path: 'file', message: 'Vui lòng chọn file để upload.' },
       ]);
     }
-    return this.sheets.attachPdf(id, { buffer: file.buffer, originalName: decodeOriginalName(file.originalname) });
+    return this.sheets.attachFile(id, body.type, {
+      buffer: file.buffer,
+      originalName: decodeOriginalName(file.originalname),
+    });
+  }
+
+  @Delete(':id/files/:type')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Param('id', UuidParamPipe) id: string,
+    @Param('type', RemoveFileTypeParamPipe) type: UploadableFileType,
+  ): Promise<void> {
+    await this.sheets.removeFile(id, type);
   }
 }
 

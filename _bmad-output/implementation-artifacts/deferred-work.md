@@ -31,3 +31,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-upload-pdf-tu-dong-tao-thumbnail-va-anh-tung-trang.md`
   summary: Thêm integration test cho việc khoá dòng sheet (`FOR UPDATE`) khi hai upload vào cùng một Sheet chạy đồng thời (cần hook để giữ một transaction mở).
   evidence: Verification-gap review Story 1.6 (disposition defer).
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-upload-midi-va-mp3.md`
+  summary: Cron GC (Story 1.8) khi dọn file superseded phải tôn trọng cặp MIDI/MIDI_JSON (và PDF/THUMBNAIL/PAGE_IMAGE): không bao giờ để một dòng MIDI hiện hành tồn tại mà thiếu MIDI_JSON đi kèm, hoặc ngược lại.
+  evidence: Review Story 1.7 (Blind Hunter): hiện tại được đảm bảo bởi transaction ghi/supersede đồng thời cả hai; chỉ là rủi ro tiềm ẩn cho logic GC viết sau.

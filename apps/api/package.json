@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1141.0",
+    "@aws-sdk/s3-request-presigner": "3.1141.0",
     "@nestjs/common": "12.1.0",
     "@nestjs/config": "12.0.1",
     "@nestjs/core": "12.1.0",
@@ -31,6 +32,7 @@
     "@piano-daily/shared": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "@tonejs/midi": "2.0.28",
     "bcryptjs": "3.0.3",
     "cookie-parser": "1.4.7",
     "dotenv": "18.0.4",

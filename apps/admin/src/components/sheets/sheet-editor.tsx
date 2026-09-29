@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import { isApiError } from '@/lib/api/client';
 import { sheetsApi } from '@/lib/api/sheets';
+import { MidiUploader } from './midi-uploader';
+import { Mp3Uploader } from './mp3-uploader';
 import { PdfUploader } from './pdf-uploader';
 import { SheetForm } from './sheet-form';
 
@@ -68,6 +70,8 @@ export function SheetEditPage({ id }: { id: string }) {
       {!sheet && !error && <p className="text-muted-foreground">Đang tải…</p>}
       {/* Upload xong chỉ cập nhật dữ liệu Sheet của trang; form giữ nguyên các trường đang sửa (không đổi key). */}
       {sheet && <PdfUploader sheet={sheet} onUploaded={setSheet} />}
+      {sheet && <MidiUploader sheet={sheet} onUploaded={setSheet} />}
+      {sheet && <Mp3Uploader sheet={sheet} onUploaded={setSheet} />}
       {/* key: dựng lại form khi tải xong để defaultValues lấy dữ liệu của Sheet. */}
       {sheet && <SheetForm key={sheet.id} sheet={sheet} onSaved={setSheet} />}
     </section>

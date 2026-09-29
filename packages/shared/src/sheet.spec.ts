@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createSheetSchema,
   parseYoutubeUrl,
+  removeFileTypeSchema,
   sheetListQuerySchema,
   sheetSchema,
   updateSheetSchema,
@@ -175,6 +176,8 @@ describe('sheetSchema', () => {
       thumbnailUrl: null,
       pages: [],
       pdf: null,
+      midi: null,
+      mp3: null,
       viewCount: 0,
       isHot: false,
       status: 'DRAFT',
@@ -190,8 +193,35 @@ describe('sheetSchema', () => {
       thumbnailUrl: 'http://localhost:8333/b/public/sheets/x/THUMBNAIL/h.webp',
       pages: [{ pageNumber: 1, url: 'http://localhost:8333/b/public/sheets/x/PAGE_IMAGE/h-p1.webp' }],
       pdf: { originalName: 'fur-elise.pdf', size: 1234, uploadedAt: '2026-09-29T00:00:00.000Z' },
+      hasMidi: true,
+      midi: {
+        originalName: 'fur-elise.mid',
+        size: 512,
+        uploadedAt: '2026-09-29T00:00:00.000Z',
+        durationSeconds: 12.5,
+        noteCount: 40,
+        noteJsonUrl: 'http://localhost:8333/b/public/sheets/x/MIDI_JSON/h.json',
+      },
+      hasMp3: true,
+      mp3: {
+        originalName: 'fur-elise.mp3',
+        size: 4096,
+        uploadedAt: '2026-09-29T00:00:00.000Z',
+        previewUrl: 'http://localhost:8333/b/private/sheets/x/MP3/h.mp3?X-Amz-Signature=abc',
+      },
     };
     expect(sheetSchema.safeParse(withPdf).success).toBe(true);
     expect(sheetSchema.safeParse({ ...sheet, pages: [{ pageNumber: 0, url: 'x' }] }).success).toBe(false);
+    expect(sheetSchema.safeParse({ ...sheet, midi: undefined }).success).toBe(false);
+    expect(sheetSchema.safeParse({ ...sheet, mp3: undefined }).success).toBe(false);
+  });
+});
+
+describe('removeFileTypeSchema', () => {
+  it('chỉ nhận pdf|midi|mp3 chữ thường', () => {
+    for (const ok of ['pdf', 'midi', 'mp3']) expect(removeFileTypeSchema.parse(ok)).toBe(ok);
+    for (const bad of ['PDF', 'Midi', 'png', '', 'thumbnail', 'midi_json']) {
+      expect(removeFileTypeSchema.safeParse(bad).success, bad).toBe(false);
+    }
   });
 });

@@ -42,6 +42,8 @@ const SHEET: Sheet = {
   thumbnailUrl: null,
   pages: [],
   pdf: null,
+  midi: null,
+  mp3: null,
   viewCount: 0,
   isHot: false,
   status: 'DRAFT',

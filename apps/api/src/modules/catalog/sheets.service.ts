@@ -3,22 +3,40 @@ import {
   type CreateSheetBody,
   ErrorCode,
   FileType,
+  hasMidiMagic,
+  hasMp3Magic,
   hasPdfMagic,
   type Level,
+  MIDI_MAX_BYTES,
+  MIDI_TOO_LARGE_MESSAGE,
+  MIDI_WRONG_TYPE_MESSAGE,
+  MP3_MAX_BYTES,
+  MP3_TOO_LARGE_MESSAGE,
+  MP3_WRONG_TYPE_MESSAGE,
   type Page,
+  PDF_MAX_BYTES,
+  PDF_TOO_LARGE_MESSAGE,
+  PDF_WRONG_TYPE_MESSAGE,
   type Sheet,
   type SheetListItem,
   type SheetListQuery,
   type SheetStatus,
   slugify,
   type UpdateSheetBody,
+  type UploadableFileType,
 } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
 import type { ValidationDetail } from '../../common/validation';
 import type { Prisma } from '../../generated/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PdfProcessingError } from '../media/pdf-processor';
-import { type PdfUpload, SheetMediaService, type StoredFile, StorageWriteError } from '../media/sheet-media.service';
+import {
+  type MediaUpload,
+  MidiProcessingError,
+  SheetMediaService,
+  type StoredFile,
+  StorageWriteError,
+} from '../media/sheet-media.service';
 import { StorageService } from '../media/storage.service';
 import { notFound } from './catalog.helpers';
 import { isPrismaError } from './prisma-errors';
@@ -54,10 +72,24 @@ const SELECT = {
   composer: REF,
   series: REF,
   genres: { select: { genre: REF }, orderBy: { genre: { name: 'asc' } } },
-  // File hiện hành phục vụ response (PDF chỉ lấy metadata; key private không bao giờ ra khỏi service).
+  // File hiện hành phục vụ response (PDF/MIDI chỉ lấy metadata; key private không bao giờ ra khỏi service).
   files: {
-    where: { supersededAt: null, type: { in: [FileType.PDF, FileType.THUMBNAIL, FileType.PAGE_IMAGE] } },
-    select: { type: true, storageKey: true, originalName: true, size: true, pageNumber: true, createdAt: true },
+    where: {
+      supersededAt: null,
+      type: {
+        in: [FileType.PDF, FileType.THUMBNAIL, FileType.PAGE_IMAGE, FileType.MIDI, FileType.MIDI_JSON, FileType.MP3],
+      },
+    },
+    select: {
+      type: true,
+      storageKey: true,
+      originalName: true,
+      size: true,
+      pageNumber: true,
+      durationSeconds: true,
+      noteCount: true,
+      createdAt: true,
+    },
     orderBy: [{ pageNumber: 'asc' }, { id: 'asc' }],
   },
 } as const satisfies Prisma.SheetSelect;
@@ -79,13 +111,23 @@ type SheetListRow = Prisma.SheetGetPayload<{ select: typeof LIST_SELECT }>;
 
 /** URL public của một key thuộc vùng public. */
 type PublicUrl = (key: string) => string;
+/** Presigned GET URL ngắn hạn của một key thuộc vùng private (TTL mặc định của `StorageService`). */
+type PresignUrl = (key: string) => Promise<string>;
 
-function toSheet(
+/**
+ * Sinh presigned URL cho `mp3.previewUrl` nên không còn thuần đồng bộ (`getSignedUrl` trả `Promise`
+ * dù chỉ tính HMAC cục bộ, không round-trip S3).
+ */
+async function toSheet(
   { genres, files, level, status, firstPublishedAt, createdAt, updatedAt, ...row }: SheetRow,
   publicUrl: PublicUrl,
-): Sheet {
+  presignUrl: PresignUrl,
+): Promise<Sheet> {
   const pdf = files.find((f) => f.type === FileType.PDF);
   const thumbnail = files.find((f) => f.type === FileType.THUMBNAIL);
+  const midi = files.find((f) => f.type === FileType.MIDI);
+  const midiJson = files.find((f) => f.type === FileType.MIDI_JSON);
+  const mp3 = files.find((f) => f.type === FileType.MP3);
   return {
     ...row,
     thumbnailUrl: thumbnail ? publicUrl(thumbnail.storageKey) : null,
@@ -93,6 +135,25 @@ function toSheet(
       .filter((f) => f.type === FileType.PAGE_IMAGE && f.pageNumber !== null)
       .map((f) => ({ pageNumber: f.pageNumber!, url: publicUrl(f.storageKey) })),
     pdf: pdf ? { originalName: pdf.originalName, size: pdf.size, uploadedAt: pdf.createdAt.toISOString() } : null,
+    midi:
+      midi && midiJson
+        ? {
+            originalName: midi.originalName,
+            size: midi.size,
+            uploadedAt: midi.createdAt.toISOString(),
+            durationSeconds: midi.durationSeconds ?? 0,
+            noteCount: midi.noteCount ?? 0,
+            noteJsonUrl: publicUrl(midiJson.storageKey),
+          }
+        : null,
+    mp3: mp3
+      ? {
+          originalName: mp3.originalName,
+          size: mp3.size,
+          uploadedAt: mp3.createdAt.toISOString(),
+          previewUrl: await presignUrl(mp3.storageKey),
+        }
+      : null,
     level: level as Level,
     status: status as SheetStatus,
     genres: genres.map((g) => g.genre),
@@ -130,20 +191,55 @@ function fileRow(sheetId: string, file: StoredFile, sourceFileId: string | null)
     size: file.size,
     mimeType: file.mimeType,
     pageNumber: file.pageNumber,
+    durationSeconds: file.durationSeconds ?? null,
+    noteCount: file.noteCount ?? null,
     sourceFileId,
   };
 }
 
-/** File upload đã qua multer (bộ nhớ). */
-export interface UploadedPdf {
+/** File upload đã qua multer (bộ nhớ), dùng chung cho PDF/MIDI/MP3 (Story 1.7). */
+export interface UploadedSheetFile {
   buffer: Buffer;
   originalName: string | null;
 }
+
+/**
+ * Nhóm type cùng được supersede khi upload/gỡ một type: PDF kéo theo THUMBNAIL/PAGE_IMAGE, MIDI kéo theo
+ * MIDI_JSON (đối xứng); MP3 chỉ có chính nó.
+ */
+const SUPERSEDE_GROUPS: Record<UploadableFileType, FileType[]> = {
+  [FileType.PDF]: [FileType.PDF, FileType.THUMBNAIL, FileType.PAGE_IMAGE],
+  [FileType.MIDI]: [FileType.MIDI, FileType.MIDI_JSON],
+  [FileType.MP3]: [FileType.MP3],
+};
+
+const MAGIC_CHECK: Record<UploadableFileType, (bytes: Buffer) => boolean> = {
+  PDF: hasPdfMagic,
+  MIDI: hasMidiMagic,
+  MP3: hasMp3Magic,
+};
+const WRONG_TYPE_MESSAGE: Record<UploadableFileType, string> = {
+  PDF: PDF_WRONG_TYPE_MESSAGE,
+  MIDI: MIDI_WRONG_TYPE_MESSAGE,
+  MP3: MP3_WRONG_TYPE_MESSAGE,
+};
+const TOO_LARGE_MESSAGE: Record<UploadableFileType, string> = {
+  PDF: PDF_TOO_LARGE_MESSAGE,
+  MIDI: MIDI_TOO_LARGE_MESSAGE,
+  MP3: MP3_TOO_LARGE_MESSAGE,
+};
+const MAX_BYTES: Record<UploadableFileType, number> = {
+  PDF: PDF_MAX_BYTES,
+  MIDI: MIDI_MAX_BYTES,
+  MP3: MP3_MAX_BYTES,
+};
+const FILE_NOT_FOUND_MESSAGE = 'Không tìm thấy file hiện hành của loại này.';
 
 @Injectable()
 export class SheetsService {
   private readonly logger = new Logger(SheetsService.name);
   private readonly publicUrl: PublicUrl;
+  private readonly presignUrl: PresignUrl;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -151,6 +247,7 @@ export class SheetsService {
     storage: StorageService,
   ) {
     this.publicUrl = (key) => storage.publicUrl(key);
+    this.presignUrl = (key) => storage.presignPrivateUrl(key);
   }
 
   async list(query: SheetListQuery): Promise<Page<SheetListItem>> {
@@ -182,7 +279,7 @@ export class SheetsService {
   async get(id: string): Promise<Sheet> {
     const row = await this.prisma.sheet.findUnique({ where: { id }, select: SELECT });
     if (!row) throw notFound(SHEET_NOT_FOUND);
-    return toSheet(row, this.publicUrl);
+    return toSheet(row, this.publicUrl, this.presignUrl);
   }
 
   /** Luôn tạo ở trạng thái DRAFT; slug sinh từ tiêu đề. */
@@ -216,7 +313,7 @@ export class SheetsService {
           return tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
         }),
       );
-      return toSheet(row, this.publicUrl);
+      return toSheet(row, this.publicUrl, this.presignUrl);
     } catch (err) {
       // Composer/Series/Genre bị xoá giữa lúc kiểm tra và lúc ghi.
       if (isPrismaError(err, 'P2003')) {
@@ -281,7 +378,7 @@ export class SheetsService {
       const row = regenerateSlug
         ? await createWithUniqueSlug(this.takenSlugs(id), baseSlug(body.title!, 'sheet'), write)
         : await write();
-      return toSheet(row, this.publicUrl);
+      return toSheet(row, this.publicUrl, this.presignUrl);
     } catch (err) {
       if (isPrismaError(err, 'P2025')) throw notFound(SHEET_NOT_FOUND);
       if (isPrismaError(err, 'P2003')) {
@@ -293,60 +390,104 @@ export class SheetsService {
   }
 
   /**
-   * Upload PDF (AD-9, đồng bộ): kiểm magic bytes → `media` render + ghi mọi object → MỘT transaction
-   * (supersede PDF/ảnh hiện hành, insert PDF mới + THUMBNAIL + PAGE_IMAGE, `recomputeDerived`).
+   * Upload file của Sheet (AD-9, đồng bộ; Story 1.7 mở rộng PDF sang MIDI/MP3): kiểm magic bytes + dung
+   * lượng theo `type` → `media` xử lý + ghi mọi object → MỘT transaction (supersede file hiện hành cùng
+   * nhóm, insert file mới (+ file dẫn xuất nếu có), `recomputeDerived`).
    * Lỗi ở bất kỳ bước nào thì xoá mọi object đã ghi trong request này và DB không đổi.
    */
-  async attachPdf(id: string, upload: UploadedPdf): Promise<Sheet> {
+  async attachFile(id: string, type: UploadableFileType, upload: UploadedSheetFile): Promise<Sheet> {
     const exists = await this.prisma.sheet.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw notFound(SHEET_NOT_FOUND);
-    if (!hasPdfMagic(upload.buffer)) {
-      throw new AppException(
-        ErrorCode.UNSUPPORTED_FILE_TYPE,
-        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-        'File không phải PDF (nội dung không bắt đầu bằng %PDF-). Hãy chọn đúng file .pdf.',
-      );
-    }
+    this.validateUpload(type, upload.buffer);
 
-    let stored;
+    let stored: { primary: StoredFile; derived: StoredFile[]; keys: string[] };
     try {
-      stored = await this.media.storePdf(id, upload satisfies PdfUpload);
+      stored = await this.storeByType(id, type, upload);
     } catch (err) {
-      if (err instanceof PdfProcessingError) {
+      if (err instanceof PdfProcessingError || err instanceof MidiProcessingError) {
         throw new AppException(ErrorCode.FILE_PROCESSING_FAILED, HttpStatus.UNPROCESSABLE_ENTITY, err.reason, {
           reason: err.reason,
         });
       }
       if (err instanceof StorageWriteError) {
-        this.logger.error({ err: err.cause, sheetId: id }, 'Ghi object upload PDF thất bại, xoá object vừa ghi');
+        this.logger.error({ err: err.cause, sheetId: id, type }, 'Ghi object upload thất bại, xoá object vừa ghi');
         await this.discardUnreferenced(err.keys);
         throw err.cause;
       }
       throw err;
     }
 
+    const supersedeTypes = SUPERSEDE_GROUPS[type];
     try {
       const row = await this.prisma.$transaction(async (tx) => {
         // Khoá Sheet: upload đồng thời trên cùng Sheet chạy tuần tự (không vi phạm partial unique index).
         const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
         if (!locked.length) throw notFound(SHEET_NOT_FOUND);
         await tx.sheetFile.updateMany({
-          where: { sheetId: id, supersededAt: null, type: { in: [FileType.PDF, FileType.THUMBNAIL, FileType.PAGE_IMAGE] } },
+          where: { sheetId: id, supersededAt: null, type: { in: supersedeTypes } },
           data: { supersededAt: new Date() },
         });
-        const pdf = await tx.sheetFile.create({ data: fileRow(id, stored.pdf, null), select: { id: true } });
-        await tx.sheetFile.createMany({
-          data: [stored.thumbnail, ...stored.pages].map((file) => fileRow(id, file, pdf.id)),
-        });
+        const primary = await tx.sheetFile.create({ data: fileRow(id, stored.primary, null), select: { id: true } });
+        if (stored.derived.length) {
+          await tx.sheetFile.createMany({ data: stored.derived.map((file) => fileRow(id, file, primary.id)) });
+        }
         await recomputeDerived(id, tx);
         return tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
       });
-      return toSheet(row, this.publicUrl);
+      return toSheet(row, this.publicUrl, this.presignUrl);
     } catch (err) {
-      this.logger.error({ err, sheetId: id }, 'Commit upload PDF thất bại, xoá object vừa ghi');
+      this.logger.error({ err, sheetId: id, type }, 'Commit upload thất bại, xoá object vừa ghi');
       await this.discardUnreferenced(stored.keys);
       throw err;
     }
+  }
+
+  /**
+   * Gỡ file hiện hành của một type (`DELETE /admin/sheets/:id/files/:type`): đánh `superseded_at` cho
+   * file cùng nhóm (MIDI kéo theo MIDI_JSON), `recomputeDerived`. Không xoá object S3 (GC ở Story 1.8).
+   * Không có file hiện hành cho type đó → 404 `NOT_FOUND`.
+   */
+  async removeFile(id: string, type: UploadableFileType): Promise<void> {
+    const supersedeTypes = SUPERSEDE_GROUPS[type];
+    await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!locked.length) throw notFound(SHEET_NOT_FOUND);
+      const current = await tx.sheetFile.findFirst({ where: { sheetId: id, type, supersededAt: null }, select: { id: true } });
+      if (!current) throw notFound(FILE_NOT_FOUND_MESSAGE);
+      await tx.sheetFile.updateMany({
+        where: { sheetId: id, supersededAt: null, type: { in: supersedeTypes } },
+        data: { supersededAt: new Date() },
+      });
+      await recomputeDerived(id, tx);
+    });
+  }
+
+  /** Magic bytes sai → 415; vượt dung lượng theo `type` → 413 (thông điệp riêng từng type). */
+  private validateUpload(type: UploadableFileType, buffer: Buffer): void {
+    if (!MAGIC_CHECK[type](buffer)) {
+      throw new AppException(ErrorCode.UNSUPPORTED_FILE_TYPE, HttpStatus.UNSUPPORTED_MEDIA_TYPE, WRONG_TYPE_MESSAGE[type]);
+    }
+    if (buffer.length > MAX_BYTES[type]) {
+      throw new AppException(ErrorCode.FILE_TOO_LARGE, HttpStatus.PAYLOAD_TOO_LARGE, TOO_LARGE_MESSAGE[type]);
+    }
+  }
+
+  /** Gọi đúng hàm xử lý của `media` theo `type`, chuẩn hoá kết quả về file chính + file dẫn xuất (nếu có). */
+  private async storeByType(
+    sheetId: string,
+    type: UploadableFileType,
+    upload: MediaUpload,
+  ): Promise<{ primary: StoredFile; derived: StoredFile[]; keys: string[] }> {
+    if (type === FileType.PDF) {
+      const stored = await this.media.storePdf(sheetId, upload);
+      return { primary: stored.pdf, derived: [stored.thumbnail, ...stored.pages], keys: stored.keys };
+    }
+    if (type === FileType.MIDI) {
+      const stored = await this.media.storeMidi(sheetId, upload);
+      return { primary: stored.midi, derived: [stored.json], keys: stored.keys };
+    }
+    const stored = await this.media.storeMp3(sheetId, upload);
+    return { primary: stored.mp3, derived: [], keys: stored.keys };
   }
 
   /**

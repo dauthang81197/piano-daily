@@ -14,6 +14,8 @@ export const ErrorCode = {
   FORBIDDEN: 'FORBIDDEN',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
+  /** Xoá bản ghi đang được bản ghi khác tham chiếu (FK RESTRICT). */
+  RESOURCE_IN_USE: 'RESOURCE_IN_USE',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

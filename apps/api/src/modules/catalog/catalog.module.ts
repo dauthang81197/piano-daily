@@ -5,10 +5,12 @@ import { GenresController } from './genres.controller';
 import { GenresService } from './genres.service';
 import { SeriesController } from './series.controller';
 import { SeriesService } from './series.service';
+import { SheetsController } from './sheets.controller';
+import { SheetsService } from './sheets.service';
 
-/** Module chủ của bảng Composer, Genre, Series (AD-1). Sheet/SheetGenre thêm ở Story 1.5. */
+/** Module chủ của bảng Composer, Genre, Series, Sheet, SheetGenre (AD-1). */
 @Module({
-  controllers: [ComposersController, GenresController, SeriesController],
-  providers: [ComposersService, GenresService, SeriesService],
+  controllers: [ComposersController, GenresController, SeriesController, SheetsController],
+  providers: [ComposersService, GenresService, SeriesService, SheetsService],
 })
 export class CatalogModule {}

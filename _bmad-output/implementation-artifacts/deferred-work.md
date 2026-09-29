@@ -16,3 +16,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-quan-ly-composer-genre-va-series.md`
   summary: Thêm integration test cho race P2003 khi create/update Series (Composer bị xoá giữa bước kiểm tra và bước ghi → 400 composerId, không 500).
   evidence: Verification-gap review Story 1.4; có sẵn mẫu spy `findUnique` trong test xoá Composer.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-tao-va-sua-thong-tin-sheet-draft.md`
+  summary: Story 1.8 (publish) phải đọc và khoá `first_published_at` trong cùng transaction (SELECT … FOR UPDATE) với bước PATCH sinh lại slug, để slug không bị sinh lại sau lần publish đầu; cân nhắc thêm CHECK cho bất biến giữa status và `first_published_at`.
+  evidence: Review Story 1.5: `SheetsService.update` đọc `firstPublishedAt` ngoài transaction ghi; hiện chưa có publish nên chưa xảy ra được.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-tao-va-sua-thong-tin-sheet-draft.md`
+  summary: Fallback race P2003 khi create/update Sheet trả 400 không kèm details và chưa có test; bổ sung details theo trường (chạy lại assertRefs) cùng test stub.
+  evidence: Verification-gap review Story 1.5 (disposition defer).
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-tao-va-sua-thong-tin-sheet-draft.md`
+  summary: Danh sách chọn Genre (checkbox), Series và bộ lọc Composer trong form/bảng Sheet chỉ tải 100 mục đầu; cần picker có tìm kiếm (gộp với mục dropdown Composer của Story 1.4). Tìm không dấu theo tiêu đề cũng dựa vào slug nên hỏng sau khi slug đóng băng; gộp với mục `unaccent` của Story 2.4.
+  evidence: Review Story 1.5 (Blind Hunter, Edge Case Hunter).

@@ -77,7 +77,7 @@ export class SeriesService {
     }
   }
 
-  /** Chưa bảng nào tham chiếu Series; Sheet (Story 1.5) dùng FK RESTRICT và P2003 → 409 tự áp dụng. */
+  /** Sheet tham chiếu Series bằng FK RESTRICT: P2003 → 409 `RESOURCE_IN_USE`. */
   async remove(id: string): Promise<void> {
     try {
       await this.prisma.series.delete({ where: { id } });

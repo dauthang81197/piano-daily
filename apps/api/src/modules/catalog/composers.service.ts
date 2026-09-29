@@ -76,11 +76,17 @@ export class ComposersService {
   }
 
   async remove(id: string): Promise<void> {
-    const composer = await this.prisma.composer.findUnique({ where: { id }, select: SELECT });
+    const composer = await this.prisma.composer.findUnique({
+      where: { id },
+      select: { _count: { select: { series: true, sheets: true } } },
+    });
     if (!composer) throw notFound('Không tìm thấy Composer.');
-    if (composer._count.series > 0) {
+    const { series, sheets } = composer._count;
+    if (series > 0 || sheets > 0) {
+      const refs = [series > 0 ? `${series} Series` : null, sheets > 0 ? `${sheets} Sheet` : null].filter(Boolean);
+      const kinds = [series > 0 ? 'Series' : null, sheets > 0 ? 'Sheet' : null].filter(Boolean);
       throw inUse(
-        `Composer đang có ${composer._count.series} Series nên không thể xoá. Hãy xoá hoặc chuyển các Series đó sang Composer khác trước.`,
+        `Composer đang có ${refs.join(' và ')} nên không thể xoá. Hãy xoá hoặc chuyển các ${kinds.join(' và ')} đó sang Composer khác trước.`,
       );
     }
     try {

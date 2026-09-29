@@ -5,6 +5,12 @@ const valid = {
   DATABASE_URL: 'postgresql://piano:piano@localhost:5432/piano_daily',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
   CORS_ADMIN_ORIGIN: 'http://localhost:3001',
+  S3_ENDPOINT: 'http://localhost:8333',
+  S3_ACCESS_KEY_ID: 'piano',
+  S3_SECRET_ACCESS_KEY: 'piano-secret',
+  S3_BUCKET_PUBLIC: 'piano-daily-public',
+  S3_BUCKET_PRIVATE: 'piano-daily-private',
+  S3_PUBLIC_BASE_URL: 'http://localhost:8333/piano-daily-public',
 };
 
 describe('validateEnv', () => {
@@ -15,7 +21,40 @@ describe('validateEnv', () => {
       PORT: 4000,
       LOG_LEVEL: 'info',
       REFRESH_TOKEN_TTL_DAYS: 30,
+      S3_REGION: 'us-east-1',
+      S3_FORCE_PATH_STYLE: true,
+      S3_AUTO_CREATE_BUCKETS: false,
     });
+  });
+
+  it('S3: cờ boolean, bỏ / cuối của S3_PUBLIC_BASE_URL', () => {
+    const env = validateEnv({
+      ...valid,
+      S3_FORCE_PATH_STYLE: 'false',
+      S3_AUTO_CREATE_BUCKETS: 'TRUE',
+      S3_PUBLIC_BASE_URL: 'https://cdn.example.com/',
+    });
+    expect(env).toMatchObject({ S3_FORCE_PATH_STYLE: false, S3_AUTO_CREATE_BUCKETS: true, S3_PUBLIC_BASE_URL: 'https://cdn.example.com' });
+    expect(validateEnv({ ...valid, S3_AUTO_CREATE_BUCKETS: '1' }).S3_AUTO_CREATE_BUCKETS).toBe(true);
+    expect(validateEnv({ ...valid, S3_AUTO_CREATE_BUCKETS: '' }).S3_AUTO_CREATE_BUCKETS).toBe(false);
+  });
+
+  it.each([
+    ['S3_AUTO_CREATE_BUCKETS', 'maybe'],
+    ['S3_FORCE_PATH_STYLE', 'x'],
+    ['S3_ENDPOINT', 'localhost:8333'],
+    ['S3_PUBLIC_BASE_URL', 'ftp://x'],
+    ['S3_BUCKET_PUBLIC', 'Bad_Bucket'],
+    ['S3_SECRET_ACCESS_KEY', ''],
+    ['S3_BUCKET_PRIVATE', 'piano-daily-public'],
+  ])('%s = %j -> lỗi nêu tên biến, không lộ giá trị', (variable, value) => {
+    try {
+      validateEnv({ ...valid, [variable]: value });
+      expect.unreachable();
+    } catch (err) {
+      expect((err as EnvValidationError).variables).toEqual([variable]);
+      if (value) expect((err as Error).message).not.toContain(value);
+    }
   });
 
   it('ép kiểu REFRESH_TOKEN_TTL_DAYS và từ chối giá trị không phải số nguyên dương', () => {
@@ -74,7 +113,8 @@ describe('validateEnv', () => {
     ['rỗng', { DATABASE_URL: '' }],
   ])('DATABASE_URL %s -> lỗi nêu tên biến', (_label, raw) => {
     try {
-      validateEnv({ JWT_ACCESS_SECRET: valid.JWT_ACCESS_SECRET, CORS_ADMIN_ORIGIN: valid.CORS_ADMIN_ORIGIN, ...raw });
+      const { DATABASE_URL: _omit, ...rest } = valid;
+      validateEnv({ ...rest, ...raw });
       expect.unreachable();
     } catch (err) {
       expect(err).toBeInstanceOf(EnvValidationError);
@@ -95,7 +135,9 @@ describe('validateEnv', () => {
 
   it('liệt kê mọi biến sai cùng lúc', () => {
     try {
-      validateEnv({ PORT: 'abc', LOG_LEVEL: 'loud' });
+      const { S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_PUBLIC, S3_BUCKET_PRIVATE, S3_PUBLIC_BASE_URL } = valid;
+      const s3 = { S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_PUBLIC, S3_BUCKET_PRIVATE, S3_PUBLIC_BASE_URL };
+      validateEnv({ ...s3, PORT: 'abc', LOG_LEVEL: 'loud' });
       expect.unreachable();
     } catch (err) {
       expect((err as EnvValidationError).variables.sort()).toEqual([

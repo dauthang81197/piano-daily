@@ -13,10 +13,10 @@ import type {
 } from '@piano-daily/shared';
 import { apiFetch } from './client';
 
-/** Query string từ `ListQueryInput` (bỏ giá trị rỗng). */
-export function toQueryString(query: ListQueryInput): string {
+/** Query string từ object query (vd. `ListQueryInput`), bỏ giá trị rỗng. */
+export function toQueryString(query: object): string {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
+  for (const [key, value] of Object.entries(query) as [string, unknown][]) {
     if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
   }
   const qs = params.toString();

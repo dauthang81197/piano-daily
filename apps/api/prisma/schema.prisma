@@ -66,6 +66,7 @@ model Composer {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   series Series[]
+  sheets Sheet[]
 
   @@map("composers")
 }
@@ -79,6 +80,8 @@ model Genre {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  sheets SheetGenre[]
+
   @@map("genres")
 }
 
@@ -91,7 +94,122 @@ model Series {
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   composer Composer @relation(fields: [composerId], references: [id], onDelete: Restrict)
+  sheets   Sheet[]
 
   @@index([composerId])
   @@map("series")
+}
+
+/// Phải trùng enum `Level` trong packages/shared (có test kiểm tra).
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+/// Phải trùng enum `SheetStatus` trong packages/shared (có test kiểm tra).
+enum SheetStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Bài nhạc của thư viện. `has_*` và `page_count` chỉ được ghi bởi `recomputeDerived()` (catalog).
+/// Slug sinh từ tiêu đề; sinh lại khi đổi tiêu đề cho tới lần publish đầu tiên, sau đó đóng băng (AD-16).
+model Sheet {
+  id               String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  publicId         Int         @unique @default(autoincrement()) @map("public_id")
+  slug             String      @unique
+  title            String
+  subtitle         String?
+  composerId       String      @map("composer_id") @db.Uuid
+  seriesId         String?     @map("series_id") @db.Uuid
+  level            Level
+  /// 0–100 (CHECK trong migration).
+  difficultyScore  Int?        @map("difficulty_score") @db.SmallInt
+  difficultyNote   String?     @map("difficulty_note")
+  description      String?
+  /// Markdown.
+  lyricsChords     String?     @map("lyrics_chords")
+  /// Dạng chuẩn `https://www.youtube.com/watch?v=ID`.
+  youtubeUrl       String?     @map("youtube_url")
+  hasSheet         Boolean     @default(false) @map("has_sheet")
+  hasChords        Boolean     @default(false) @map("has_chords")
+  hasMidi          Boolean     @default(false) @map("has_midi")
+  hasMp3           Boolean     @default(false) @map("has_mp3")
+  hasVideo         Boolean     @default(false) @map("has_video")
+  pageCount        Int         @default(0) @map("page_count")
+  viewCount        Int         @default(0) @map("view_count")
+  isHot            Boolean     @default(false) @map("is_hot")
+  status           SheetStatus @default(DRAFT)
+  firstPublishedAt DateTime?   @map("first_published_at") @db.Timestamptz(6)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  composer Composer     @relation(fields: [composerId], references: [id], onDelete: Restrict)
+  series   Series?      @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  genres   SheetGenre[]
+  files    SheetFile[]
+
+  @@index([status])
+  @@index([composerId])
+  @@index([seriesId])
+  @@index([level])
+  @@map("sheets")
+}
+
+/// Genre của Sheet. Xoá Sheet thì xoá theo (CASCADE); Genre đang được gắn thì không xoá được (RESTRICT).
+model SheetGenre {
+  sheetId String @map("sheet_id") @db.Uuid
+  genreId String @map("genre_id") @db.Uuid
+
+  sheet Sheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Restrict)
+
+  @@id([sheetId, genreId])
+  @@index([genreId])
+  @@map("sheet_genres")
+}
+
+/// Phải trùng enum `FileType` trong packages/shared (có test kiểm tra).
+enum FileType {
+  PDF
+  MIDI
+  MP3
+  /// Note-JSON dẫn xuất công khai của MIDI (Story 1.7), đối xứng với THUMBNAIL/PAGE_IMAGE của PDF.
+  MIDI_JSON
+  THUMBNAIL
+  PAGE_IMAGE
+}
+
+/// File của Sheet. Object nằm trên S3 (module `media`); bảng chỉ lưu key — không bao giờ trả key ra API.
+/// Mỗi `(sheet_id, type)` của PDF/MIDI/MP3/MIDI_JSON chỉ có một bản hiện hành (`superseded_at IS NULL`):
+/// partial unique index viết tay trong migration. THUMBNAIL/PAGE_IMAGE/MIDI_JSON trỏ tới PDF/MIDI sinh ra
+/// chúng qua `source_file_id`.
+model SheetFile {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sheetId         String    @map("sheet_id") @db.Uuid
+  type            FileType
+  storageKey      String    @map("storage_key")
+  originalName    String?   @map("original_name")
+  /// Bytes.
+  size            Int
+  mimeType        String    @map("mime_type")
+  pageNumber      Int?      @map("page_number")
+  /// Chỉ ghi cho dòng MIDI (giây, từ `Midi.duration`); null cho type khác.
+  durationSeconds Float?    @map("duration_seconds") @db.DoublePrecision
+  /// Chỉ ghi cho dòng MIDI (tổng `track.notes.length` mọi track); null cho type khác.
+  noteCount       Int?      @map("note_count")
+  sourceFileId    String?   @map("source_file_id") @db.Uuid
+  supersededAt    DateTime? @map("superseded_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  sheet        Sheet       @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  sourceFile   SheetFile?  @relation("SheetFileSource", fields: [sourceFileId], references: [id], onDelete: Cascade)
+  derivedFiles SheetFile[] @relation("SheetFileSource")
+
+  @@index([sheetId])
+  @@index([sourceFileId])
+  @@map("sheet_files")
 }

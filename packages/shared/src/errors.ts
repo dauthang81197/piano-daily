@@ -16,6 +16,12 @@ export const ErrorCode = {
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
   /** Xoá bản ghi đang được bản ghi khác tham chiếu (FK RESTRICT). */
   RESOURCE_IN_USE: 'RESOURCE_IN_USE',
+  /** File upload vượt dung lượng cho phép (413). */
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+  /** Nội dung file không đúng định dạng yêu cầu (415, kiểm magic bytes). */
+  UNSUPPORTED_FILE_TYPE: 'UNSUPPORTED_FILE_TYPE',
+  /** File đúng định dạng nhưng không xử lý được (hỏng, quá nhiều trang…) (422). */
+  FILE_PROCESSING_FAILED: 'FILE_PROCESSING_FAILED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

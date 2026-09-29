@@ -30,6 +30,24 @@ export default tseslint.config(
     },
   },
   {
+    // Chỉ module `media` được nói chuyện với S3 (AD-1, AD-6); module khác gọi service public của `media`.
+    files: ['apps/api/src/**/*.ts'],
+    ignores: ['apps/api/src/modules/media/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@aws-sdk/*', 'aws-sdk', 'aws-sdk/*'],
+              message: 'Chỉ module media (apps/api/src/modules/media) được import S3 SDK.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs}', 'apps/admin/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     languageOptions: {
       globals: { ...globals.browser },

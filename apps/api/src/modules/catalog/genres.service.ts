@@ -54,7 +54,7 @@ export class GenresService {
     }
   }
 
-  /** Chưa bảng nào tham chiếu Genre; Story 1.5 thêm `SheetGenre` (FK RESTRICT) và P2003 → 409 tự áp dụng. */
+  /** `SheetGenre` tham chiếu Genre bằng FK RESTRICT: P2003 → 409 `RESOURCE_IN_USE`. */
   async remove(id: string): Promise<void> {
     try {
       await this.prisma.genre.delete({ where: { id } });

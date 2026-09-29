@@ -24,6 +24,9 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
   TOO_MANY_REQUESTS: 'Bạn thao tác quá nhanh. Vui lòng đợi một phút rồi thử lại.',
   RESOURCE_IN_USE: 'Tài nguyên đang được sử dụng ở nơi khác nên không thể xoá.',
+  FILE_TOO_LARGE: 'File vượt quá dung lượng cho phép.',
+  UNSUPPORTED_FILE_TYPE: 'Định dạng file không được hỗ trợ.',
+  FILE_PROCESSING_FAILED: 'Không xử lý được file. Hãy kiểm tra file rồi thử lại.',
 };
 
 /**

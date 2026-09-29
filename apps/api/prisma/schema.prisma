@@ -150,6 +150,7 @@ model Sheet {
   composer Composer     @relation(fields: [composerId], references: [id], onDelete: Restrict)
   series   Series?      @relation(fields: [seriesId], references: [id], onDelete: Restrict)
   genres   SheetGenre[]
+  files    SheetFile[]
 
   @@index([status])
   @@index([composerId])
@@ -169,4 +170,39 @@ model SheetGenre {
   @@id([sheetId, genreId])
   @@index([genreId])
   @@map("sheet_genres")
+}
+
+/// Phải trùng enum `FileType` trong packages/shared (có test kiểm tra).
+enum FileType {
+  PDF
+  MIDI
+  MP3
+  THUMBNAIL
+  PAGE_IMAGE
+}
+
+/// File của Sheet. Object nằm trên S3 (module `media`); bảng chỉ lưu key — không bao giờ trả key ra API.
+/// Mỗi `(sheet_id, type)` của PDF/MIDI/MP3 chỉ có một bản hiện hành (`superseded_at IS NULL`):
+/// partial unique index viết tay trong migration. THUMBNAIL/PAGE_IMAGE trỏ tới PDF sinh ra chúng qua `source_file_id`.
+model SheetFile {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sheetId      String    @map("sheet_id") @db.Uuid
+  type         FileType
+  storageKey   String    @map("storage_key")
+  originalName String?   @map("original_name")
+  /// Bytes.
+  size         Int
+  mimeType     String    @map("mime_type")
+  pageNumber   Int?      @map("page_number")
+  sourceFileId String?   @map("source_file_id") @db.Uuid
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  sheet        Sheet       @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  sourceFile   SheetFile?  @relation("SheetFileSource", fields: [sourceFileId], references: [id], onDelete: Cascade)
+  derivedFiles SheetFile[] @relation("SheetFileSource")
+
+  @@index([sheetId])
+  @@index([sourceFileId])
+  @@map("sheet_files")
 }

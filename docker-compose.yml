@@ -1,6 +1,6 @@
 # Piano Daily — môi trường local: `docker compose up -d --build`
 # Chế độ dev nhanh (hot reload trên host): `docker compose up -d postgres seaweedfs` rồi `pnpm dev`.
-# Test tích hợp: `docker compose --profile test up -d postgres-test` rồi `pnpm test`.
+# Test tích hợp: `docker compose up -d --wait seaweedfs && docker compose --profile test up -d --wait postgres-test` rồi `pnpm test`.
 name: piano-daily
 
 x-postgres-env: &postgres-env
@@ -42,12 +42,24 @@ services:
 
   seaweedfs:
     image: chrislusf/seaweedfs:4.47
-    command: ['server', '-dir=/data', '-s3', '-s3.port=8333']
+    # S3 identity (access key/secret khớp .env.example) và quyền đọc ẩn danh CHỈ cho bucket public
+    # (`piano-daily-public`, `piano-daily-test-public`). Bucket private không đọc ẩn danh được.
+    # Mỗi bucket là một collection và SeaweedFS cấp trước vài volume cho mỗi collection: nâng số volume tối đa
+    # và thu nhỏ volume (64MB) để đủ chỗ cho 4 bucket (dev + test) trên máy local.
+    command:
+      - server
+      - -dir=/data
+      - -volume.max=100
+      - -master.volumeSizeLimitMB=64
+      - -s3
+      - -s3.port=8333
+      - -s3.config=/etc/seaweedfs/s3.json
     ports:
       - '8333:8333' # S3 API
       - '9333:9333' # master (UI/status)
     volumes:
       - seaweedfs-data:/data
+      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && nc -z 127.0.0.1 8333']
       interval: 5s
@@ -69,6 +81,17 @@ services:
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
       # Origin duy nhất được CORS cho phép (kèm credentials): admin app.
       CORS_ADMIN_ORIGIN: ${CORS_ADMIN_ORIGIN:-http://localhost:3001}
+      # Object storage (module `media`): API gọi SeaweedFS qua mạng nội bộ; trình duyệt đọc bucket public qua localhost.
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-piano}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-piano-secret}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-piano-daily-public}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-piano-daily-private}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:8333/piano-daily-public}
+      S3_FORCE_PATH_STYLE: 'true'
+      # Local: tạo bucket còn thiếu lúc khởi động. Production (R2) để false và tạo bucket trước.
+      S3_AUTO_CREATE_BUCKETS: 'true'
     ports:
       - '4000:4000'
     depends_on:

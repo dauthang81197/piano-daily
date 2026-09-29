@@ -27,7 +27,8 @@ cp .env.example .env          # chỉnh nếu cần; mọi biến đều đượ
 ```
 
 Trong `.env`, đặt `JWT_ACCESS_SECRET` (bắt buộc, ≥ 32 ký tự), `CORS_ADMIN_ORIGIN` (bắt buộc, origin của admin —
-mặc định `http://localhost:3001`) và thông tin SUPER_ADMIN (`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`).
+mặc định `http://localhost:3001`), thông tin SUPER_ADMIN (`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`)
+và các biến `S3_*` (bắt buộc khi chạy API trên host; giá trị trong `.env.example` khớp SeaweedFS local).
 
 > Nếu Corepack báo lỗi thiếu `bin/pnpm.cjs`, cache của nó bị hỏng: xoá
 > `~/.cache/node/corepack/v1/pnpm/12.6.0` rồi chạy lại `corepack enable`.
@@ -46,6 +47,19 @@ pnpm --filter @piano-daily/api db:seed   # tạo SUPER_ADMIN từ .env (chạy t
   `NEXT_PUBLIC_API_URL` được inline lúc build (compose truyền qua `build.args`); đổi giá trị thì build lại admin.
 - Các app chạy bản build production (ổn định). API chạy `prisma migrate deploy` trước khi listen.
 - Dừng: `docker compose down` (thêm `-v` để xoá dữ liệu Postgres/SeaweedFS).
+
+### Object storage (SeaweedFS local)
+
+- SeaweedFS đọc identity S3 từ `infra/seaweedfs/s3.json` (mount vào container): access key `piano` / secret
+  `piano-secret` (khớp `.env.example`), và identity `anonymous` chỉ được **đọc** bucket public
+  (`piano-daily-public`, `piano-daily-test-public`). Bucket private không đọc ẩn danh được.
+- Đổi `S3_BUCKET_PUBLIC` sang tên khác thì phải sửa quyền `Read:<bucket>` của identity `anonymous` trong
+  `infra/seaweedfs/s3.json` cho khớp — nếu không ảnh public trả 403.
+- Đổi `s3.json` thì tạo lại container: `docker compose up -d --force-recreate seaweedfs`.
+- `S3_AUTO_CREATE_BUCKETS=true` (local/compose) để API tạo bucket còn thiếu lúc khởi động. Production (R2) để `false`.
+- Ảnh public đọc thẳng từ trình duyệt qua `S3_PUBLIC_BASE_URL` (local: `http://localhost:8333/piano-daily-public/...`).
+- Upload PDF (`POST /admin/sheets/:id/files`, multipart `type=PDF` + `file`) chạy `pdftoppm` (poppler-utils):
+  image API đã cài sẵn; chạy API/test trên host cần cài poppler (`brew install poppler` / `apt install poppler-utils`).
 
 ### Chế độ dev nhanh (hot reload)
 
@@ -69,9 +83,11 @@ pnpm lint
 pnpm test         # unit + integration
 ```
 
-`pnpm test` của `apps/api` gồm integration test với Postgres **thật**. Bật container test trước:
+`pnpm test` của `apps/api` gồm integration test với Postgres và SeaweedFS **thật**, và unit test gọi `pdftoppm`
+(cần poppler trên host). Bật container trước:
 
 ```bash
+docker compose up -d --wait seaweedfs                      # S3 local, cổng 8333 (test dùng bucket piano-daily-test-*)
 docker compose --profile test up -d --wait postgres-test   # tmpfs, cổng 5433
 pnpm test
 ```

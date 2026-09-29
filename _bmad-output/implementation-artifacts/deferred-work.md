@@ -25,3 +25,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-tao-va-sua-thong-tin-sheet-draft.md`
   summary: Danh sách chọn Genre (checkbox), Series và bộ lọc Composer trong form/bảng Sheet chỉ tải 100 mục đầu; cần picker có tìm kiếm (gộp với mục dropdown Composer của Story 1.4). Tìm không dấu theo tiêu đề cũng dựa vào slug nên hỏng sau khi slug đóng băng; gộp với mục `unaccent` của Story 2.4.
   evidence: Review Story 1.5 (Blind Hunter, Edge Case Hunter).
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-upload-pdf-tu-dong-tao-thumbnail-va-anh-tung-trang.md`
+  summary: Cron GC (Story 1.8) và rollback upload phải xử lý trường hợp hai upload cùng nội dung (key trùng hash) chạy đồng thời: chỉ xoá object khi không còn dòng `sheet_files` nào tham chiếu, kể cả bản đang được commit (cân nhắc khoá theo sheet hoặc thời gian ân hạn).
+  evidence: Review Story 1.6: `discardUnreferenced` kiểm tra DB rồi mới xoá, nhưng không nguyên tử với request đang chạy song song.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-upload-pdf-tu-dong-tao-thumbnail-va-anh-tung-trang.md`
+  summary: Thêm integration test cho việc khoá dòng sheet (`FOR UPDATE`) khi hai upload vào cùng một Sheet chạy đồng thời (cần hook để giữ một transaction mở).
+  evidence: Verification-gap review Story 1.6 (disposition defer).

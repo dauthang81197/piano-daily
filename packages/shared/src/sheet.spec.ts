@@ -172,6 +172,9 @@ describe('sheetSchema', () => {
       hasMp3: false,
       hasVideo: false,
       pageCount: 0,
+      thumbnailUrl: null,
+      pages: [],
+      pdf: null,
       viewCount: 0,
       isHot: false,
       status: 'DRAFT',
@@ -180,5 +183,15 @@ describe('sheetSchema', () => {
       updatedAt: '2026-09-29T00:00:00.000Z',
     };
     expect(sheetSchema.safeParse(sheet).success).toBe(true);
+    const withPdf = {
+      ...sheet,
+      hasSheet: true,
+      pageCount: 1,
+      thumbnailUrl: 'http://localhost:8333/b/public/sheets/x/THUMBNAIL/h.webp',
+      pages: [{ pageNumber: 1, url: 'http://localhost:8333/b/public/sheets/x/PAGE_IMAGE/h-p1.webp' }],
+      pdf: { originalName: 'fur-elise.pdf', size: 1234, uploadedAt: '2026-09-29T00:00:00.000Z' },
+    };
+    expect(sheetSchema.safeParse(withPdf).success).toBe(true);
+    expect(sheetSchema.safeParse({ ...sheet, pages: [{ pageNumber: 0, url: 'x' }] }).success).toBe(false);
   });
 });

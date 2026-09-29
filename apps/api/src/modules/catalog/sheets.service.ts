@@ -1,7 +1,9 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   type CreateSheetBody,
   ErrorCode,
+  FileType,
+  hasPdfMagic,
   type Level,
   type Page,
   type Sheet,
@@ -15,6 +17,9 @@ import { AppException } from '../../common/http-exception.filter';
 import type { ValidationDetail } from '../../common/validation';
 import type { Prisma } from '../../generated/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PdfProcessingError } from '../media/pdf-processor';
+import { type PdfUpload, SheetMediaService, type StoredFile, StorageWriteError } from '../media/sheet-media.service';
+import { StorageService } from '../media/storage.service';
 import { notFound } from './catalog.helpers';
 import { isPrismaError } from './prisma-errors';
 import { recomputeDerived } from './sheet-derived';
@@ -49,6 +54,12 @@ const SELECT = {
   composer: REF,
   series: REF,
   genres: { select: { genre: REF }, orderBy: { genre: { name: 'asc' } } },
+  // File hiện hành phục vụ response (PDF chỉ lấy metadata; key private không bao giờ ra khỏi service).
+  files: {
+    where: { supersededAt: null, type: { in: [FileType.PDF, FileType.THUMBNAIL, FileType.PAGE_IMAGE] } },
+    select: { type: true, storageKey: true, originalName: true, size: true, pageNumber: true, createdAt: true },
+    orderBy: [{ pageNumber: 'asc' }, { id: 'asc' }],
+  },
 } as const satisfies Prisma.SheetSelect;
 
 const LIST_SELECT = {
@@ -66,9 +77,22 @@ const LIST_SELECT = {
 type SheetRow = Prisma.SheetGetPayload<{ select: typeof SELECT }>;
 type SheetListRow = Prisma.SheetGetPayload<{ select: typeof LIST_SELECT }>;
 
-function toSheet({ genres, level, status, firstPublishedAt, createdAt, updatedAt, ...row }: SheetRow): Sheet {
+/** URL public của một key thuộc vùng public. */
+type PublicUrl = (key: string) => string;
+
+function toSheet(
+  { genres, files, level, status, firstPublishedAt, createdAt, updatedAt, ...row }: SheetRow,
+  publicUrl: PublicUrl,
+): Sheet {
+  const pdf = files.find((f) => f.type === FileType.PDF);
+  const thumbnail = files.find((f) => f.type === FileType.THUMBNAIL);
   return {
     ...row,
+    thumbnailUrl: thumbnail ? publicUrl(thumbnail.storageKey) : null,
+    pages: files
+      .filter((f) => f.type === FileType.PAGE_IMAGE && f.pageNumber !== null)
+      .map((f) => ({ pageNumber: f.pageNumber!, url: publicUrl(f.storageKey) })),
+    pdf: pdf ? { originalName: pdf.originalName, size: pdf.size, uploadedAt: pdf.createdAt.toISOString() } : null,
     level: level as Level,
     status: status as SheetStatus,
     genres: genres.map((g) => g.genre),
@@ -97,9 +121,37 @@ interface Refs {
   genreIds?: string[];
 }
 
+function fileRow(sheetId: string, file: StoredFile, sourceFileId: string | null): Prisma.SheetFileCreateManyInput {
+  return {
+    sheetId,
+    type: file.type,
+    storageKey: file.storageKey,
+    originalName: file.originalName,
+    size: file.size,
+    mimeType: file.mimeType,
+    pageNumber: file.pageNumber,
+    sourceFileId,
+  };
+}
+
+/** File upload đã qua multer (bộ nhớ). */
+export interface UploadedPdf {
+  buffer: Buffer;
+  originalName: string | null;
+}
+
 @Injectable()
 export class SheetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SheetsService.name);
+  private readonly publicUrl: PublicUrl;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: SheetMediaService,
+    storage: StorageService,
+  ) {
+    this.publicUrl = (key) => storage.publicUrl(key);
+  }
 
   async list(query: SheetListQuery): Promise<Page<SheetListItem>> {
     const and: Prisma.SheetWhereInput[] = [];
@@ -130,7 +182,7 @@ export class SheetsService {
   async get(id: string): Promise<Sheet> {
     const row = await this.prisma.sheet.findUnique({ where: { id }, select: SELECT });
     if (!row) throw notFound(SHEET_NOT_FOUND);
-    return toSheet(row);
+    return toSheet(row, this.publicUrl);
   }
 
   /** Luôn tạo ở trạng thái DRAFT; slug sinh từ tiêu đề. */
@@ -164,7 +216,7 @@ export class SheetsService {
           return tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
         }),
       );
-      return toSheet(row);
+      return toSheet(row, this.publicUrl);
     } catch (err) {
       // Composer/Series/Genre bị xoá giữa lúc kiểm tra và lúc ghi.
       if (isPrismaError(err, 'P2003')) {
@@ -229,7 +281,7 @@ export class SheetsService {
       const row = regenerateSlug
         ? await createWithUniqueSlug(this.takenSlugs(id), baseSlug(body.title!, 'sheet'), write)
         : await write();
-      return toSheet(row);
+      return toSheet(row, this.publicUrl);
     } catch (err) {
       if (isPrismaError(err, 'P2025')) throw notFound(SHEET_NOT_FOUND);
       if (isPrismaError(err, 'P2003')) {
@@ -238,6 +290,83 @@ export class SheetsService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Upload PDF (AD-9, đồng bộ): kiểm magic bytes → `media` render + ghi mọi object → MỘT transaction
+   * (supersede PDF/ảnh hiện hành, insert PDF mới + THUMBNAIL + PAGE_IMAGE, `recomputeDerived`).
+   * Lỗi ở bất kỳ bước nào thì xoá mọi object đã ghi trong request này và DB không đổi.
+   */
+  async attachPdf(id: string, upload: UploadedPdf): Promise<Sheet> {
+    const exists = await this.prisma.sheet.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) throw notFound(SHEET_NOT_FOUND);
+    if (!hasPdfMagic(upload.buffer)) {
+      throw new AppException(
+        ErrorCode.UNSUPPORTED_FILE_TYPE,
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+        'File không phải PDF (nội dung không bắt đầu bằng %PDF-). Hãy chọn đúng file .pdf.',
+      );
+    }
+
+    let stored;
+    try {
+      stored = await this.media.storePdf(id, upload satisfies PdfUpload);
+    } catch (err) {
+      if (err instanceof PdfProcessingError) {
+        throw new AppException(ErrorCode.FILE_PROCESSING_FAILED, HttpStatus.UNPROCESSABLE_ENTITY, err.reason, {
+          reason: err.reason,
+        });
+      }
+      if (err instanceof StorageWriteError) {
+        this.logger.error({ err: err.cause, sheetId: id }, 'Ghi object upload PDF thất bại, xoá object vừa ghi');
+        await this.discardUnreferenced(err.keys);
+        throw err.cause;
+      }
+      throw err;
+    }
+
+    try {
+      const row = await this.prisma.$transaction(async (tx) => {
+        // Khoá Sheet: upload đồng thời trên cùng Sheet chạy tuần tự (không vi phạm partial unique index).
+        const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
+        if (!locked.length) throw notFound(SHEET_NOT_FOUND);
+        await tx.sheetFile.updateMany({
+          where: { sheetId: id, supersededAt: null, type: { in: [FileType.PDF, FileType.THUMBNAIL, FileType.PAGE_IMAGE] } },
+          data: { supersededAt: new Date() },
+        });
+        const pdf = await tx.sheetFile.create({ data: fileRow(id, stored.pdf, null), select: { id: true } });
+        await tx.sheetFile.createMany({
+          data: [stored.thumbnail, ...stored.pages].map((file) => fileRow(id, file, pdf.id)),
+        });
+        await recomputeDerived(id, tx);
+        return tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
+      });
+      return toSheet(row, this.publicUrl);
+    } catch (err) {
+      this.logger.error({ err, sheetId: id }, 'Commit upload PDF thất bại, xoá object vừa ghi');
+      await this.discardUnreferenced(stored.keys);
+      throw err;
+    }
+  }
+
+  /**
+   * Rollback storage: xoá object vừa ghi, trừ key đang được dòng `SheetFile` đã commit tham chiếu
+   * (upload lại đúng nội dung cũ cho ra cùng key — xoá nó sẽ làm hỏng bản hiện hành).
+   */
+  private async discardUnreferenced(keys: string[]): Promise<void> {
+    let referenced = new Set<string>();
+    try {
+      const rows = await this.prisma.sheetFile.findMany({
+        where: { storageKey: { in: keys } },
+        select: { storageKey: true },
+      });
+      referenced = new Set(rows.map((r) => r.storageKey));
+    } catch (err) {
+      // Không xác định được key nào đang dùng: giữ lại tất cả (object mồ côi được GC dọn), không xoá nhầm.
+      this.logger.error({ err }, 'Không kiểm tra được key đang dùng; bỏ qua xoá object');
+      return;
+    }
+    await this.media.discard(keys.filter((key) => !referenced.has(key)));
   }
 
   /** Slug đã dùng bởi Sheet khác (`excludeId`: Sheet đang sửa được giữ slug của chính nó). */

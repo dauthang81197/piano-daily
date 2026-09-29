@@ -229,6 +229,18 @@ export type SheetListQuery = z.output<typeof sheetListQuerySchema>;
 
 const refSchema = z.object({ id: z.string(), name: z.string() });
 
+/** Ảnh một trang của PDF hiện hành (URL public đã resolve). */
+export const sheetPageSchema = z.object({ pageNumber: z.number().int().positive(), url: z.string() });
+export type SheetPage = z.infer<typeof sheetPageSchema>;
+
+/** Thông tin PDF hiện hành. Không bao giờ chứa key hay URL của vùng private. */
+export const sheetPdfSchema = z.object({
+  originalName: z.string().nullable(),
+  size: z.number().int().nonnegative(),
+  uploadedAt: z.string(),
+});
+export type SheetPdf = z.infer<typeof sheetPdfSchema>;
+
 export const sheetSchema = z.object({
   id: z.string(),
   publicId: z.number().int().positive(),
@@ -250,6 +262,11 @@ export const sheetSchema = z.object({
   hasMp3: z.boolean(),
   hasVideo: z.boolean(),
   pageCount: z.number().int().nonnegative(),
+  /** Thumbnail (trang 1) của PDF hiện hành, URL public; `null` khi chưa có PDF. */
+  thumbnailUrl: z.string().nullable(),
+  /** Ảnh từng trang của PDF hiện hành, theo thứ tự trang. */
+  pages: z.array(sheetPageSchema),
+  pdf: sheetPdfSchema.nullable(),
   viewCount: z.number().int().nonnegative(),
   isHot: z.boolean(),
   status: sheetStatusSchema,

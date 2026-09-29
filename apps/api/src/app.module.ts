@@ -10,6 +10,7 @@ import { validationExceptionFactory } from './common/validation';
 import { ConfigModule } from './config/config.module';
 import type { Env } from './config/env';
 import { HealthModule } from './health/health.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { JwtAuthGuard } from './modules/identity/jwt-auth.guard';
 import { PrismaModule } from './prisma/prisma.module';
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     HealthModule,
     IdentityModule,
+    CatalogModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

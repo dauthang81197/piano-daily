@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import {
   type ArgumentsHost,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -34,6 +35,7 @@ describe('AllExceptionsFilter', () => {
     [new ServiceUnavailableException(), 503, ErrorCode.SERVICE_UNAVAILABLE],
     [new UnauthorizedException(), 401, ErrorCode.UNAUTHORIZED],
     [new ForbiddenException(), 403, ErrorCode.FORBIDDEN],
+    [new ConflictException(), 409, ErrorCode.INTERNAL_ERROR],
     [new HttpException('ThrottlerException: Too Many Requests', 429), 429, ErrorCode.TOO_MANY_REQUESTS],
     [new ImATeapotException(), 418, ErrorCode.INTERNAL_ERROR],
   ])('%s -> %i %s', (exception, expectedStatus, expectedCode) => {
@@ -84,6 +86,14 @@ describe('AllExceptionsFilter', () => {
     expect(body).toEqual({
       error: { code: 'VALIDATION_FAILED', message: 'Tiêu đề bắt buộc.', details: { field: 'title' } },
     });
+  });
+
+  it('AppException RESOURCE_IN_USE 409 giữ nguyên code và message', () => {
+    const { status, body } = toErrorResponse(
+      new AppException(ErrorCode.RESOURCE_IN_USE, HttpStatus.CONFLICT, 'Composer đang có Series.'),
+    );
+    expect(status).toBe(409);
+    expect(body).toEqual({ error: { code: 'RESOURCE_IN_USE', message: 'Composer đang có Series.' } });
   });
 
   it('exceptionFactory của pipe -> 400 VALIDATION_FAILED, details [{path, message}]', () => {

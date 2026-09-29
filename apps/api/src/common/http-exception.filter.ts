@@ -23,6 +23,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
   TOO_MANY_REQUESTS: 'Bạn thao tác quá nhanh. Vui lòng đợi một phút rồi thử lại.',
+  RESOURCE_IN_USE: 'Tài nguyên đang được sử dụng ở nơi khác nên không thể xoá.',
 };
 
 /**

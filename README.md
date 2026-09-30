@@ -39,7 +39,7 @@ và các biến `S3_*` (bắt buộc khi chạy API trên host; giá trị trong
 docker compose up -d --build
 docker compose ps             # postgres/seaweedfs/api healthy; web/admin running
 curl localhost:4000/health    # {"status":"ok","db":"up"}
-pnpm --filter @piano-daily/api db:seed   # tạo SUPER_ADMIN từ .env (chạy trên host, trỏ tới Postgres cổng 5432)
+pnpm db:seed   # SUPER_ADMIN + 10 Sheet mẫu (chạy trên host, trỏ tới Postgres cổng 5432; cần S3 chạy và `pdftoppm`)
 ```
 
 - Web: <http://localhost:3000> · Admin: <http://localhost:3001> · API: <http://localhost:4000>
@@ -63,12 +63,16 @@ pnpm --filter @piano-daily/api db:seed   # tạo SUPER_ADMIN từ .env (chạy t
 
 ### Chế độ dev nhanh (hot reload)
 
+`pnpm db:seed` tạo SUPER_ADMIN từ `.env`, 4 Composer, 4 Genre, 3 Series và 10 Sheet mẫu (8 PUBLISHED trong đó 2 HOT, 2 DRAFT;
+PDF/MIDI/MP3 sinh bằng code và đi qua đúng pipeline upload). Điều kiện: DB đã migrate, S3 (SeaweedFS) đang chạy, biến `S3_*` trong `.env`
+và có `pdftoppm` (poppler: `brew install poppler` / `apt-get install poppler-utils`). Chạy lại an toàn: không tạo trùng, chỉ đính file còn thiếu.
+
 Chỉ bật hạ tầng trong Docker, các app chạy trên máy:
 
 ```bash
 docker compose up -d postgres seaweedfs
 pnpm --filter @piano-daily/api exec prisma migrate deploy   # khi có migration mới
-pnpm --filter @piano-daily/api db:seed                      # SUPER_ADMIN từ .env (idempotent)
+pnpm db:seed                                                # SUPER_ADMIN + dữ liệu mẫu (idempotent)
 pnpm dev
 ```
 

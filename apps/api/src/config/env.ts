@@ -37,6 +37,37 @@ const requiredString = z.preprocess(emptyAsUndefined, z.string().min(1));
 const API_DIR = path.resolve(__dirname, '../..');
 export const ENV_FILE_PATHS = [path.join(API_DIR, '.env'), path.resolve(API_DIR, '../../.env')];
 
+/** Object storage S3 (module `media`; SeaweedFS local, R2 production) — dùng chung với `prisma/seed.ts`. */
+const storageEnvShape = {
+  /** Endpoint S3 mà API gọi (vd. `http://seaweedfs:8333` trong compose, `https://<account>.r2.cloudflarestorage.com`). */
+  S3_ENDPOINT: z.preprocess(emptyAsUndefined, z.url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })),
+  S3_REGION: z.preprocess(emptyAsUndefined, z.string().min(1).default('us-east-1')),
+  S3_ACCESS_KEY_ID: requiredString,
+  S3_SECRET_ACCESS_KEY: requiredString,
+  /** Bucket public: thumbnail, ảnh trang (đọc ẩn danh, cache immutable). */
+  S3_BUCKET_PUBLIC: bucketName,
+  /** Bucket private: file gốc (PDF/MIDI/MP3) — không bao giờ có URL public. */
+  S3_BUCKET_PRIVATE: bucketName,
+  /** URL gốc mà trình duyệt dùng để đọc bucket public (vd. `http://localhost:8333/piano-daily-public`). Bỏ `/` cuối. */
+  S3_PUBLIC_BASE_URL: z.preprocess(
+    emptyAsUndefined,
+    z.url({ protocol: /^https?$/, error: 'phải là URL http(s)://' }).transform((value) => value.replace(/\/+$/, '')),
+  ),
+  /** Path-style (`endpoint/bucket/key`) — cần cho SeaweedFS/MinIO. */
+  S3_FORCE_PATH_STYLE: booleanFlag(true),
+  /** Tự tạo bucket còn thiếu lúc khởi động. Chỉ dùng cho dev/test. */
+  S3_AUTO_CREATE_BUCKETS: booleanFlag(false),
+};
+
+const bucketsDiffer = (env: { S3_BUCKET_PUBLIC: string; S3_BUCKET_PRIVATE: string }) =>
+  env.S3_BUCKET_PUBLIC !== env.S3_BUCKET_PRIVATE;
+const bucketsDifferIssue = {
+  path: ['S3_BUCKET_PRIVATE'],
+  error: 'phải khác S3_BUCKET_PUBLIC (file gốc không được nằm trong bucket public)',
+};
+
+export const storageEnvSchema = z.object(storageEnvShape).refine(bucketsDiffer, bucketsDifferIssue);
+
 export const envSchema = z.object({
   NODE_ENV: z.preprocess(emptyAsUndefined, z.enum(['development', 'test', 'production']).default('development')),
   PORT: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(65535).default(4000)),
@@ -69,29 +100,8 @@ export const envSchema = z.object({
       .transform((value) => new URL(value).origin),
   ),
 
-  // ── Object storage S3 (module `media`; SeaweedFS local, R2 production) ──
-  /** Endpoint S3 mà API gọi (vd. `http://seaweedfs:8333` trong compose, `https://<account>.r2.cloudflarestorage.com`). */
-  S3_ENDPOINT: z.preprocess(emptyAsUndefined, z.url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })),
-  S3_REGION: z.preprocess(emptyAsUndefined, z.string().min(1).default('us-east-1')),
-  S3_ACCESS_KEY_ID: requiredString,
-  S3_SECRET_ACCESS_KEY: requiredString,
-  /** Bucket public: thumbnail, ảnh trang (đọc ẩn danh, cache immutable). */
-  S3_BUCKET_PUBLIC: bucketName,
-  /** Bucket private: file gốc (PDF/MIDI/MP3) — không bao giờ có URL public. */
-  S3_BUCKET_PRIVATE: bucketName,
-  /** URL gốc mà trình duyệt dùng để đọc bucket public (vd. `http://localhost:8333/piano-daily-public`). Bỏ `/` cuối. */
-  S3_PUBLIC_BASE_URL: z.preprocess(
-    emptyAsUndefined,
-    z.url({ protocol: /^https?$/, error: 'phải là URL http(s)://' }).transform((value) => value.replace(/\/+$/, '')),
-  ),
-  /** Path-style (`endpoint/bucket/key`) — cần cho SeaweedFS/MinIO. */
-  S3_FORCE_PATH_STYLE: booleanFlag(true),
-  /** Tự tạo bucket còn thiếu lúc khởi động. Chỉ dùng cho dev/test. */
-  S3_AUTO_CREATE_BUCKETS: booleanFlag(false),
-}).refine((env) => env.S3_BUCKET_PUBLIC !== env.S3_BUCKET_PRIVATE, {
-  path: ['S3_BUCKET_PRIVATE'],
-  error: 'phải khác S3_BUCKET_PUBLIC (file gốc không được nằm trong bucket public)',
-});
+  ...storageEnvShape,
+}).refine(bucketsDiffer, bucketsDifferIssue);
 
 export type Env = z.infer<typeof envSchema>;
 

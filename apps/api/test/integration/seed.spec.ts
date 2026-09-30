@@ -1,8 +1,12 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaClient } from '../../src/generated/client';
+import { SEED_SHEETS } from '../../prisma/seed-data';
+import { TEST_S3, TEST_S3_PUBLIC_BASE_URL } from './create-app';
 import { resolveTestDatabaseUrl } from './test-env';
 
 const apiDir = path.resolve(__dirname, '../..');
@@ -14,17 +18,19 @@ function runSeed(env: Record<string, string>) {
     cwd: apiDir,
     env: { PATH: process.env.PATH ?? '', ...env },
     encoding: 'utf8',
-    timeout: 30_000,
+    timeout: 120_000,
   });
 }
 
-describe('prisma/seed.ts (db:seed)', () => {
+describe('prisma/seed.ts (db:seed)', { timeout: 180_000 }, () => {
   const url = resolveTestDatabaseUrl();
   const baseEnv = {
     DATABASE_URL: url,
     ADMIN_EMAIL: '  Founder@Piano-Daily.TEST ',
     ADMIN_PASSWORD: 'seed-password-123',
     ADMIN_NAME: 'Founder',
+    ...TEST_S3,
+    S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL,
   };
   let prisma: PrismaClient;
 
@@ -32,11 +38,14 @@ describe('prisma/seed.ts (db:seed)', () => {
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
   });
 
+  const CLEAN = 'TRUNCATE TABLE refresh_tokens, users, sheet_files, sheet_genres, sheets, series, genres, composers CASCADE';
   beforeEach(async () => {
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE refresh_tokens, users CASCADE');
+    await prisma.$executeRawUnsafe(CLEAN);
   });
 
   afterAll(async () => {
+    // Không để dữ liệu mẫu lại cho các spec khác dùng chung DB test.
+    await prisma?.$executeRawUnsafe(CLEAN);
     await prisma?.$disconnect();
   });
 
@@ -77,5 +86,94 @@ describe('prisma/seed.ts (db:seed)', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('ADMIN_PASSWORD');
     expect(await prisma.user.count()).toBe(0);
+  });
+
+  it('DB trống -> 4 Composer, 4 Genre, Series, 10 Sheet đủ file, đủ 4 Level, 8 PUBLISHED (2 HOT) + 2 DRAFT', async () => {
+    const result = runSeed(baseEnv);
+    expect(result.status, result.stderr).toBe(0);
+    expect(await prisma.composer.count()).toBe(4);
+    expect(await prisma.genre.count()).toBe(4);
+    expect(await prisma.series.count()).toBe(3);
+    expect(await prisma.sheetGenre.count()).toBe(SEED_SHEETS.reduce((n, x) => n + x.genres.length, 0));
+    const sheets = await prisma.sheet.findMany();
+    expect(sheets).toHaveLength(10);
+    for (const sheet of sheets) {
+      const item = SEED_SHEETS.find((x) => x.title === sheet.title)!;
+      expect(sheet.seriesId !== null, sheet.title).toBe(item.series !== undefined);
+    }
+    for (const sheet of sheets) {
+      expect(sheet).toMatchObject({ hasSheet: true, hasMidi: true, hasMp3: true });
+      expect(sheet.pageCount).toBeGreaterThanOrEqual(1);
+    }
+    const levels = new Set(sheets.map((x) => x.level));
+    expect([...levels].sort()).toEqual(['ADVANCED', 'BEGINNER', 'EXPERT', 'INTERMEDIATE']);
+    expect(sheets.filter((x) => x.status === 'PUBLISHED')).toHaveLength(8);
+    expect(sheets.filter((x) => x.status === 'PUBLISHED' && x.isHot)).toHaveLength(2);
+    expect(sheets.filter((x) => x.status === 'DRAFT')).toHaveLength(2);
+    expect(sheets.filter((x) => x.status === 'PUBLISHED').every((x) => x.firstPublishedAt)).toBe(true);
+    expect(await prisma.sheetFile.count({ where: { type: 'THUMBNAIL' } })).toBe(10);
+  });
+
+  it('chạy lại -> số bản ghi và số sheet_files không đổi', async () => {
+    expect(runSeed(baseEnv).status).toBe(0);
+    const count = async () => [
+      await prisma.composer.count(),
+      await prisma.genre.count(),
+      await prisma.series.count(),
+      await prisma.sheet.count(),
+      await prisma.sheetFile.count(),
+    ];
+    const published = await prisma.sheet.findMany({ where: { status: 'PUBLISHED' }, orderBy: { title: 'asc' } });
+    const archived = published[0]!;
+    const flipped = published[1]!;
+    await prisma.sheet.update({ where: { id: archived.id }, data: { status: 'ARCHIVED' } });
+    await prisma.sheet.update({ where: { id: flipped.id }, data: { isHot: !flipped.isHot } });
+    const before = await count();
+    const second = runSeed(baseEnv);
+    expect(second.status, second.stderr).toBe(0);
+    expect(await count()).toEqual(before);
+    expect((await prisma.sheet.findUniqueOrThrow({ where: { id: archived.id } })).status).toBe('ARCHIVED');
+    expect((await prisma.sheet.findUniqueOrThrow({ where: { id: flipped.id } })).isHot).toBe(!flipped.isHot);
+  });
+
+  it('Sheet dở dang thiếu MIDI -> chạy lại chỉ đính MIDI, không nhân đôi PDF/MP3', async () => {
+    expect(runSeed(baseEnv).status).toBe(0);
+    const sheet = await prisma.sheet.findFirstOrThrow({ where: { status: 'PUBLISHED' } });
+    await prisma.sheetFile.updateMany({
+      where: { sheetId: sheet.id, type: { in: ['MIDI', 'MIDI_JSON'] } },
+      data: { supersededAt: new Date() },
+    });
+    const currentCount = (type: 'PDF' | 'MP3' | 'MIDI') =>
+      prisma.sheetFile.count({ where: { sheetId: sheet.id, type, supersededAt: null } });
+    const total = await prisma.sheetFile.count({ where: { sheetId: sheet.id } });
+    const result = runSeed(baseEnv);
+    expect(result.status, result.stderr).toBe(0);
+    expect(await currentCount('PDF')).toBe(1);
+    expect(await currentCount('MP3')).toBe(1);
+    expect(await currentCount('MIDI')).toBe(1);
+    // Chỉ thêm 2 dòng mới (MIDI + MIDI_JSON); PDF/MP3 không được upload lại.
+    expect(await prisma.sheetFile.count({ where: { sheetId: sheet.id } })).toBe(total + 2);
+    expect((await prisma.sheet.findUniqueOrThrow({ where: { id: sheet.id } })).hasMidi).toBe(true);
+  });
+
+  it('thiếu S3_ENDPOINT -> thoát mã ≠ 0, nêu tên biến, không ghi gì', async () => {
+    const result = runSeed({ ...baseEnv, S3_ENDPOINT: '' });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('S3_ENDPOINT (thiếu)');
+    expect(await prisma.user.count()).toBe(0);
+    expect(await prisma.composer.count()).toBe(0);
+  });
+
+  it('thiếu pdftoppm -> thoát mã ≠ 0 với thông báo rõ, không có Sheet PUBLISHED thiếu PDF', async () => {
+    // PATH chỉ chứa `node` (tsx cần), không có poppler.
+    const bin = mkdtempSync(path.join(tmpdir(), 'seed-nopath-'));
+    symlinkSync(process.execPath, path.join(bin, 'node'));
+    const result = runSeed({ ...baseEnv, PATH: bin });
+    rmSync(bin, { recursive: true, force: true });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pdftoppm');
+    expect(await prisma.sheet.count({ where: { status: 'PUBLISHED', hasSheet: false } })).toBe(0);
+    expect(await prisma.user.count()).toBe(0);
+    expect(await prisma.composer.count()).toBe(0);
   });
 });

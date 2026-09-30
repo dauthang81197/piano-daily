@@ -41,6 +41,7 @@ import { StorageService } from '../media/storage.service';
 import { notFound } from './catalog.helpers';
 import { isPrismaError } from './prisma-errors';
 import { recomputeDerived } from './sheet-derived';
+import { withSheetFileLock } from './sheet-file-lock';
 import { baseSlug, createWithUniqueSlug, type TakenSlugs } from './unique-slug';
 
 const REF = { select: { id: true, name: true } } as const;
@@ -169,6 +170,10 @@ function toListItem({ level, status, updatedAt, ...row }: SheetListRow): SheetLi
 
 function validationFailed(details?: ValidationDetail[]): AppException {
   return new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, details);
+}
+
+function publishValidationFailed(details: ValidationDetail[]): AppException {
+  return new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.UNPROCESSABLE_ENTITY, undefined, details);
 }
 
 const SHEET_NOT_FOUND = 'Không tìm thấy Sheet.';
@@ -345,10 +350,21 @@ export class SheetsService {
 
     const write = (slug?: string) =>
       this.prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
+        if (!locked.length) throw notFound(SHEET_NOT_FOUND);
+        const lockedState = await tx.sheet.findUniqueOrThrow({
+          where: { id },
+          select: { title: true, firstPublishedAt: true },
+        });
+        // Publish and title edits serialize on this row. A request that began as Draft cannot
+        // overwrite the slug if publish wins the lock first.
+        const lockedSlug = body.title !== undefined && body.title !== lockedState.title && lockedState.firstPublishedAt === null
+          ? slug
+          : undefined;
         await tx.sheet.update({
           where: { id },
           data: {
-            slug,
+            slug: lockedSlug,
             title: body.title,
             subtitle: body.subtitle,
             composerId: body.composerId,
@@ -372,8 +388,9 @@ export class SheetsService {
         return tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
       });
 
-    const regenerateSlug =
-      body.title !== undefined && body.title !== existing.title && existing.firstPublishedAt === null;
+    // A title may change after the initial read but before this transaction acquires its row lock.
+    // Generate a candidate for every Draft title patch; the locked state below decides whether to use it.
+    const regenerateSlug = body.title !== undefined && existing.firstPublishedAt === null;
     try {
       const row = regenerateSlug
         ? await createWithUniqueSlug(this.takenSlugs(id), baseSlug(body.title!, 'sheet'), write)
@@ -389,6 +406,81 @@ export class SheetsService {
     }
   }
 
+  /** Change status freely; every transition into PUBLISHED rechecks server-owned requirements. */
+  async setStatus(id: string, status: SheetStatus): Promise<Sheet> {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
+        if (!locked.length) throw notFound(SHEET_NOT_FOUND);
+        const sheet = await tx.sheet.findUniqueOrThrow({
+          where: { id },
+          select: { composerId: true, level: true, firstPublishedAt: true },
+        });
+        if (status === 'PUBLISHED') {
+          const [pdf, thumbnail, pageImage] = await Promise.all([
+            tx.sheetFile.findFirst({ where: { sheetId: id, type: FileType.PDF, supersededAt: null }, select: { id: true } }),
+            tx.sheetFile.findFirst({ where: { sheetId: id, type: FileType.THUMBNAIL, supersededAt: null }, select: { id: true } }),
+            tx.sheetFile.findFirst({ where: { sheetId: id, type: FileType.PAGE_IMAGE, supersededAt: null }, select: { id: true } }),
+          ]);
+          const details: ValidationDetail[] = [];
+          if (!pdf || !thumbnail || !pageImage) details.push({ path: 'pdf', message: 'Cần tải lên PDF đã xử lý xong.' });
+          if (!sheet.composerId) details.push({ path: 'composerId', message: 'Cần chọn Composer.' });
+          if (!sheet.level) details.push({ path: 'level', message: 'Cần chọn Level.' });
+          if (details.length) throw publishValidationFailed(details);
+        }
+        await tx.sheet.update({
+          where: { id },
+          data: { status, ...(status === 'PUBLISHED' && sheet.firstPublishedAt === null ? { firstPublishedAt: new Date() } : {}) },
+        });
+      });
+    } catch (err) {
+      if (isPrismaError(err, 'P2025')) throw notFound(SHEET_NOT_FOUND);
+      throw err;
+    }
+    return this.get(id);
+  }
+
+  async setHot(id: string, isHot: boolean): Promise<Sheet> {
+    try {
+      await this.prisma.sheet.update({ where: { id }, data: { isHot }, select: { id: true } });
+    } catch (err) {
+      if (isPrismaError(err, 'P2025')) throw notFound(SHEET_NOT_FOUND);
+      throw err;
+    }
+    return this.get(id);
+  }
+
+  /** Delete without Order; retain Sheet and its files when the Epic 3 Order hook is enabled. */
+  async remove(id: string): Promise<Sheet | { deleted: true }> {
+    return withSheetFileLock(id, async () => {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
+          if (!locked.length) throw notFound(SHEET_NOT_FOUND);
+          const hasHistoricalOrders = await this.hasOrderHistory(id);
+          if (hasHistoricalOrders) {
+            await tx.sheet.update({ where: { id }, data: { status: 'ARCHIVED' } });
+            const archived = await tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
+            return toSheet(archived, this.publicUrl, this.presignUrl);
+          }
+          const files = await tx.sheetFile.findMany({ where: { sheetId: id }, select: { storageKey: true } });
+          await this.media.deleteObjects(files.map((file) => file.storageKey));
+          await tx.sheet.delete({ where: { id } });
+          return { deleted: true };
+        });
+      } catch (err) {
+        if (isPrismaError(err, 'P2025')) throw notFound(SHEET_NOT_FOUND);
+        if (isPrismaError(err, 'P2003')) throw validationFailed([{ path: 'id', message: 'Không thể xoá Sheet vì còn dữ liệu đang tham chiếu.' }]);
+        throw err;
+      }
+    });
+  }
+
+  /** Epic 3 replaces this pre-Epic-3 hook with an Order lookup. */
+  async hasOrderHistory(_sheetId: string): Promise<boolean> {
+    return false;
+  }
+
   /**
    * Upload file của Sheet (AD-9, đồng bộ; Story 1.7 mở rộng PDF sang MIDI/MP3): kiểm magic bytes + dung
    * lượng theo `type` → `media` xử lý + ghi mọi object → MỘT transaction (supersede file hiện hành cùng
@@ -396,6 +488,10 @@ export class SheetsService {
    * Lỗi ở bất kỳ bước nào thì xoá mọi object đã ghi trong request này và DB không đổi.
    */
   async attachFile(id: string, type: UploadableFileType, upload: UploadedSheetFile): Promise<Sheet> {
+    return withSheetFileLock(id, () => this.attachFileLocked(id, type, upload));
+  }
+
+  private async attachFileLocked(id: string, type: UploadableFileType, upload: UploadedSheetFile): Promise<Sheet> {
     const exists = await this.prisma.sheet.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw notFound(SHEET_NOT_FOUND);
     this.validateUpload(type, upload.buffer);
@@ -448,6 +544,10 @@ export class SheetsService {
    * Không có file hiện hành cho type đó → 404 `NOT_FOUND`.
    */
   async removeFile(id: string, type: UploadableFileType): Promise<void> {
+    return withSheetFileLock(id, () => this.removeFileLocked(id, type));
+  }
+
+  private async removeFileLocked(id: string, type: UploadableFileType): Promise<void> {
     const supersedeTypes = SUPERSEDE_GROUPS[type];
     await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;

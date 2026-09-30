@@ -11,7 +11,8 @@ import {
 } from '@piano-daily/shared';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SheetsService } from '../../src/modules/catalog/sheets.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { createApp } from './create-app';
 import { resolveTestDatabaseUrl } from './test-env';
@@ -276,6 +277,89 @@ describe('/admin/sheets (Postgres thật)', () => {
     });
   });
 
+  describe('Lifecycle (Story 1.8)', () => {
+    it('thiếu PDF trả 422; đủ điều kiện publish, HOT, status transitions và slug freeze', async () => {
+      const composer = await createComposer('Bach');
+      const sheet = await createSheet({ title: 'Draft Piece', composerId: composer.id, level: 'BEGINNER' });
+      const missing = errorOf(await patch(`/admin/sheets/${sheet.id}/status`, { status: 'PUBLISHED' }).expect(422));
+      expect(missing.code).toBe('VALIDATION_FAILED');
+      expect(missing.details).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'pdf' })]));
+      expect((await get(`/admin/sheets/${sheet.id}`).expect(200)).body).toMatchObject({ status: 'DRAFT', firstPublishedAt: null });
+
+      const hot = sheetSchema.parse((await patch(`/admin/sheets/${sheet.id}/hot`, { isHot: true }).expect(200)).body);
+      expect(hot.isHot).toBe(true);
+      const pdf = await prisma.sheetFile.create({ data: {
+        sheetId: sheet.id, type: 'PDF', storageKey: `private/sheets/${sheet.id}/PDF/lifecycle.pdf`, size: 1, mimeType: 'application/pdf',
+      } });
+      await prisma.sheetFile.create({ data: {
+        sheetId: sheet.id, type: 'THUMBNAIL', storageKey: `public/sheets/${sheet.id}/THUMBNAIL/lifecycle.webp`, size: 1, mimeType: 'image/webp', sourceFileId: pdf.id,
+      } });
+      await prisma.sheetFile.create({ data: {
+        sheetId: sheet.id, type: 'PAGE_IMAGE', storageKey: `public/sheets/${sheet.id}/PAGE_IMAGE/lifecycle.webp`, size: 1, mimeType: 'image/webp', pageNumber: 1, sourceFileId: pdf.id,
+      } });
+      const published = sheetSchema.parse((await patch(`/admin/sheets/${sheet.id}/status`, { status: 'PUBLISHED' }).expect(200)).body);
+      expect(published.firstPublishedAt).toBeTruthy();
+      await patch(`/admin/sheets/${sheet.id}`, { title: 'Renamed Piece' }).expect(200);
+      const archived = sheetSchema.parse((await patch(`/admin/sheets/${sheet.id}/status`, { status: 'ARCHIVED' }).expect(200)).body);
+      const republished = sheetSchema.parse((await patch(`/admin/sheets/${sheet.id}/status`, { status: 'PUBLISHED' }).expect(200)).body);
+      expect(archived.status).toBe('ARCHIVED');
+      expect(republished.firstPublishedAt).toBe(published.firstPublishedAt);
+      expect(republished.slug).toBe(sheet.slug);
+    });
+
+    it('slug phản ánh title cuối cùng khi hai PATCH Draft chồng nhau', async () => {
+      const composer = await createComposer('Debussy');
+      const sheet = await createSheet({ title: 'Concurrent Draft', composerId: composer.id, level: 'BEGINNER' });
+      const service = app.get(SheetsService);
+      const privateMethods = service as unknown as { assertRefs: (refs: object) => Promise<void> };
+      const originalAssertRefs = privateMethods.assertRefs.bind(service);
+      let calls = 0;
+      let release!: () => void;
+      let entered!: () => void;
+      const blocked = new Promise<void>((resolve) => { release = resolve; });
+      const firstCall = new Promise<void>((resolve) => { entered = resolve; });
+      const assertSpy = vi.spyOn(privateMethods, 'assertRefs').mockImplementation(async (refs) => {
+        await originalAssertRefs(refs);
+        if (calls++ === 0) {
+          entered();
+          await blocked;
+        }
+      });
+
+      const staleTitleUpdate = service.update(sheet.id, { title: 'Concurrent Draft' });
+      await firstCall;
+      await service.update(sheet.id, { title: 'Changed Draft' });
+      release();
+      const finalSheet = await staleTitleUpdate;
+
+      expect(finalSheet).toMatchObject({ title: 'Concurrent Draft', slug: 'concurrent-draft' });
+      assertSpy.mockRestore();
+    });
+
+    it('xóa Sheet không Order sẽ hard-delete Sheet và SheetFile rows', async () => {
+      const composer = await createComposer('Bach');
+      const sheet = await createSheet({ title: 'Remove me', composerId: composer.id, level: 'BEGINNER' });
+      await del(`/admin/sheets/${sheet.id}`).expect(200);
+      expect(await prisma.sheet.findUnique({ where: { id: sheet.id } })).toBeNull();
+      expect(await prisma.sheetFile.count({ where: { sheetId: sheet.id } })).toBe(0);
+    });
+
+    it('xóa Sheet có lịch sử Order sẽ archive và giữ file rows', async () => {
+      const composer = await createComposer('Chopin');
+      const sheet = await createSheet({ title: 'Keep sale history', composerId: composer.id, level: 'BEGINNER' });
+      await prisma.sheetFile.create({ data: {
+        sheetId: sheet.id, type: 'PDF', storageKey: `private/sheets/${sheet.id}/PDF/keep.pdf`, size: 1, mimeType: 'application/pdf',
+      } });
+      const orderHook = vi.spyOn(app.get(SheetsService), 'hasOrderHistory').mockResolvedValue(true);
+
+      const archived = sheetSchema.parse((await del(`/admin/sheets/${sheet.id}`).expect(200)).body);
+
+      expect(archived.status).toBe('ARCHIVED');
+      expect(await prisma.sheetFile.count({ where: { sheetId: sheet.id } })).toBe(1);
+      orderHook.mockRestore();
+    });
+  });
+
   describe('Xoá phân loại đang được Sheet dùng -> 409 RESOURCE_IN_USE', () => {
     it('Genre', async () => {
       const c = await createComposer('A');
@@ -361,15 +445,15 @@ describe('/admin/sheets (Postgres thật)', () => {
     });
   });
 
-  it('id lạ / không phải UUID -> 404 NOT_FOUND; không có DELETE', async () => {
+  it('id lạ / không phải UUID -> 404 NOT_FOUND; DELETE hard-xoá Sheet khi chưa có Order', async () => {
     for (const id of [MISSING_ID, 'khong-phai-uuid']) {
       expect(errorOf(await get(`/admin/sheets/${id}`).expect(404)).code).toBe('NOT_FOUND');
       expect(errorOf(await patch(`/admin/sheets/${id}`, { title: 'X' }).expect(404)).code).toBe('NOT_FOUND');
     }
     const c = await createComposer('A');
     const sheet = await createSheet({ title: 'X', composerId: c.id, level: 'BEGINNER' });
-    await del(`/admin/sheets/${sheet.id}`).expect(404);
-    await get(`/admin/sheets/${sheet.id}`).expect(200);
+    await del(`/admin/sheets/${sheet.id}`).expect(200).expect(({ body }) => expect(body).toEqual({ deleted: true }));
+    await get(`/admin/sheets/${sheet.id}`).expect(404);
   });
 
   it('không có access token -> 401', async () => {

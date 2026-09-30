@@ -2,6 +2,7 @@ import { Module, StandardSchemaValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { getClientIp } from './common/http/client-ip';
 import { AllExceptionsFilter } from './common/http-exception.filter';
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module';
 @Module({
   imports: [
     ConfigModule,
+    ScheduleModule.forRoot(),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) =>

@@ -122,6 +122,75 @@ describe('Trang /sheets — bảng', () => {
     expect(router.push).toHaveBeenCalledWith(`/sheets/${SHEET.id}`);
   });
 
+  it('đổi trạng thái, HOT và xóa từ hàng mà không mở form sửa', async () => {
+    const fetchMock = await signIn((url, init) => {
+      if (url.pathname === `/admin/sheets/${SHEET.id}/status`) return jsonResponse(200, { ...SHEET, status: 'PUBLISHED', firstPublishedAt: '2026-09-30T03:00:00Z' });
+      if (url.pathname === `/admin/sheets/${SHEET.id}/hot`) return jsonResponse(200, { ...SHEET, isHot: true });
+      if (url.pathname === `/admin/sheets/${SHEET.id}` && init.method === 'DELETE') return jsonResponse(200, { deleted: true });
+      if (url.pathname === '/admin/sheets') return jsonResponse(200, page([LIST_ITEM]));
+      return undefined;
+    });
+    render(<SheetsPage />);
+    await screen.findByRole('row', { name: /Für Elise/ });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: `Trạng thái ${SHEET.title}` }));
+    await user.click(await screen.findByRole('option', { name: 'Đã publish' }));
+    expect(requests(fetchMock, 'PATCH', `/admin/sheets/${SHEET.id}/status`)).toHaveLength(1);
+    expect(router.push).not.toHaveBeenCalled();
+
+    await user.click(await screen.findByRole('button', { name: 'Đánh dấu HOT Für Elise' }));
+    expect(requests(fetchMock, 'PATCH', `/admin/sheets/${SHEET.id}/hot`)).toHaveLength(1);
+    expect(router.push).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Xoá' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+    await waitFor(() => expect(requests(fetchMock, 'DELETE', `/admin/sheets/${SHEET.id}`)).toHaveLength(1));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('refetches the active status filter after a status change', async () => {
+    let currentStatus = 'DRAFT';
+    const fetchMock = await signIn((url) => {
+      if (url.pathname === `/admin/sheets/${SHEET.id}/status`) {
+        currentStatus = 'PUBLISHED';
+        return jsonResponse(200, { ...SHEET, status: currentStatus, firstPublishedAt: '2026-09-30T03:00:00Z' });
+      }
+      if (url.pathname === '/admin/sheets') {
+        const filter = url.searchParams.get('status');
+        return jsonResponse(200, filter && filter !== currentStatus ? page([], 0) : page([LIST_ITEM]));
+      }
+      return undefined;
+    });
+    render(<SheetsPage />);
+    await screen.findByRole('row', { name: /Für Elise/ });
+    const user = userEvent.setup();
+    await choose(user, 'Trạng thái', 'Draft');
+    await user.click(screen.getByRole('combobox', { name: `Trạng thái ${SHEET.title}` }));
+    await user.click(await screen.findByRole('option', { name: 'Đã publish' }));
+
+    expect(await screen.findByText('Không có Sheet nào khớp điều kiện tìm/lọc.')).toBeInTheDocument();
+    expect(requests(fetchMock, 'GET', '/admin/sheets').some(({ url }) => url.searchParams.get('status') === 'DRAFT')).toBe(true);
+  });
+
+  it('keeps delete confirmation open and displays an error when deletion fails', async () => {
+    const fetchMock = await signIn((url, init) => {
+      if (url.pathname === `/admin/sheets/${SHEET.id}` && init.method === 'DELETE') {
+        return jsonResponse(500, errorBody('INTERNAL_ERROR'));
+      }
+      if (url.pathname === '/admin/sheets') return jsonResponse(200, page([LIST_ITEM]));
+      return undefined;
+    });
+    render(<SheetsPage />);
+    await screen.findByRole('row', { name: /Für Elise/ });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Xoá' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xác nhận xoá' })).toBeInTheDocument();
+    expect(requests(fetchMock, 'DELETE', `/admin/sheets/${SHEET.id}`)).toHaveLength(1);
+  });
+
   it('tìm và lọc gửi đúng query (debounce, về trang 1)', async () => {
     const fetchMock = await signIn((url) => (url.pathname === '/admin/sheets' ? jsonResponse(200, page([LIST_ITEM])) : undefined));
     render(<SheetsPage />);
@@ -372,6 +441,29 @@ describe('Trang tạo Sheet', () => {
 });
 
 describe('Trang sửa Sheet', () => {
+  it('publish và HOT cập nhật state; xóa cần xác nhận', async () => {
+    const fetchMock = await signIn((url, init) => {
+      if (url.pathname === `/admin/sheets/${SHEET.id}/hot`) return jsonResponse(200, { ...SHEET, isHot: true });
+      if (url.pathname === `/admin/sheets/${SHEET.id}/status`) return jsonResponse(200, { ...SHEET, status: 'PUBLISHED', firstPublishedAt: '2026-09-30T03:00:00Z' });
+      if (url.pathname === `/admin/sheets/${SHEET.id}` && init.method === 'DELETE') return jsonResponse(200, { deleted: true });
+      if (url.pathname === `/admin/sheets/${SHEET.id}`) return jsonResponse(200, SHEET);
+      return undefined;
+    });
+    render(<SheetEditPage id={SHEET.id} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Đánh dấu HOT' }));
+    expect(await screen.findByRole('button', { name: 'Bỏ HOT' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Publish' }));
+    expect(await screen.findByRole('button', { name: 'Lưu trữ' })).toBeInTheDocument();
+    expect(JSON.parse(String(requests(fetchMock, 'PATCH', `/admin/sheets/${SHEET.id}/hot`)[0]!.init.body))).toEqual({ isHot: true });
+    expect(JSON.parse(String(requests(fetchMock, 'PATCH', `/admin/sheets/${SHEET.id}/status`)[0]!.init.body))).toEqual({ status: 'PUBLISHED' });
+
+    await user.click(screen.getByRole('button', { name: 'Xoá' }));
+    expect(requests(fetchMock, 'DELETE', `/admin/sheets/${SHEET.id}`)).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/sheets'));
+  });
+
   it('tải Sheet, điền sẵn dữ liệu + preview; lưu -> PATCH đúng body và báo "Đã lưu"', async () => {
     const fetchMock = await signIn((url, init) => {
       if (url.pathname !== `/admin/sheets/${SHEET.id}`) return undefined;

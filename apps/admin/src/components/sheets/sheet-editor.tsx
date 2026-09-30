@@ -1,11 +1,13 @@
 'use client';
 
-import type { Sheet } from '@piano-daily/shared';
-import { ArrowLeft } from 'lucide-react';
+import { SHEET_STATUS_LABELS, SheetStatus, type Sheet } from '@piano-daily/shared';
+import { ArrowLeft, Flame } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FormError } from '@/components/form-error';
+import { DeleteConfirm } from '@/components/taxonomy/delete-confirm';
+import { Button } from '@/components/ui/button';
 import { isApiError } from '@/lib/api/client';
 import { sheetsApi } from '@/lib/api/sheets';
 import { MidiUploader } from './midi-uploader';
@@ -41,8 +43,16 @@ export function SheetCreatePage() {
 
 /** Trang sửa thông tin Sheet. */
 export function SheetEditPage({ id }: { id: string }) {
+  const router = useRouter();
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function updateLifecycle(work: () => Promise<Sheet>) {
+    setBusy(true);
+    setError(null);
+    try { setSheet(await work()); } catch (err) { setError(isApiError(err) ? err.message : 'Không thể cập nhật trạng thái Sheet. Vui lòng thử lại.'); } finally { setBusy(false); }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -72,6 +82,22 @@ export function SheetEditPage({ id }: { id: string }) {
       {sheet && <PdfUploader sheet={sheet} onUploaded={setSheet} />}
       {sheet && <MidiUploader sheet={sheet} onUploaded={setSheet} />}
       {sheet && <Mp3Uploader sheet={sheet} onUploaded={setSheet} />}
+      {sheet && <div className="flex flex-wrap items-center gap-2 rounded-md border p-4">
+        <span className="mr-auto text-sm">Trạng thái: {SHEET_STATUS_LABELS[sheet.status]}</span>
+        {Object.values(SheetStatus).filter((status) => status !== sheet.status).map((status) =>
+          <Button key={status} type="button" variant="outline" disabled={busy} onClick={() => void updateLifecycle(() => sheetsApi.setStatus(sheet.id, status))}>
+            {status === 'PUBLISHED' ? 'Publish' : status === 'ARCHIVED' ? 'Lưu trữ' : 'Chuyển về Draft'}
+          </Button>)}
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void updateLifecycle(() => sheetsApi.setHot(sheet.id, !sheet.isHot))}>
+          <Flame aria-hidden="true" className="size-4" /> {sheet.isHot ? 'Bỏ HOT' : 'Đánh dấu HOT'}
+        </Button>
+        <DeleteConfirm
+          itemLabel={sheet.title}
+          disabled={busy}
+          onConfirm={async () => { await sheetsApi.remove(sheet.id); router.push('/sheets'); }}
+          onError={(err) => setError(isApiError(err) ? err.message : 'Không thể xoá Sheet. Vui lòng thử lại.')}
+        />
+      </div>}
       {/* key: dựng lại form khi tải xong để defaultValues lấy dữ liệu của Sheet. */}
       {sheet && <SheetForm key={sheet.id} sheet={sheet} onSaved={setSheet} />}
     </section>

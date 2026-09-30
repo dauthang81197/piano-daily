@@ -19,6 +19,7 @@ allowBuilds:
   '@nestjs/core': true
   unrs-resolver: true
   '@tailwindcss/oxide': true
+  '@parcel/watcher': false
 
 minimumReleaseAgeExclude:
   - '@turbo/darwin-64@2.11.5'

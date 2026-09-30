@@ -29,12 +29,12 @@ RUN pnpm turbo run build --filter=@piano-daily/admin
 FROM node:24.21-bookworm-slim AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3001 \
+    PORT=4101 \
     HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=builder --chown=node:node /repo/apps/admin/.next/standalone ./
 COPY --from=builder --chown=node:node /repo/apps/admin/.next/static ./apps/admin/.next/static
 COPY --from=builder --chown=node:node /repo/apps/admin/public ./apps/admin/public
 USER node
-EXPOSE 3001
+EXPOSE 4101
 CMD ["node", "apps/admin/server.js"]

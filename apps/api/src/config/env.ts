@@ -100,6 +100,28 @@ export const envSchema = z.object({
       .transform((value) => new URL(value).origin),
   ),
 
+  /**
+   * Origin của web công khai — được CORS cho phép nhưng KHÔNG kèm `credentials`.
+   * Chuẩn hoá về `scheme://host[:port]`.
+   */
+  CORS_WEB_ORIGIN: z.preprocess(
+    emptyAsUndefined,
+    z
+      .url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })
+      .transform((value) => new URL(value).origin),
+  ),
+  /**
+   * Secret web SSR gửi qua header `X-Internal-Secret` để bỏ qua throttle (AD-18).
+   * Bắt buộc (deny-by-default): thiếu thì API không khởi động.
+   */
+  INTERNAL_API_SECRET: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(32, { error: 'cần ít nhất 32 ký tự' })
+      .refine((v) => !v.startsWith('change-me'), { error: 'vẫn là giá trị mẫu, hãy sinh khoá ngẫu nhiên' }),
+  ),
+
   ...storageEnvShape,
 }).refine(bucketsDiffer, bucketsDifferIssue);
 

@@ -1,0 +1,48 @@
+{
+  "Meta": {
+    "title": "Piano Daily",
+    "description": "Thư viện sheet piano tuyển chọn, phân cấp theo trình độ."
+  },
+  "Nav": {
+    "home": "Trang chủ",
+    "search": "Tìm kiếm",
+    "primary": "Điều hướng chính",
+    "logoLabel": "Piano Daily, về trang chủ",
+    "openMenu": "Mở menu",
+    "closeMenu": "Đóng menu",
+    "levels": {
+      "beginner": "Cơ bản",
+      "intermediate": "Trung cấp",
+      "advanced": "Nâng cao",
+      "expert": "Chuyên nghiệp"
+    }
+  },
+  "Search": {
+    "label": "Tìm kiếm bản nhạc",
+    "placeholder": "Tên bài, nhà soạn nhạc hoặc mã số",
+    "submit": "Tìm"
+  },
+  "Language": {
+    "switchTo": "Chuyển sang {language}",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "Footer": {
+    "aboutTitle": "Giới thiệu",
+    "about": "Piano Daily là thư viện sheet piano tuyển chọn, sắp xếp theo trình độ để người chơi dễ tìm bản nhạc phù hợp.",
+    "levelsTitle": "Trình độ",
+    "disclaimerTitle": "Bản quyền",
+    "disclaimer": "Các bản nhạc thuộc quyền sở hữu của tác giả và nhà xuất bản tương ứng. Nội dung trên trang chỉ phục vụ mục đích học tập và tham khảo cá nhân."
+  },
+  "Home": {
+    "eyebrow": "Thư viện sheet piano",
+    "title": "Piano Daily",
+    "tagline": "Bản nhạc rõ ràng, phân cấp theo trình độ, dễ nghe thử và dễ tìm.",
+    "browseByLevel": "Xem theo trình độ"
+  },
+  "NotFound": {
+    "title": "Không tìm thấy trang",
+    "description": "Trang bạn yêu cầu không tồn tại hoặc đã được di chuyển.",
+    "backHome": "Về trang chủ"
+  }
+}

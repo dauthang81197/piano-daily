@@ -34,3 +34,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-7-upload-midi-va-mp3.md`
   summary: Cron GC (Story 1.8) khi dọn file superseded phải tôn trọng cặp MIDI/MIDI_JSON (và PDF/THUMBNAIL/PAGE_IMAGE): không bao giờ để một dòng MIDI hiện hành tồn tại mà thiếu MIDI_JSON đi kèm, hoặc ngược lại.
   evidence: Review Story 1.7 (Blind Hunter): hiện tại được đảm bảo bởi transaction ghi/supersede đồng thời cả hai; chỉ là rủi ro tiềm ẩn cho logic GC viết sau.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-khung-site-cong-khai-song-ngu.md`
+  summary: Integration test của API chập chờn (timeout hàng loạt, mỗi lần một spec khác nhau) khi chạy cả suite, nhưng xanh khi chạy riêng.
+  evidence: Thấy ở Story 1.9 (`catalog-sheets.spec`, `sheet-files.spec`) và Story 2.1 (`catalog-taxonomy.spec` 401, `sheet-files.spec` timeout 60s liên tiếp); chạy riêng `sheet-files.spec` xanh 43/43. Cần tái hiện có log S3/DB (nghi treo gọi S3 hoặc tranh chấp DB test dùng chung) để xác định nguyên nhân.

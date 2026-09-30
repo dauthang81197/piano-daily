@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp, TEST_CORS_ADMIN_ORIGIN } from './create-app';
+import { createApp, TEST_CORS_ADMIN_ORIGIN, TEST_CORS_WEB_ORIGIN } from './create-app';
 import { resolveTestDatabaseUrl } from './test-env';
 
 describe('CORS theo allowlist (AD-18)', () => {
@@ -48,6 +48,19 @@ describe('CORS theo allowlist (AD-18)', () => {
   it('request thật từ origin lạ -> không có Allow-Origin', async () => {
     const res = await request(app.getHttpServer()).get('/health').set('Origin', 'https://evil.example.com');
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+  });
+
+  it('preflight từ origin web -> có Allow-Origin, KHÔNG có Allow-Credentials', async () => {
+    const res = await preflight(TEST_CORS_WEB_ORIGIN);
+    expect(res.status).toBeLessThan(300);
+    expect(res.headers['access-control-allow-origin']).toBe(TEST_CORS_WEB_ORIGIN);
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+  });
+
+  it('request thật từ origin web -> có Allow-Origin, không có Allow-Credentials', async () => {
+    const res = await request(app.getHttpServer()).get('/health').set('Origin', TEST_CORS_WEB_ORIGIN);
+    expect(res.headers['access-control-allow-origin']).toBe(TEST_CORS_WEB_ORIGIN);
     expect(res.headers['access-control-allow-credentials']).toBeUndefined();
   });
 

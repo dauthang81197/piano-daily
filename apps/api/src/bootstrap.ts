@@ -11,7 +11,7 @@ import type { Env } from './config/env';
 export function configureApp(app: INestApplication): void {
   app.useLogger(app.get(Logger));
   app.use(helmet());
-  // CORS theo allowlist tường minh: chỉ origin admin, kèm credentials (cookie refresh) — AD-18.
+  // CORS theo allowlist tường minh: origin admin kèm credentials (cookie refresh), origin web không credentials — AD-18.
   // Dùng delegate thay vì `{ origin: [...] }`: gói `cors` vẫn gửi `Allow-Credentials`/`Allow-Methods`
   // cho origin không khớp; `origin: false` bỏ qua hẳn CORS nên origin lạ không nhận header `Access-Control-Allow-*`.
   // Mọi response đều `Vary: Origin` (kể cả origin bị từ chối / không có Origin), để cache trung gian không
@@ -20,10 +20,15 @@ export function configureApp(app: INestApplication): void {
     res.vary('Origin');
     next();
   });
-  const allowedOrigins = [app.get(ConfigService<Env, true>).get('CORS_ADMIN_ORIGIN', { infer: true })];
+  // Origin web công khai cũng được phép nhưng KHÔNG bật credentials (web không dùng cookie).
+  const config = app.get(ConfigService<Env, true>);
+  const adminOrigin = config.get('CORS_ADMIN_ORIGIN', { infer: true });
+  const webOrigin = config.get('CORS_WEB_ORIGIN', { infer: true });
   const corsDelegate: CorsOptionsDelegate<Request> = (req, callback) => {
     const origin = req.headers.origin;
-    callback(null, origin && allowedOrigins.includes(origin) ? { origin: true, credentials: true } : { origin: false });
+    if (origin && origin === adminOrigin) return callback(null, { origin: true, credentials: true });
+    if (origin && origin === webOrigin) return callback(null, { origin: true, credentials: false });
+    callback(null, { origin: false });
   };
   app.enableCors(corsDelegate);
   // Đọc cookie refresh token (`req.cookies`).

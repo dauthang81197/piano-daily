@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FormError } from '@/components/form-error';
+import { DeleteConfirm } from '@/components/taxonomy/delete-confirm';
 import { loadErrorMessage } from '@/components/taxonomy/server-error';
 import { PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/components/taxonomy/taxonomy-table';
 import { useComposerOptions } from '@/components/taxonomy/use-composer-options';
@@ -95,6 +96,8 @@ export function SheetTable() {
   const [data, setData] = useState<Page<SheetListItem> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busyRows, setBusyRows] = useState<Set<string>>(new Set());
+  const [reloadToken, setReloadToken] = useState(0);
 
   // Đổi từ khoá hoặc bộ lọc -> về trang 1.
   if (query.q !== q || query.filterKey !== filterKey) setQuery({ q, filterKey, page: 1 });
@@ -123,12 +126,36 @@ export function SheetTable() {
         setLoading(false);
       });
     return () => controller.abort();
-  }, [query]);
+  }, [query, reloadToken]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
   const open = (id: string) => router.push(`/sheets/${id}`);
   const composerItems = [{ value: ALL, label: 'Tất cả Composer' }, ...composers.options];
   const filtered = Boolean(query.q) || query.filterKey !== '{}';
+
+  async function updateRow(id: string, action: 'hot' | 'status' | 'delete', value?: SheetStatus, currentHot?: boolean) {
+    setBusyRows((previous) => new Set(previous).add(id));
+    try {
+      if (action === 'delete') {
+        await sheetsApi.remove(id);
+      } else {
+        await (action === 'hot'
+          ? sheetsApi.setHot(id, !currentHot)
+          : sheetsApi.setStatus(id, value!));
+      }
+      setError(null);
+      setReloadToken((current) => current + 1);
+    } catch (err) {
+      setError(loadErrorMessage(err));
+      throw err;
+    } finally {
+      setBusyRows((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -174,6 +201,7 @@ export function SheetTable() {
             <TableHead>Cấp độ</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead>Cập nhật lúc</TableHead>
+            <TableHead>Thao tác</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -202,11 +230,31 @@ export function SheetTable() {
               <TableCell>{LEVEL_LABELS[sheet.level]}</TableCell>
               <TableCell>{SHEET_STATUS_LABELS[sheet.status]}</TableCell>
               <TableCell className="text-muted-foreground">{dateFormat.format(new Date(sheet.updatedAt))}</TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1">
+                  <Select
+                    items={Object.values(SheetStatus).map((value) => ({ value, label: SHEET_STATUS_LABELS[value] }))}
+                    value={sheet.status}
+                    onValueChange={(value) => { if (value && value !== sheet.status) void updateRow(sheet.id, 'status', value as SheetStatus).catch(() => {}); }}
+                  >
+                    <SelectTrigger aria-label={`Trạng thái ${sheet.title}`} className="w-36" disabled={busyRows.has(sheet.id)}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(SheetStatus).map((value) => <SelectItem key={value} value={value}>{SHEET_STATUS_LABELS[value]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="ghost" size="sm" aria-label={sheet.isHot ? `Bỏ HOT ${sheet.title}` : `Đánh dấu HOT ${sheet.title}`} disabled={busyRows.has(sheet.id)} onClick={() => void updateRow(sheet.id, 'hot', undefined, sheet.isHot).catch(() => {})}>
+                    <Flame aria-hidden="true" className={sheet.isHot ? 'size-4 text-secondary' : 'size-4'} />
+                  </Button>
+                  <DeleteConfirm itemLabel={sheet.title} disabled={busyRows.has(sheet.id)} onConfirm={async () => { await updateRow(sheet.id, 'delete'); }} />
+                </div>
+              </TableCell>
             </TableRow>
           ))}
           {data && data.items.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                 {filtered
                   ? 'Không có Sheet nào khớp điều kiện tìm/lọc.'
                   : query.page > 1

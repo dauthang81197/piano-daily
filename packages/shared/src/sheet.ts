@@ -193,6 +193,12 @@ export const updateSheetSchema = z.strictObject(
 export type UpdateSheetRequest = z.input<typeof updateSheetSchema>;
 export type UpdateSheetBody = z.output<typeof updateSheetSchema>;
 
+/** Lifecycle operations have dedicated DTOs; metadata PATCH must not own these fields. */
+export const updateSheetStatusSchema = z.strictObject({ status: sheetStatusSchema });
+export type UpdateSheetStatusBody = z.output<typeof updateSheetStatusSchema>;
+export const updateSheetHotSchema = z.strictObject({ isHot: z.boolean() });
+export type UpdateSheetHotBody = z.output<typeof updateSheetHotSchema>;
+
 // ── List ─────────────────────────────────────────────────────
 
 const pageMessage = 'Trang phải là số nguyên từ 1.';

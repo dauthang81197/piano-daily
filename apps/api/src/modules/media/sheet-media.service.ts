@@ -229,4 +229,9 @@ export class SheetMediaService {
       this.logger.error({ err, count: keys.length }, 'Không xoá được object khi rollback upload');
     }
   }
+
+  /** Lifecycle/GC deletion. Unlike upload rollback this propagates storage errors so catalog can retry. */
+  deleteObjects(keys: readonly string[]): Promise<void> {
+    return this.storage.deleteObjects(keys);
+  }
 }

@@ -6,10 +6,12 @@ export function DeleteConfirm({
   itemLabel,
   disabled,
   onConfirm,
+  onError,
 }: {
   itemLabel: string;
   disabled?: boolean;
   onConfirm: () => Promise<void>;
+  onError?: (error: unknown) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -33,9 +35,11 @@ export function DeleteConfirm({
           setBusy(true);
           try {
             await onConfirm();
+            setConfirming(false);
+          } catch (error) {
+            onError?.(error);
           } finally {
             setBusy(false);
-            setConfirming(false);
           }
         }}
       >

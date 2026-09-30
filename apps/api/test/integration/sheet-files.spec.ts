@@ -11,8 +11,11 @@ import {
 } from '@piano-daily/shared';
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StorageService } from '../../src/modules/media/storage.service';
+import { SheetMediaService } from '../../src/modules/media/sheet-media.service';
+import { SheetFileGcService } from '../../src/modules/catalog/sheet-file-gc.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { corruptMidi, makeMidi, midiWithNoTracks } from '../fixtures/midi';
 import { corruptPdf, makePdf, PNG_1X1 } from '../fixtures/pdf';
@@ -118,6 +121,19 @@ describe('POST /admin/sheets/:id/files (Postgres + SeaweedFS thật)', () => {
     await app?.close();
   });
 
+  it('đăng ký lịch GC catalog chạy mỗi giờ và scheduler gọi entry point', async () => {
+    const gc = app.get(SheetFileGcService);
+    const options = Reflect.getMetadata('SCHEDULE_CRON_OPTIONS', SheetFileGcService.prototype.scheduledRun) as { cronTime: string };
+    expect(options.cronTime).toBe(CronExpression.EVERY_HOUR);
+
+    const jobs = app.get(SchedulerRegistry).getCronJobs();
+    expect(jobs.size).toBeGreaterThan(0);
+    const runSpy = vi.spyOn(gc, 'run').mockResolvedValue();
+    await [...jobs.values()][0]!.fireOnTick();
+    expect(runSpy).toHaveBeenCalledOnce();
+    runSpy.mockRestore();
+  });
+
   it('PDF 3 trang -> 201; hasSheet, pageCount 3, thumbnail + 3 trang đọc được công khai; PDF gốc chỉ ở bucket private', async () => {
     const sheet = await createSheet();
     const pdfBytes = makePdf(3, 'a');
@@ -167,6 +183,123 @@ describe('POST /admin/sheets/:id/files (Postgres + SeaweedFS thật)', () => {
     // PATCH cũng trả thumbnail/pages.
     const patched = sheetSchema.parse((await auth(http().patch(`/admin/sheets/${sheet.id}`)).send({ description: 'x' }).expect(200)).body);
     expect(patched).toMatchObject({ thumbnailUrl: body.thumbnailUrl, pages: body.pages, pdf: body.pdf, pageCount: 3 });
+  });
+
+  it('Sheet delete giữ DB khi S3 lỗi và xóa Sheet + object khi thành công', async () => {
+    const sheet = await createSheet('Delete retry');
+    await upload(sheet.id, makePdf(1, 'delete-retry')).expect(201);
+    const media = app.get(SheetMediaService);
+    const removeSpy = vi.spyOn(media, 'deleteObjects').mockRejectedValueOnce(new Error('S3 unavailable'));
+    await auth(http().delete(`/admin/sheets/${sheet.id}`)).expect(500);
+    expect(await prisma.sheet.count({ where: { id: sheet.id } })).toBe(1);
+    expect(await prisma.sheetFile.count({ where: { sheetId: sheet.id } })).toBeGreaterThan(0);
+    removeSpy.mockRestore();
+
+    await auth(http().delete(`/admin/sheets/${sheet.id}`)).expect(200).expect(({ body }) => expect(body).toEqual({ deleted: true }));
+    expect(await prisma.sheet.count({ where: { id: sheet.id } })).toBe(0);
+    expect(await publicKeys(sheet.id)).toEqual([]);
+    expect(await privateKeys(sheet.id)).toEqual([]);
+  });
+
+  it('GC giữ nhóm chưa đủ 24h, tiếp tục nhóm kế tiếp sau lỗi S3 và retry nhóm lỗi', async () => {
+    const failed = await createSheet('GC failed group');
+    const ready = await createSheet('GC ready group');
+    const recent = await createSheet('GC recent group');
+    for (const [sheet, content] of [[failed, 'failed'], [ready, 'ready'], [recent, 'recent']] as const) {
+      await upload(sheet.id, makePdf(1, `${content}-old`)).expect(201);
+      await upload(sheet.id, makePdf(1, `${content}-new`)).expect(201);
+    }
+    const cutoff = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    await prisma.sheetFile.updateMany({ where: { sheetId: failed.id, supersededAt: { not: null } }, data: { supersededAt: new Date(cutoff.getTime() - 1_000) } });
+    await prisma.sheetFile.updateMany({ where: { sheetId: ready.id, supersededAt: { not: null } }, data: { supersededAt: cutoff } });
+    await prisma.sheetFile.updateMany({ where: { sheetId: recent.id, supersededAt: { not: null } }, data: { supersededAt: new Date(Date.now() - 23 * 60 * 60 * 1000) } });
+
+    const media = app.get(SheetMediaService);
+    const deleteSpy = vi.spyOn(media, 'deleteObjects').mockRejectedValueOnce(new Error('S3 unavailable'));
+    await app.get(SheetFileGcService).run();
+    expect(await prisma.sheetFile.count({ where: { sheetId: failed.id, supersededAt: { not: null } } })).toBeGreaterThan(0);
+    expect(await prisma.sheetFile.count({ where: { sheetId: ready.id, supersededAt: { not: null } } })).toBe(0);
+    expect(await prisma.sheetFile.count({ where: { sheetId: recent.id, supersededAt: { not: null } } })).toBeGreaterThan(0);
+
+    deleteSpy.mockRestore();
+    await app.get(SheetFileGcService).run();
+    expect(await prisma.sheetFile.count({ where: { sheetId: failed.id, supersededAt: { not: null } } })).toBe(0);
+  });
+
+  it('GC giữ key dùng bởi nhóm mới hơn và không xóa file được DownloadToken tham chiếu', async () => {
+    const duplicate = await createSheet('GC duplicate key');
+    const sameBytes = makePdf(1, 'same-content');
+    await upload(duplicate.id, sameBytes).expect(201);
+    const olderGroup = await prisma.sheetFile.findMany({ where: { sheetId: duplicate.id }, select: { id: true, storageKey: true } });
+    await upload(duplicate.id, sameBytes).expect(201);
+    const newerGroup = await prisma.sheetFile.findMany({ where: { sheetId: duplicate.id, supersededAt: null }, select: { id: true, storageKey: true } });
+    expect(olderGroup.some((row) => newerGroup.some((current) => current.storageKey === row.storageKey))).toBe(true);
+    const oldAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    const newerAt = new Date(Date.now() - 60 * 60 * 1000);
+    await prisma.sheetFile.updateMany({ where: { id: { in: olderGroup.map((row) => row.id) } }, data: { supersededAt: oldAt } });
+    await upload(duplicate.id, makePdf(1, 'duplicate-current')).expect(201);
+    await prisma.sheetFile.updateMany({ where: { id: { in: newerGroup.map((row) => row.id) } }, data: { supersededAt: newerAt } });
+
+    const gc = app.get(SheetFileGcService);
+    await gc.run();
+    expect(await prisma.sheetFile.count({ where: { id: { in: olderGroup.map((row) => row.id) } } })).toBeGreaterThan(0);
+
+    const tokenSheet = await createSheet('GC shared key live token');
+    const tokenBytes = makePdf(1, 'token-shared');
+    await upload(tokenSheet.id, tokenBytes).expect(201);
+    const tokenFirstGroup = await prisma.sheetFile.findMany({ where: { sheetId: tokenSheet.id }, select: { id: true, storageKey: true } });
+    await upload(tokenSheet.id, tokenBytes).expect(201);
+    const tokenSecondGroup = await prisma.sheetFile.findMany({ where: { sheetId: tokenSheet.id, supersededAt: null }, select: { id: true, storageKey: true } });
+    expect(tokenFirstGroup.some((row) => tokenSecondGroup.some((current) => current.storageKey === row.storageKey))).toBe(true);
+    await upload(tokenSheet.id, makePdf(1, 'token-current')).expect(201);
+    await prisma.sheetFile.updateMany({ where: { id: { in: [...tokenFirstGroup, ...tokenSecondGroup].map((row) => row.id) } }, data: { supersededAt: oldAt } });
+
+    const tokenizedIds = new Set(tokenSecondGroup.map((row) => row.id));
+    const tokenHook = vi.spyOn(gc, 'hasLiveDownloadTokenReference').mockImplementation(async (fileIds) => fileIds.some((id) => tokenizedIds.has(id)));
+    await gc.run();
+    expect(await prisma.sheetFile.count({ where: { id: { in: olderGroup.map((row) => row.id) } } })).toBeGreaterThan(0);
+    expect(await prisma.sheetFile.count({ where: { id: { in: tokenFirstGroup.map((row) => row.id) } } })).toBeGreaterThan(0);
+    expect(await prisma.sheetFile.count({ where: { id: { in: tokenSecondGroup.map((row) => row.id) } } })).toBeGreaterThan(0);
+    tokenHook.mockRestore();
+  });
+
+  it('GC dọn nhóm MIDI/MP3 đủ tuổi và giữ nhóm PDF/MIDI thiếu file dẫn xuất', async () => {
+    const midiSheet = await createSheet('GC MIDI group');
+    await upload(midiSheet.id, makeMidi(2), { type: 'MIDI' }).expect(201);
+    const oldMidi = await prisma.sheetFile.findMany({ where: { sheetId: midiSheet.id }, select: { id: true, type: true } });
+    await upload(midiSheet.id, makeMidi(3), { type: 'MIDI' }).expect(201);
+
+    const mp3Sheet = await createSheet('GC MP3 group');
+    await upload(mp3Sheet.id, makeMp3(16, 0x11), { type: 'MP3' }).expect(201);
+    const oldMp3 = await prisma.sheetFile.findMany({ where: { sheetId: mp3Sheet.id }, select: { id: true } });
+    await upload(mp3Sheet.id, makeMp3(16, 0x22), { type: 'MP3' }).expect(201);
+
+    const missingPdfSheet = await createSheet('GC incomplete PDF group');
+    await upload(missingPdfSheet.id, makePdf(1, 'missing-page')).expect(201);
+    const oldPdf = await prisma.sheetFile.findMany({ where: { sheetId: missingPdfSheet.id }, select: { id: true, type: true } });
+    await upload(missingPdfSheet.id, makePdf(1, 'current-page')).expect(201);
+    const oldPdfPage = oldPdf.find((row) => row.type === 'PAGE_IMAGE');
+    expect(oldPdfPage).toBeDefined();
+    await prisma.sheetFile.delete({ where: { id: oldPdfPage!.id } });
+
+    const incompleteMidiSheet = await createSheet('GC incomplete MIDI group');
+    await upload(incompleteMidiSheet.id, makeMidi(2), { type: 'MIDI' }).expect(201);
+    const oldIncompleteMidi = await prisma.sheetFile.findMany({ where: { sheetId: incompleteMidiSheet.id }, select: { id: true, type: true } });
+    await upload(incompleteMidiSheet.id, makeMidi(3), { type: 'MIDI' }).expect(201);
+    const oldMidiJson = oldIncompleteMidi.find((row) => row.type === 'MIDI_JSON');
+    expect(oldMidiJson).toBeDefined();
+    await prisma.sheetFile.delete({ where: { id: oldMidiJson!.id } });
+
+    const oldAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    await prisma.sheetFile.updateMany({ where: { id: { in: [...oldMidi, ...oldMp3].map((row) => row.id) } }, data: { supersededAt: oldAt } });
+    await prisma.sheetFile.updateMany({ where: { id: { in: [...oldPdf.filter((row) => row.id !== oldPdfPage!.id), ...oldIncompleteMidi.filter((row) => row.id !== oldMidiJson!.id)].map((row) => row.id) } }, data: { supersededAt: oldAt } });
+
+    await app.get(SheetFileGcService).run();
+
+    expect(await prisma.sheetFile.count({ where: { id: { in: oldMidi.map((row) => row.id) } } })).toBe(0);
+    expect(await prisma.sheetFile.count({ where: { id: { in: oldMp3.map((row) => row.id) } } })).toBe(0);
+    expect(await prisma.sheetFile.count({ where: { id: { in: oldPdf.filter((row) => row.id !== oldPdfPage!.id).map((row) => row.id) } } })).toBeGreaterThan(0);
+    expect(await prisma.sheetFile.count({ where: { id: { in: oldIncompleteMidi.filter((row) => row.id !== oldMidiJson!.id).map((row) => row.id) } } })).toBeGreaterThan(0);
   });
 
   it('upload PDF thay thế -> bản cũ (PDF + ảnh) bị supersede, pageCount 2, chỉ 1 PDF hiện hành', async () => {
@@ -568,6 +701,31 @@ describe('POST /admin/sheets/:id/files (Postgres + SeaweedFS thật)', () => {
     it('không có access token -> 401', async () => {
       const sheet = await createSheet();
       await http().delete(`/admin/sheets/${sheet.id}/files/pdf`).expect(401);
+    });
+  });
+
+  describe('GC file superseded (Story 1.8)', () => {
+    it('waits 24 hours, removes complete PDF groups and retains failed S3 group for retry', async () => {
+      const sheet = await createSheet('GC lifecycle');
+      await upload(sheet.id, makePdf(2, 'old')).expect(201);
+      await upload(sheet.id, makePdf(1, 'current')).expect(201);
+      const oldRows = await prisma.sheetFile.findMany({ where: { sheetId: sheet.id, supersededAt: { not: null } } });
+      expect(oldRows).toHaveLength(4); // PDF, thumbnail and two page images.
+
+      const gc = app.get(SheetFileGcService);
+      await gc.run(new Date(Date.now() + 23 * 60 * 60 * 1000));
+      expect(await prisma.sheetFile.count({ where: { id: { in: oldRows.map((r) => r.id) } } })).toBe(oldRows.length);
+
+      await prisma.sheetFile.updateMany({ where: { id: { in: oldRows.map((r) => r.id) } }, data: { supersededAt: new Date(Date.now() - 25 * 60 * 60 * 1000) } });
+      const media = app.get(SheetMediaService);
+      const deleteSpy = vi.spyOn(media, 'deleteObjects').mockRejectedValueOnce(new Error('S3 unavailable'));
+      await gc.run();
+      deleteSpy.mockRestore();
+      expect(await prisma.sheetFile.count({ where: { id: { in: oldRows.map((r) => r.id) } } })).toBe(oldRows.length);
+
+      await gc.run();
+      expect(await prisma.sheetFile.count({ where: { id: { in: oldRows.map((r) => r.id) } } })).toBe(0);
+      expect(await prisma.sheetFile.count({ where: { sheetId: sheet.id, supersededAt: null } })).toBe(3);
     });
   });
 });

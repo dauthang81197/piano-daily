@@ -28,6 +28,7 @@
     "@nestjs/core": "12.1.0",
     "@nestjs/jwt": "12.0.2",
     "@nestjs/platform-express": "12.1.0",
+    "@nestjs/schedule": "12.0.2",
     "@nestjs/throttler": "6.7.1",
     "@piano-daily/shared": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",

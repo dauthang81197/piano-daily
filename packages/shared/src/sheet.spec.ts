@@ -6,6 +6,8 @@ import {
   sheetListQuerySchema,
   sheetSchema,
   updateSheetSchema,
+  updateSheetHotSchema,
+  updateSheetStatusSchema,
   youtubeCanonicalUrl,
 } from './sheet';
 
@@ -134,6 +136,17 @@ describe('updateSheetSchema', () => {
     for (const key of ['title', 'composerId', 'level']) {
       expect(updateSheetSchema.safeParse({ [key]: null }).success, key).toBe(false);
     }
+  });
+});
+
+describe('lifecycle schemas', () => {
+  it('accept only dedicated status/HOT payloads; metadata updates reject those fields', () => {
+    expect(updateSheetStatusSchema.parse({ status: 'PUBLISHED' })).toEqual({ status: 'PUBLISHED' });
+    expect(updateSheetHotSchema.parse({ isHot: true })).toEqual({ isHot: true });
+    expect(updateSheetStatusSchema.safeParse({ status: 'UNKNOWN' }).success).toBe(false);
+    expect(updateSheetHotSchema.safeParse({ isHot: 'true' }).success).toBe(false);
+    expect(updateSheetSchema.safeParse({ status: 'PUBLISHED' }).success).toBe(false);
+    expect(updateSheetSchema.safeParse({ isHot: true }).success).toBe(false);
   });
 });
 

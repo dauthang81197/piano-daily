@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   type CreateSheetBody,
   createSheetSchema,
@@ -9,12 +9,16 @@ import {
   sheetListQuerySchema,
   type UpdateSheetBody,
   updateSheetSchema,
+  type UpdateSheetHotBody,
+  updateSheetHotSchema,
+  type UpdateSheetStatusBody,
+  updateSheetStatusSchema,
 } from '@piano-daily/shared';
 import { UuidParamPipe } from './catalog.helpers';
 import { SheetsService } from './sheets.service';
 
 /**
- * Tạo/sửa thông tin Sheet cho admin (Story 1.5). Không có DELETE, publish/archive hay HOT ở đây (Story 1.8).
+ * Quản lý nội dung và lifecycle Sheet cho admin.
  * Route `/admin/*` được guard JWT global bảo vệ.
  */
 @Controller('admin/sheets')
@@ -39,5 +43,21 @@ export class SheetsController {
   @Patch(':id')
   update(@Param('id', UuidParamPipe) id: string, @Body({ schema: updateSheetSchema }) body: UpdateSheetBody): Promise<Sheet> {
     return this.service.update(id, body);
+  }
+
+  @Patch(':id/status')
+  setStatus(@Param('id', UuidParamPipe) id: string, @Body({ schema: updateSheetStatusSchema }) body: UpdateSheetStatusBody): Promise<Sheet> {
+    return this.service.setStatus(id, body.status);
+  }
+
+  @Patch(':id/hot')
+  setHot(@Param('id', UuidParamPipe) id: string, @Body({ schema: updateSheetHotSchema }) body: UpdateSheetHotBody): Promise<Sheet> {
+    return this.service.setHot(id, body.isHot);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  remove(@Param('id', UuidParamPipe) id: string): Promise<Sheet | { deleted: true }> {
+    return this.service.remove(id);
   }
 }

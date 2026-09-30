@@ -4,6 +4,8 @@ import { Test } from '@nestjs/testing';
 
 export const TEST_JWT_ACCESS_SECRET = 'test-only-jwt-access-secret-0123456789abcdef';
 export const TEST_CORS_ADMIN_ORIGIN = 'http://admin.piano-daily.test:3001';
+export const TEST_CORS_WEB_ORIGIN = 'http://web.piano-daily.test:3000';
+export const TEST_INTERNAL_API_SECRET = 'test-only-internal-api-secret-0123456789abcdef';
 
 /**
  * S3 cho integration test: SeaweedFS local (`docker compose up -d seaweedfs`) với bucket riêng
@@ -34,6 +36,8 @@ export async function createApp(
   process.env.LOG_LEVEL = 'silent';
   process.env.JWT_ACCESS_SECRET = TEST_JWT_ACCESS_SECRET;
   process.env.CORS_ADMIN_ORIGIN = TEST_CORS_ADMIN_ORIGIN;
+  process.env.CORS_WEB_ORIGIN = TEST_CORS_WEB_ORIGIN;
+  process.env.INTERNAL_API_SECRET = TEST_INTERNAL_API_SECRET;
   Object.assign(process.env, TEST_S3, { S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL });
   const { AppModule } = await import('../../src/app.module.js');
   const { configureApp } = await import('../../src/bootstrap.js');

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { PasswordService } from '../../src/modules/identity/password.service';
 import { hashRefreshToken } from '../../src/modules/identity/refresh-token.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { createApp, TEST_JWT_ACCESS_SECRET } from './create-app';
+import { createApp, TEST_INTERNAL_API_SECRET, TEST_JWT_ACCESS_SECRET } from './create-app';
 import { resolveTestDatabaseUrl } from './test-env';
 
 const EMAIL = 'admin@piano-daily.test';
@@ -134,6 +134,36 @@ describe('/auth (Postgres thật)', () => {
         .set('CF-Connecting-IP', '203.0.113.250')
         .send({ email: EMAIL, password: PASSWORD })
         .expect(200);
+    });
+  });
+
+  describe('throttle và X-Internal-Secret', () => {
+    it('secret đúng -> bỏ qua throttle (> 5 request vẫn không 429)', async () => {
+      for (let i = 0; i < 7; i++) {
+        await http()
+          .post('/auth/login')
+          .set('X-Internal-Secret', TEST_INTERNAL_API_SECRET)
+          .send({ email: EMAIL, password: 'wrong-password' })
+          .expect(401);
+      }
+    });
+
+    it('secret sai hoặc thiếu -> vẫn bị throttle như client thường', async () => {
+      const ip = '203.0.113.77';
+      for (let i = 0; i < 5; i++) {
+        await http()
+          .post('/auth/login')
+          .set('CF-Connecting-IP', ip)
+          .set('X-Internal-Secret', 'wrong-secret')
+          .send({ email: EMAIL, password: 'wrong-password' })
+          .expect(401);
+      }
+      await http()
+        .post('/auth/login')
+        .set('CF-Connecting-IP', ip)
+        .set('X-Internal-Secret', 'wrong-secret')
+        .send({ email: EMAIL, password: 'wrong-password' })
+        .expect(429);
     });
   });
 

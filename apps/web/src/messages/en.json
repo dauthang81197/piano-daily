@@ -1,0 +1,48 @@
+{
+  "Meta": {
+    "title": "Piano Daily",
+    "description": "A curated library of piano sheet music, organised by skill level."
+  },
+  "Nav": {
+    "home": "Home",
+    "search": "Search",
+    "primary": "Main navigation",
+    "logoLabel": "Piano Daily, go to home page",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "levels": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced",
+      "expert": "Expert"
+    }
+  },
+  "Search": {
+    "label": "Search sheet music",
+    "placeholder": "Title, composer or ID",
+    "submit": "Search"
+  },
+  "Language": {
+    "switchTo": "Switch to {language}",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "Footer": {
+    "aboutTitle": "About",
+    "about": "Piano Daily is a curated library of piano sheet music, arranged by skill level so players can find suitable pieces with ease.",
+    "levelsTitle": "Levels",
+    "disclaimerTitle": "Copyright",
+    "disclaimer": "All musical works remain the property of their respective authors and publishers. Content on this site is provided for personal study and reference only."
+  },
+  "Home": {
+    "eyebrow": "Piano sheet library",
+    "title": "Piano Daily",
+    "tagline": "Clear scores, organised by skill level, easy to preview and easy to find.",
+    "browseByLevel": "Browse by level"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "description": "The page you requested does not exist or has been moved.",
+    "backHome": "Back to home"
+  }
+}

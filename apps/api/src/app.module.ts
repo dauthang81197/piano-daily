@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { Module, StandardSchemaValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
@@ -16,6 +17,13 @@ import { IdentityModule } from './modules/identity/identity.module';
 import { JwtAuthGuard } from './modules/identity/jwt-auth.guard';
 import { PrismaModule } from './prisma/prisma.module';
 
+/** So sánh timing-safe (hash trước để độ dài khác nhau không làm lộ thông tin / ném lỗi). */
+export function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 @Module({
   imports: [
     ConfigModule,
@@ -27,9 +35,22 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     // In-memory (API chạy một instance). Chỉ áp cho route dùng `ThrottlerGuard`
     // (POST /auth/login, /auth/change-password). Tên `default` để header 429 là `Retry-After` chuẩn.
-    ThrottlerModule.forRoot({
-      throttlers: [{ name: 'default', ttl: 60_000, limit: 5 }],
-      getTracker: (req) => getClientIp(req as Parameters<typeof getClientIp>[0]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const internalSecret = config.get('INTERNAL_API_SECRET', { infer: true });
+        return {
+          throttlers: [{ name: 'default', ttl: 60_000, limit: 5 }],
+          getTracker: (req) => getClientIp(req as Parameters<typeof getClientIp>[0]),
+          // Web SSR mang `X-Internal-Secret` đúng thì không bị throttle (AD-18). Sai/thiếu: throttle như client thường.
+          skipIf: (context) => {
+            const header = context.switchToHttp().getRequest<{ headers: Record<string, unknown> }>().headers[
+              'x-internal-secret'
+            ];
+            return typeof header === 'string' && safeEqual(header, internalSecret);
+          },
+        };
+      },
     }),
     PrismaModule,
     HealthModule,

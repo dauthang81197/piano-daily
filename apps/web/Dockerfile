@@ -20,17 +20,24 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lo
 COPY --from=pruner /repo/out/full/ .
 # turbo prune không mang theo file cấu hình gốc dùng chung.
 COPY --from=pruner /repo/tsconfig.base.json ./
+# `NEXT_PUBLIC_*` được Next inline vào bundle và CSP (next.config.ts) lúc build, nên phải có ở bước build.
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_MEDIA_BASE_URL=http://localhost:8333/piano-daily-public
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:4100
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_MEDIA_BASE_URL=$NEXT_PUBLIC_MEDIA_BASE_URL \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 RUN pnpm turbo run build --filter=@piano-daily/web
 
 FROM node:24.21-bookworm-slim AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
+    PORT=4100 \
     HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=builder --chown=node:node /repo/apps/web/.next/standalone ./
 COPY --from=builder --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=node:node /repo/apps/web/public ./apps/web/public
 USER node
-EXPOSE 3000
+EXPOSE 4100
 CMD ["node", "apps/web/server.js"]

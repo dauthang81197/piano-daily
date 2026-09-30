@@ -8,3 +8,16 @@
     font-family: var(--font-sans);
   }
 }
+
+/* UX-DR16: focus ring brass 2px trên mọi phần tử bấm được. */
+@layer base {
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 2px;
+  }
+}

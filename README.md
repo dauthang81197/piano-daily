@@ -4,8 +4,8 @@ Thư viện sheet piano tuyển chọn. Monorepo pnpm + Turborepo:
 
 | Workspace | Mô tả | Cổng |
 | --- | --- | --- |
-| `apps/web` | Next.js 16 (App Router) — trang công khai | 3000 |
-| `apps/admin` | Next.js 16 + shadcn/ui — khu quản trị | 3001 |
+| `apps/web` | Next.js 16 (App Router) — trang công khai | 4100 |
+| `apps/admin` | Next.js 16 + shadcn/ui — khu quản trị | 4101 |
 | `apps/api` | NestJS 12 (CommonJS) + Prisma 7 — nơi duy nhất chạm DB và S3 | 4000 |
 | `packages/shared` | Hợp đồng API: zod schema, enum, danh mục mã lỗi | — |
 | `packages/tokens` | Design token "Ivory & Walnut" (Tailwind v4 `@theme`) | — |
@@ -27,7 +27,10 @@ cp .env.example .env          # chỉnh nếu cần; mọi biến đều đượ
 ```
 
 Trong `.env`, đặt `JWT_ACCESS_SECRET` (bắt buộc, ≥ 32 ký tự), `CORS_ADMIN_ORIGIN` (bắt buộc, origin của admin —
-mặc định `http://localhost:3001`), thông tin SUPER_ADMIN (`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`)
+mặc định `http://localhost:4101`), thông tin SUPER_ADMIN (`ADMIN_EMAIL`, `ADMIN_PASSWORD` ≥ 12 ký tự, `ADMIN_NAME`)
+`CORS_WEB_ORIGIN` (origin của web, mặc định `http://localhost:4100`; CORS không kèm credentials),
+`INTERNAL_API_SECRET` (bắt buộc, ≥ 32 ký tự, không bắt đầu `change-me`; web SSR gửi qua `X-Internal-Secret` để API bỏ qua
+throttle — web và API dùng chung giá trị, không bao giờ đặt tiền tố `NEXT_PUBLIC_`)
 và các biến `S3_*` (bắt buộc khi chạy API trên host; giá trị trong `.env.example` khớp SeaweedFS local).
 
 > Nếu Corepack báo lỗi thiếu `bin/pnpm.cjs`, cache của nó bị hỏng: xoá
@@ -42,9 +45,12 @@ curl localhost:4000/health    # {"status":"ok","db":"up"}
 pnpm db:seed   # SUPER_ADMIN + 10 Sheet mẫu (chạy trên host, trỏ tới Postgres cổng 5432; cần S3 chạy và `pdftoppm`)
 ```
 
-- Web: <http://localhost:3000> · Admin: <http://localhost:3001> · API: <http://localhost:4000>
-- Admin: mở <http://localhost:3001> -> chuyển về `/login`, đăng nhập bằng `ADMIN_EMAIL` / `ADMIN_PASSWORD` đã seed.
+- Web: <http://localhost:4100> · Admin: <http://localhost:4101> · API: <http://localhost:4000>
+- Admin: mở <http://localhost:4101> -> chuyển về `/login`, đăng nhập bằng `ADMIN_EMAIL` / `ADMIN_PASSWORD` đã seed.
   `NEXT_PUBLIC_API_URL` được inline lúc build (compose truyền qua `build.args`); đổi giá trị thì build lại admin.
+- Web song ngữ theo URL `/vi` và `/en`: truy cập path không có tiền tố sẽ được chuyển theo cookie `NEXT_LOCALE`, rồi header
+  `cf-ipcountry` (VN -> `vi`), còn lại `en`. `NEXT_PUBLIC_API_URL` và `NEXT_PUBLIC_MEDIA_BASE_URL` được inline lúc build
+  (vào bundle và CSP) — compose truyền qua `build.args`; đổi giá trị thì build lại web. Web SSR gọi API qua `API_INTERNAL_URL`.
 - Các app chạy bản build production (ổn định). API chạy `prisma migrate deploy` trước khi listen.
 - Dừng: `docker compose down` (thêm `-v` để xoá dữ liệu Postgres/SeaweedFS).
 

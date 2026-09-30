@@ -20,6 +20,8 @@ describe('Khởi động API khi thiếu biến môi trường', () => {
         DATABASE_URL: '',
         JWT_ACCESS_SECRET: 'test-only-jwt-access-secret-0123456789abcdef',
         CORS_ADMIN_ORIGIN: 'http://localhost:3001',
+        CORS_WEB_ORIGIN: 'http://localhost:4100',
+        INTERNAL_API_SECRET: 'test-only-internal-api-secret-0123456789abcdef',
         S3_ENDPOINT: 'http://localhost:8333',
         S3_ACCESS_KEY_ID: 'piano',
         S3_SECRET_ACCESS_KEY: 'piano-secret',

@@ -13,8 +13,12 @@
     "JWT_ACCESS_SECRET",
     "REFRESH_TOKEN_TTL_DAYS",
     "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_MEDIA_BASE_URL",
+    "NEXT_PUBLIC_SITE_URL",
     "API_INTERNAL_URL",
     "CORS_ADMIN_ORIGIN",
+    "CORS_WEB_ORIGIN",
+    "INTERNAL_API_SECRET",
     "S3_ENDPOINT",
     "S3_REGION",
     "S3_ACCESS_KEY_ID",
@@ -44,7 +48,9 @@
         "generate"
       ],
       "env": [
-        "NEXT_PUBLIC_API_URL"
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_MEDIA_BASE_URL",
+        "NEXT_PUBLIC_SITE_URL"
       ],
       "outputs": [
         "dist/**",

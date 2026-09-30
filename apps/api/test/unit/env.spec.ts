@@ -5,6 +5,8 @@ const valid = {
   DATABASE_URL: 'postgresql://piano:piano@localhost:5432/piano_daily',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
   CORS_ADMIN_ORIGIN: 'http://localhost:3001',
+  CORS_WEB_ORIGIN: 'http://localhost:4100',
+  INTERNAL_API_SECRET: 'y'.repeat(32),
   S3_ENDPOINT: 'http://localhost:8333',
   S3_ACCESS_KEY_ID: 'piano',
   S3_SECRET_ACCESS_KEY: 'piano-secret',
@@ -142,11 +144,37 @@ describe('validateEnv', () => {
     } catch (err) {
       expect((err as EnvValidationError).variables.sort()).toEqual([
         'CORS_ADMIN_ORIGIN',
+        'CORS_WEB_ORIGIN',
         'DATABASE_URL',
+        'INTERNAL_API_SECRET',
         'JWT_ACCESS_SECRET',
         'LOG_LEVEL',
         'PORT',
       ]);
     }
+  });
+});
+
+describe('validateEnv — INTERNAL_API_SECRET và CORS_WEB_ORIGIN', () => {
+  it.each([
+    ['INTERNAL_API_SECRET', ''],
+    ['INTERNAL_API_SECRET', 'short'],
+    ['INTERNAL_API_SECRET', `change-me-${'x'.repeat(40)}`],
+    ['CORS_WEB_ORIGIN', ''],
+    ['CORS_WEB_ORIGIN', 'localhost:4100'],
+  ])('%s = %j -> lỗi nêu tên biến, không lộ giá trị', (variable, value) => {
+    try {
+      validateEnv({ ...valid, [variable]: value });
+      expect.unreachable();
+    } catch (err) {
+      expect((err as EnvValidationError).variables).toEqual([variable]);
+      if (value) expect((err as Error).message).not.toContain(value);
+    }
+  });
+
+  it('chuẩn hoá CORS_WEB_ORIGIN về origin', () => {
+    expect(validateEnv({ ...valid, CORS_WEB_ORIGIN: 'http://localhost:4100/abc/' }).CORS_WEB_ORIGIN).toBe(
+      'http://localhost:4100',
+    );
   });
 });

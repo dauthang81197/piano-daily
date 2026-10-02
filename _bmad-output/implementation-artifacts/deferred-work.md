@@ -38,3 +38,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-khung-site-cong-khai-song-ngu.md`
   summary: Integration test của API chập chờn (timeout hàng loạt, mỗi lần một spec khác nhau) khi chạy cả suite, nhưng xanh khi chạy riêng.
   evidence: Thấy ở Story 1.9 (`catalog-sheets.spec`, `sheet-files.spec`) và Story 2.1 (`catalog-taxonomy.spec` 401, `sheet-files.spec` timeout 60s liên tiếp); chạy riêng `sheet-files.spec` xanh 43/43. Cần tái hiện có log S3/DB (nghi treo gọi S3 hoặc tranh chấp DB test dùng chung) để xác định nguyên nhân.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-tu-lam-moi-cache.md`
+  summary: Khi làm trang Composer (Story 2.5), việc sửa `composerId` của một Series phải làm mới cả `list:composer:{cũ}` lẫn `list:composer:{mới}` (hiện `SeriesService.update` chỉ phát `list:series:{id}` và 4 tag level).
+  evidence: Review Story 2.3 (Blind Hunter, Edge Case Hunter): trang Composer liệt kê Series sẽ cũ tới 10 phút sau khi Series đổi Composer; chưa có hậu quả vì trang Composer chưa tồn tại.

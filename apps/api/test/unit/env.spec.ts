@@ -29,6 +29,13 @@ describe('validateEnv', () => {
     });
   });
 
+  it('WEB_INTERNAL_URL: tuỳ chọn, bỏ / cuối, từ chối URL sai', () => {
+    expect(validateEnv(valid).WEB_INTERNAL_URL).toBeUndefined();
+    expect(validateEnv({ ...valid, WEB_INTERNAL_URL: '' }).WEB_INTERNAL_URL).toBeUndefined();
+    expect(validateEnv({ ...valid, WEB_INTERNAL_URL: 'http://web:4100/' }).WEB_INTERNAL_URL).toBe('http://web:4100');
+    expect(() => validateEnv({ ...valid, WEB_INTERNAL_URL: 'web:4100' })).toThrow(EnvValidationError);
+  });
+
   it('S3: cờ boolean, bỏ / cuối của S3_PUBLIC_BASE_URL', () => {
     const env = validateEnv({
       ...valid,

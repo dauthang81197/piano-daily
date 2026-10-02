@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 import { type Env, storageEnvSchema } from '../src/config/env';
+import { CacheInvalidator } from '../src/modules/catalog/cache-invalidator';
 import { ComposersService } from '../src/modules/catalog/composers.service';
 import { GenresService } from '../src/modules/catalog/genres.service';
 import { SeriesService } from '../src/modules/catalog/series.service';
@@ -225,12 +226,14 @@ async function main(): Promise<void> {
   try {
     if (env.S3_AUTO_CREATE_BUCKETS) await storage.ensureBuckets();
     const media = new SheetMediaService(new PdfProcessor(), storage);
+    // Seed không có WEB_INTERNAL_URL trong config nên invalidator không gọi web.
+    const cache = new CacheInvalidator(prisma, config);
     const services: Services = {
       prisma,
-      composers: new ComposersService(prisma),
-      genres: new GenresService(prisma),
-      series: new SeriesService(prisma),
-      sheets: new SheetsService(prisma, media, storage),
+      composers: new ComposersService(prisma, cache),
+      genres: new GenresService(prisma, cache),
+      series: new SeriesService(prisma, cache),
+      sheets: new SheetsService(prisma, media, storage, cache),
     };
     await seedAdmin(prisma, env);
     const ids = await seedTaxonomy(services);

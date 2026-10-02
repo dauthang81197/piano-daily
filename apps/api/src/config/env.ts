@@ -122,6 +122,18 @@ export const envSchema = z.object({
       .refine((v) => !v.startsWith('change-me'), { error: 'vẫn là giá trị mẫu, hãy sinh khoá ngẫu nhiên' }),
   ),
 
+  /**
+   * URL nội bộ của web (vd. `http://web:4100`) để API gọi `POST /api/revalidate` (Story 2.3).
+   * Tuỳ chọn: thiếu thì tắt revalidate (lưới an toàn `revalidate: 600` của web vẫn chạy). Bỏ `/` cuối.
+   */
+  WEB_INTERNAL_URL: z.preprocess(
+    emptyAsUndefined,
+    z
+      .url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })
+      .transform((value) => value.replace(/\/+$/, ''))
+      .optional(),
+  ),
+
   ...storageEnvShape,
 }).refine(bucketsDiffer, bucketsDifferIssue);
 

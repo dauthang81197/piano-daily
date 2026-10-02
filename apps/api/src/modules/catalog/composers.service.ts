@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Composer, CreateComposerRequest, ListQuery, Page, UpdateComposerRequest } from '@piano-daily/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheInvalidator } from './cache-invalidator';
 import { inUse, nameSearch, notFound, pagination } from './catalog.helpers';
 import { isPrismaError } from './prisma-errors';
 import { baseSlug, createWithUniqueSlug } from './unique-slug';
@@ -29,7 +30,10 @@ function toComposer({ _count, ...row }: ComposerRow): Composer {
 
 @Injectable()
 export class ComposersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheInvalidator,
+  ) {}
 
   async list(query: ListQuery): Promise<Page<Composer>> {
     const where = nameSearch(query.q);
@@ -48,6 +52,10 @@ export class ComposersService {
 
   /** Body đã qua `createComposerSchema` (tên đã trim, bio rỗng thành null). */
   async create(body: CreateComposerRequest): Promise<Composer> {
+    return this.cache.trackTaxonomy('composer', null, () => this.createRow(body), (row) => row.id);
+  }
+
+  private async createRow(body: CreateComposerRequest): Promise<Composer> {
     const row = await createWithUniqueSlug(
       async (candidates) =>
         (await this.prisma.composer.findMany({ where: { slug: { in: candidates } }, select: { slug: true } })).map(
@@ -62,6 +70,10 @@ export class ComposersService {
 
   /** Đổi tên không đổi slug (giữ URL công khai ổn định). */
   async update(id: string, body: UpdateComposerRequest): Promise<Composer> {
+    return this.cache.trackTaxonomy('composer', id, () => this.updateRow(id, body));
+  }
+
+  private async updateRow(id: string, body: UpdateComposerRequest): Promise<Composer> {
     try {
       const row = await this.prisma.composer.update({
         where: { id },
@@ -76,6 +88,10 @@ export class ComposersService {
   }
 
   async remove(id: string): Promise<void> {
+    return this.cache.trackTaxonomy('composer', id, () => this.removeRow(id));
+  }
+
+  private async removeRow(id: string): Promise<void> {
     const composer = await this.prisma.composer.findUnique({
       where: { id },
       select: { _count: { select: { series: true, sheets: true } } },

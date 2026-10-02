@@ -44,5 +44,39 @@
     "title": "Không tìm thấy trang",
     "description": "Trang bạn yêu cầu không tồn tại hoặc đã được di chuyển.",
     "backHome": "Về trang chủ"
+  },
+  "Level": {
+    "heroTitle": "Sheet Piano PDF {level}",
+    "total": "{count} bài",
+    "updatedOn": "Cơ sở dữ liệu sheet được cập nhật ngày {date}",
+    "genresLabel": "Lọc theo thể loại",
+    "allGenres": "Tất cả",
+    "sortLabel": "Sắp xếp",
+    "sortNewest": "Mới nhất",
+    "sortMostViewed": "Xem nhiều",
+    "emptyTitle": "Chưa có bài nào ở mục này.",
+    "emptyHint": "Hãy thử bỏ bộ lọc thể loại hoặc xem một trình độ khác.",
+    "clearFilter": "Xem tất cả thể loại",
+    "loading": "Đang tải danh sách sheet"
+  },
+  "Card": {
+    "views": "{count} lượt xem",
+    "pages": "{count} trang",
+    "thumbnailAlt": "{title} – trang 1",
+    "noThumbnail": "Chưa có bản xem trước",
+    "hot": "HOT",
+    "formats": {
+      "sheet": "Sheet",
+      "chords": "Chords",
+      "midi": "Midi",
+      "mp3": "Mp3",
+      "video": "Video"
+    }
+  },
+  "Pagination": {
+    "label": "Phân trang",
+    "previous": "Trước",
+    "next": "Sau",
+    "page": "Trang {page}"
   }
 }

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 /** Form GET tới `/[locale]/search?q=` (trang Search ở Story 2.4). */
-export function SearchForm({ className }: { className?: string }) {
+export function SearchForm({ className, large = false }: { className?: string; large?: boolean }) {
   const t = useTranslations('Search');
   const locale = useLocale();
   const inputId = useId();
@@ -14,7 +14,13 @@ export function SearchForm({ className }: { className?: string }) {
         {t('label')}
       </label>
       <div className="flex gap-2">
-        <Input id={inputId} name="q" type="search" placeholder={t('placeholder')} />
+        <Input
+          id={inputId}
+          name="q"
+          type="search"
+          placeholder={t('placeholder')}
+          className={large ? 'py-3 text-body-lg' : undefined}
+        />
         <Button type="submit" variant="secondary">
           {t('submit')}
         </Button>

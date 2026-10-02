@@ -127,3 +127,5 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
 - **Ràng buộc triển khai (cookie refresh `Secure; SameSite=Strict`):** admin và API phải cùng *site* — cùng tên miền
   đăng ký, vd. `admin.<domain>` và `api.<domain>` — và chạy HTTPS ở mọi nơi ngoài `localhost`. Khác site thì trình duyệt
   không gửi cookie refresh (đăng nhập được nhưng tải lại trang là mất phiên); chạy HTTP thì cookie `Secure` không được lưu.
+- **Endpoint công khai (Story 2.2, `@Public()`):** `GET /sheets?level=&genre=&sort=newest|most_viewed&page=&pageSize=` (`level` bắt buộc, `genre` là slug, mặc định 12/trang, tối đa 48) và `GET /levels/:level/summary` (`level` là enum viết hoa, vd. `BEGINNER`). Chỉ trả Sheet `PUBLISHED`, không lộ `storageKey` hay URL private.
+- **Cache tag (AD-10):** chuỗi tag sinh bởi `cacheTags` trong `packages/shared/src/cache-tags.ts` (`sheet:{id}`, `list:level:{level chữ thường}`, `list:composer:{id}`, `list:genre:{id}`, `list:series:{id}`, `search`, `sitemap`, `ads`, `settings`). Web gọi dữ liệu công khai qua `publicFetch` (`force-cache`, `revalidate: 600`, kèm tag); không dùng `no-store`.

@@ -84,6 +84,8 @@ services:
       # Origin web (CORS, không credentials) và secret web SSR dùng để bỏ qua throttle.
       CORS_WEB_ORIGIN: ${CORS_WEB_ORIGIN:-http://localhost:4100}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env (xem .env.example)}
+      # API gọi POST /api/revalidate của web khi admin đổi nội dung (Story 2.3).
+      WEB_INTERNAL_URL: http://web:4100
       # Object storage (module `media`): API gọi SeaweedFS qua mạng nội bộ; trình duyệt đọc bucket public qua localhost.
       S3_ENDPOINT: http://seaweedfs:8333
       S3_REGION: ${S3_REGION:-us-east-1}

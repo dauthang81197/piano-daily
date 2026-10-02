@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MediaModule } from '../media/media.module';
+import { CacheInvalidator } from './cache-invalidator';
 import { ComposersController } from './composers.controller';
 import { ComposersService } from './composers.service';
 import { GenresController } from './genres.controller';
@@ -17,6 +18,6 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 @Module({
   imports: [MediaModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
-  providers: [ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetFileGcService],
+  providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetFileGcService],
 })
 export class CatalogModule {}

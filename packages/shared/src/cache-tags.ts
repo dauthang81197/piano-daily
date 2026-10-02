@@ -15,3 +15,14 @@ export const cacheTags = {
   ads: 'ads',
   settings: 'settings',
 } as const;
+
+const TAG_PATTERNS = [
+  /^sheet:[^\s:]+$/,
+  /^list:(level|composer|genre|series):[^\s:]+$/,
+  /^(search|sitemap|ads|settings)$/,
+];
+
+/** `true` nếu chuỗi có đúng một dạng tag hợp lệ của `cacheTags` (web dùng để lọc body `/api/revalidate`). */
+export function isCacheTag(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 200 && TAG_PATTERNS.some((re) => re.test(value));
+}

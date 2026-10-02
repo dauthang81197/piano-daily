@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { CreateGenreRequest, Genre, GenreIcon, ListQuery, Page, UpdateGenreRequest } from '@piano-daily/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheInvalidator } from './cache-invalidator';
 import { inUse, nameSearch, notFound, pagination } from './catalog.helpers';
 import { isPrismaError } from './prisma-errors';
 import { baseSlug, createWithUniqueSlug } from './unique-slug';
@@ -14,7 +15,10 @@ function toGenre(row: { id: string; name: string; slug: string; icon: string | n
 
 @Injectable()
 export class GenresService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheInvalidator,
+  ) {}
 
   async list(query: ListQuery): Promise<Page<Genre>> {
     const where = nameSearch(query.q);
@@ -32,6 +36,10 @@ export class GenresService {
   }
 
   async create(body: CreateGenreRequest): Promise<Genre> {
+    return this.cache.trackTaxonomy('genre', null, () => this.createRow(body), (row) => row.id);
+  }
+
+  private async createRow(body: CreateGenreRequest): Promise<Genre> {
     const row = await createWithUniqueSlug(
       async (candidates) =>
         (await this.prisma.genre.findMany({ where: { slug: { in: candidates } }, select: { slug: true } })).map(
@@ -44,6 +52,10 @@ export class GenresService {
   }
 
   async update(id: string, body: UpdateGenreRequest): Promise<Genre> {
+    return this.cache.trackTaxonomy('genre', id, () => this.updateRow(id, body));
+  }
+
+  private async updateRow(id: string, body: UpdateGenreRequest): Promise<Genre> {
     try {
       return toGenre(
         await this.prisma.genre.update({ where: { id }, data: { name: body.name, icon: body.icon }, select: SELECT }),
@@ -56,6 +68,10 @@ export class GenresService {
 
   /** `SheetGenre` tham chiếu Genre bằng FK RESTRICT: P2003 → 409 `RESOURCE_IN_USE`. */
   async remove(id: string): Promise<void> {
+    return this.cache.trackTaxonomy('genre', id, () => this.removeRow(id));
+  }
+
+  private async removeRow(id: string): Promise<void> {
     try {
       await this.prisma.genre.delete({ where: { id } });
     } catch (err) {

@@ -9,6 +9,7 @@ import {
 } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheInvalidator } from './cache-invalidator';
 import { inUse, nameSearch, notFound, pagination } from './catalog.helpers';
 import { isPrismaError } from './prisma-errors';
 import { baseSlug, createWithUniqueSlug } from './unique-slug';
@@ -23,7 +24,10 @@ function composerNotFound(): AppException {
 
 @Injectable()
 export class SeriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheInvalidator,
+  ) {}
 
   async list(query: ListQuery): Promise<Page<Series>> {
     const where = { ...nameSearch(query.q), ...(query.composerId ? { composerId: query.composerId } : {}) };
@@ -41,6 +45,10 @@ export class SeriesService {
   }
 
   async create(body: CreateSeriesRequest): Promise<Series> {
+    return this.cache.trackTaxonomy('series', null, () => this.createRow(body), (row) => row.id);
+  }
+
+  private async createRow(body: CreateSeriesRequest): Promise<Series> {
     await this.assertComposerExists(body.composerId);
     try {
       return await createWithUniqueSlug(
@@ -63,6 +71,10 @@ export class SeriesService {
   }
 
   async update(id: string, body: UpdateSeriesRequest): Promise<Series> {
+    return this.cache.trackTaxonomy('series', id, () => this.updateRow(id, body));
+  }
+
+  private async updateRow(id: string, body: UpdateSeriesRequest): Promise<Series> {
     if (body.composerId !== undefined) await this.assertComposerExists(body.composerId);
     try {
       return await this.prisma.series.update({
@@ -79,6 +91,10 @@ export class SeriesService {
 
   /** Sheet tham chiếu Series bằng FK RESTRICT: P2003 → 409 `RESOURCE_IN_USE`. */
   async remove(id: string): Promise<void> {
+    return this.cache.trackTaxonomy('series', id, () => this.removeRow(id));
+  }
+
+  private async removeRow(id: string): Promise<void> {
     try {
       await this.prisma.series.delete({ where: { id } });
     } catch (err) {

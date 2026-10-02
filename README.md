@@ -51,6 +51,10 @@ pnpm db:seed   # SUPER_ADMIN + 10 Sheet mẫu (chạy trên host, trỏ tới Po
 - Web song ngữ theo URL `/vi` và `/en`: truy cập path không có tiền tố sẽ được chuyển theo cookie `NEXT_LOCALE`, rồi header
   `cf-ipcountry` (VN -> `vi`), còn lại `en`. `NEXT_PUBLIC_API_URL` và `NEXT_PUBLIC_MEDIA_BASE_URL` được inline lúc build
   (vào bundle và CSP) — compose truyền qua `build.args`; đổi giá trị thì build lại web. Web SSR gọi API qua `API_INTERNAL_URL`.
+- Làm mới cache: khi admin tạo/sửa/publish/archive/xoá Sheet hoặc đổi Composer/Genre/Series, API gọi
+  `POST {WEB_INTERNAL_URL}/api/revalidate` (header `X-Internal-Secret` = `INTERNAL_API_SECRET`, tối đa 3 lần thử, lỗi chỉ log)
+  để web `revalidateTag` các tag liên quan. `WEB_INTERNAL_URL` (compose đặt `http://web:4100`) là tuỳ chọn: bỏ trống thì tắt
+  revalidate chủ động và web tự làm mới sau tối đa 10 phút. Đổi `INTERNAL_API_SECRET` ở cả web và API cùng lúc.
 - Các app chạy bản build production (ổn định). API chạy `prisma migrate deploy` trước khi listen.
 - Dừng: `docker compose down` (thêm `-v` để xoá dữ liệu Postgres/SeaweedFS).
 

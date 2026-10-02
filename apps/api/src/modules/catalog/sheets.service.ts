@@ -39,6 +39,7 @@ import {
 } from '../media/sheet-media.service';
 import { StorageService } from '../media/storage.service';
 import { notFound } from './catalog.helpers';
+import { CacheInvalidator } from './cache-invalidator';
 import { isPrismaError } from './prisma-errors';
 import { recomputeDerived } from './sheet-derived';
 import { withSheetFileLock } from './sheet-file-lock';
@@ -250,6 +251,7 @@ export class SheetsService {
     private readonly prisma: PrismaService,
     private readonly media: SheetMediaService,
     storage: StorageService,
+    private readonly cache: CacheInvalidator,
   ) {
     this.publicUrl = (key) => storage.publicUrl(key);
     this.presignUrl = (key) => storage.presignPrivateUrl(key);
@@ -289,6 +291,10 @@ export class SheetsService {
 
   /** Luôn tạo ở trạng thái DRAFT; slug sinh từ tiêu đề. */
   async create(body: CreateSheetBody): Promise<Sheet> {
+    return this.cache.track(null, () => this.createRow(body), (sheet) => sheet.id);
+  }
+
+  private async createRow(body: CreateSheetBody): Promise<Sheet> {
     const genreIds = body.genreIds ?? [];
     const refs: Refs = { composerId: body.composerId, seriesId: body.seriesId ?? null, checkSeries: true, genreIds };
     await this.assertRefs(refs);
@@ -334,6 +340,10 @@ export class SheetsService {
    * slug đóng băng (AD-16). `genreIds` (nếu có) thay toàn bộ danh sách Genre.
    */
   async update(id: string, body: UpdateSheetBody): Promise<Sheet> {
+    return this.cache.track(id, () => this.updateRow(id, body));
+  }
+
+  private async updateRow(id: string, body: UpdateSheetBody): Promise<Sheet> {
     const existing = await this.prisma.sheet.findUnique({
       where: { id },
       select: { title: true, composerId: true, seriesId: true, firstPublishedAt: true },
@@ -408,6 +418,10 @@ export class SheetsService {
 
   /** Change status freely; every transition into PUBLISHED rechecks server-owned requirements. */
   async setStatus(id: string, status: SheetStatus): Promise<Sheet> {
+    return this.cache.track(id, () => this.setStatusRow(id, status));
+  }
+
+  private async setStatusRow(id: string, status: SheetStatus): Promise<Sheet> {
     try {
       await this.prisma.$transaction(async (tx) => {
         const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
@@ -441,6 +455,10 @@ export class SheetsService {
   }
 
   async setHot(id: string, isHot: boolean): Promise<Sheet> {
+    return this.cache.track(id, () => this.setHotRow(id, isHot));
+  }
+
+  private async setHotRow(id: string, isHot: boolean): Promise<Sheet> {
     try {
       await this.prisma.sheet.update({ where: { id }, data: { isHot }, select: { id: true } });
     } catch (err) {
@@ -452,6 +470,10 @@ export class SheetsService {
 
   /** Delete without Order; retain Sheet and its files when the Epic 3 Order hook is enabled. */
   async remove(id: string): Promise<Sheet | { deleted: true }> {
+    return this.cache.track(id, () => this.removeRow(id));
+  }
+
+  private async removeRow(id: string): Promise<Sheet | { deleted: true }> {
     return withSheetFileLock(id, async () => {
       try {
         return await this.prisma.$transaction(async (tx) => {
@@ -488,7 +510,7 @@ export class SheetsService {
    * Lỗi ở bất kỳ bước nào thì xoá mọi object đã ghi trong request này và DB không đổi.
    */
   async attachFile(id: string, type: UploadableFileType, upload: UploadedSheetFile): Promise<Sheet> {
-    return withSheetFileLock(id, () => this.attachFileLocked(id, type, upload));
+    return this.cache.track(id, () => withSheetFileLock(id, () => this.attachFileLocked(id, type, upload)));
   }
 
   private async attachFileLocked(id: string, type: UploadableFileType, upload: UploadedSheetFile): Promise<Sheet> {
@@ -544,7 +566,7 @@ export class SheetsService {
    * Không có file hiện hành cho type đó → 404 `NOT_FOUND`.
    */
   async removeFile(id: string, type: UploadableFileType): Promise<void> {
-    return withSheetFileLock(id, () => this.removeFileLocked(id, type));
+    return this.cache.track(id, () => withSheetFileLock(id, () => this.removeFileLocked(id, type)));
   }
 
   private async removeFileLocked(id: string, type: UploadableFileType): Promise<void> {

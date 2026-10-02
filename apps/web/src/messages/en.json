@@ -44,5 +44,39 @@
     "title": "Page not found",
     "description": "The page you requested does not exist or has been moved.",
     "backHome": "Back to home"
+  },
+  "Level": {
+    "heroTitle": "{level} Piano Sheet PDF",
+    "total": "{count, plural, one {# sheet} other {# sheets}}",
+    "updatedOn": "Sheet database updated on {date}",
+    "genresLabel": "Filter by genre",
+    "allGenres": "All",
+    "sortLabel": "Sort by",
+    "sortNewest": "Newest",
+    "sortMostViewed": "Most viewed",
+    "emptyTitle": "No sheets are available here yet.",
+    "emptyHint": "Try removing the genre filter or browse another level.",
+    "clearFilter": "Show all genres",
+    "loading": "Loading sheets"
+  },
+  "Card": {
+    "views": "{count, plural, one {# view} other {# views}}",
+    "pages": "{count, plural, one {# page} other {# pages}}",
+    "thumbnailAlt": "{title} – page 1",
+    "noThumbnail": "No preview",
+    "hot": "HOT",
+    "formats": {
+      "sheet": "Sheet",
+      "chords": "Chords",
+      "midi": "Midi",
+      "mp3": "Mp3",
+      "video": "Video"
+    }
+  },
+  "Pagination": {
+    "label": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page}"
   }
 }

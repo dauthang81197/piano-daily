@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX } from './catalog';
+import { PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, pageSchema } from './catalog';
 
 /**
  * Hợp đồng API Sheet (module `catalog`), Story 1.5: tạo và sửa thông tin Sheet ở trạng thái Draft.
@@ -328,3 +328,81 @@ export const sheetListItemSchema = z.object({
   updatedAt: z.string(),
 });
 export type SheetListItem = z.infer<typeof sheetListItemSchema>;
+
+// ── Public (site công khai, Story 2.2) ───────────────────────
+
+export const PUBLIC_SHEET_SORTS = ['newest', 'most_viewed'] as const;
+export type PublicSheetSort = (typeof PUBLIC_SHEET_SORTS)[number];
+export const PUBLIC_PAGE_SIZE_DEFAULT = 12;
+export const PUBLIC_PAGE_SIZE_MAX = 48;
+/** Trang tối đa của endpoint công khai (chặn OFFSET quét hàng triệu dòng khi chưa đăng nhập). */
+export const PUBLIC_PAGE_MAX = 10_000;
+
+const publicPageSizeMessage = `Kích thước trang phải từ 1 đến ${PUBLIC_PAGE_SIZE_MAX}.`;
+
+/** Query `GET /sheets`: `level` bắt buộc, `genre` là slug Genre, mặc định `newest`, 12 bài mỗi trang. */
+export const publicSheetListQuerySchema = z.object({
+  level: levelSchema,
+  genre: z
+    .string()
+    .trim()
+    .max(200, { error: 'Genre không hợp lệ.' })
+    .optional()
+    .transform((value) => value || undefined),
+  sort: z.enum(PUBLIC_SHEET_SORTS, { error: 'Cách sắp xếp không hợp lệ.' }).default('newest'),
+  page: z.coerce
+    .number({ error: pageMessage })
+    .int({ error: pageMessage })
+    .min(1, { error: pageMessage })
+    .max(PUBLIC_PAGE_MAX, { error: 'Trang quá lớn.' })
+    .default(1),
+  pageSize: z.coerce
+    .number({ error: publicPageSizeMessage })
+    .int({ error: publicPageSizeMessage })
+    .min(1, { error: publicPageSizeMessage })
+    .max(PUBLIC_PAGE_SIZE_MAX, { error: publicPageSizeMessage })
+    .default(PUBLIC_PAGE_SIZE_DEFAULT),
+});
+export type PublicSheetListQueryInput = z.input<typeof publicSheetListQuerySchema>;
+export type PublicSheetListQuery = z.output<typeof publicSheetListQuerySchema>;
+
+/** Param `:level` của `GET /levels/:level/summary`. */
+export const levelParamSchema = z.object({ level: levelSchema });
+
+/** Thẻ Sheet công khai: không có `storageKey` hay URL private. */
+export const publicSheetItemSchema = z.object({
+  id: z.string(),
+  publicId: z.number().int().positive(),
+  slug: z.string(),
+  title: z.string(),
+  level: levelSchema,
+  composer: refSchema,
+  viewCount: z.number().int().nonnegative(),
+  hasSheet: z.boolean(),
+  hasChords: z.boolean(),
+  hasMidi: z.boolean(),
+  hasMp3: z.boolean(),
+  hasVideo: z.boolean(),
+  pageCount: z.number().int().nonnegative(),
+  isHot: z.boolean(),
+  thumbnailUrl: z.string().nullable(),
+});
+export type PublicSheetItem = z.infer<typeof publicSheetItemSchema>;
+
+export const publicSheetListSchema = pageSchema(publicSheetItemSchema);
+export type PublicSheetList = z.infer<typeof publicSheetListSchema>;
+
+/** `GET /levels/:level/summary`: chỉ tính Sheet PUBLISHED của Level đó. */
+export const levelSummarySchema = z.object({
+  total: z.number().int().nonnegative(),
+  lastUpdatedAt: z.string().nullable(),
+  genres: z.array(
+    z.object({
+      id: z.string(),
+      slug: z.string(),
+      name: z.string(),
+      count: z.number().int().positive(),
+    }),
+  ),
+});
+export type LevelSummary = z.infer<typeof levelSummarySchema>;

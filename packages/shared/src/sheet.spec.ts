@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createSheetSchema,
   parseYoutubeUrl,
+  publicSheetListQuerySchema,
   removeFileTypeSchema,
   sheetListQuerySchema,
   sheetSchema,
@@ -236,5 +237,26 @@ describe('removeFileTypeSchema', () => {
     for (const bad of ['PDF', 'Midi', 'png', '', 'thumbnail', 'midi_json']) {
       expect(removeFileTypeSchema.safeParse(bad).success, bad).toBe(false);
     }
+  });
+});
+
+describe('publicSheetListQuerySchema', () => {
+  it('mặc định newest, page 1, pageSize 12; level bắt buộc', () => {
+    expect(publicSheetListQuerySchema.parse({ level: 'BEGINNER' })).toEqual({
+      level: 'BEGINNER',
+      genre: undefined,
+      sort: 'newest',
+      page: 1,
+      pageSize: 12,
+    });
+    expect(publicSheetListQuerySchema.safeParse({}).success).toBe(false);
+    expect(publicSheetListQuerySchema.safeParse({ level: 'FOO' }).success).toBe(false);
+  });
+
+  it('từ chối sort sai, pageSize > 48 và page < 1', () => {
+    expect(publicSheetListQuerySchema.safeParse({ level: 'BEGINNER', sort: 'x' }).success).toBe(false);
+    expect(publicSheetListQuerySchema.safeParse({ level: 'BEGINNER', pageSize: '49' }).success).toBe(false);
+    expect(publicSheetListQuerySchema.safeParse({ level: 'BEGINNER', page: '0' }).success).toBe(false);
+    expect(publicSheetListQuerySchema.parse({ level: 'BEGINNER', pageSize: '48', sort: 'most_viewed' }).pageSize).toBe(48);
   });
 });

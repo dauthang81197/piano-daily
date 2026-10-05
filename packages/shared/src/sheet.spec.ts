@@ -5,6 +5,7 @@ import {
   parseYoutubeUrl,
   publicComposerSchema,
   publicGenreSchema,
+  publicSheetDetailSchema,
   publicSheetItemSchema,
   publicSheetListQuerySchema,
   removeFileTypeSchema,
@@ -325,5 +326,41 @@ describe('hợp đồng công khai Composer/Genre', () => {
     const genre = { id: 'g', slug: 'pop', name: 'Pop', icon: null };
     expect(publicGenreSchema.parse(genre)).toEqual(genre);
     expect(publicGenreSchema.safeParse({ id: 'g', slug: 'pop', name: 'Pop' }).success).toBe(false);
+  });
+});
+
+describe('publicSheetDetailSchema', () => {
+  const base = {
+    id: 's',
+    publicId: 1,
+    slug: 'fur-elise',
+    title: 'Für Elise',
+    subtitle: null,
+    level: 'BEGINNER',
+    difficultyScore: 15,
+    difficultyNote: null,
+    description: null,
+    composer: { id: 'c', name: 'Beethoven', slug: 'beethoven' },
+    series: null,
+    genres: [{ id: 'g', name: 'Classical', slug: 'classical' }],
+    pageCount: 2,
+    viewCount: 0,
+    isHot: false,
+    updatedAt: '2026-10-05T00:00:00.000Z',
+    pages: [{ pageNumber: 1, url: 'http://cdn/1.webp' }],
+    midi: null,
+    youtubeUrl: null,
+    lyricsChords: null,
+    seriesSheets: [],
+    related: [],
+  };
+  it('nhận chi tiết hợp lệ, midi/series/youtube/lyrics null được', () => {
+    expect(publicSheetDetailSchema.parse(base)).toEqual(base);
+    const midi = { noteJsonUrl: 'http://cdn/n.json', durationSeconds: 12.5, noteCount: 40 };
+    expect(publicSheetDetailSchema.parse({ ...base, midi }).midi).toEqual(midi);
+  });
+  it('từ chối thiếu composer.slug hoặc điểm khó ngoài 0–100', () => {
+    expect(publicSheetDetailSchema.safeParse({ ...base, composer: { id: 'c', name: 'B' } }).success).toBe(false);
+    expect(publicSheetDetailSchema.safeParse({ ...base, difficultyScore: 101 }).success).toBe(false);
   });
 });

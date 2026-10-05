@@ -10,6 +10,8 @@ import {
   publicComposerSchema,
   type PublicFormat,
   type PublicGenre,
+  type PublicSheetDetail,
+  publicSheetDetailSchema,
   publicGenreSchema,
   type PublicSheetList,
   type PublicSheetSort,
@@ -104,4 +106,10 @@ export async function fetchGenreSheets(
 ): Promise<PublicSheetList> {
   const params = new URLSearchParams({ genre: genre.slug, sort: opts.sort, page: String(opts.page) });
   return publicSheetListSchema.parse(await getJson(`/sheets?${params}`, [cacheTags.listGenre(genre.id)]));
+}
+
+/** Chi tiết Sheet theo slug; slug không tồn tại hoặc không hợp lệ (404/400) thì `null`. Gắn tag `search` (id chưa biết trước). */
+export async function fetchSheetDetail(slug: string): Promise<PublicSheetDetail | null> {
+  const body = await getJsonOrNull(`/sheets/${encodeURIComponent(slug)}`, [cacheTags.search]);
+  return body === null ? null : publicSheetDetailSchema.parse(body);
 }

@@ -2,14 +2,14 @@ import { useTranslations } from 'next-intl';
 import type { PublicSheetItem } from '@piano-daily/shared';
 import { Link } from '@/i18n/navigation';
 
-const LEVEL_BADGE: Record<PublicSheetItem['level'], string> = {
+export const LEVEL_BADGE: Record<PublicSheetItem['level'], string> = {
   BEGINNER: 'bg-level-beginner',
   INTERMEDIATE: 'bg-level-intermediate',
   ADVANCED: 'bg-level-advanced',
   EXPERT: 'bg-level-expert',
 };
 
-const badge = 'rounded-sm px-2 py-0.5 text-label-caps uppercase text-on-primary';
+export const badge = 'rounded-sm px-2 py-0.5 text-label-caps uppercase text-on-primary';
 
 /**
  * Thẻ Sheet (`card-sheet`): bấm cả thẻ mở trang chi tiết nhưng không lồng `<a>` trong `<a>`:

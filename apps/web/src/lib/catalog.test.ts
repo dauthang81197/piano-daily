@@ -8,6 +8,7 @@ import {
   fetchLevelSheets,
   fetchLevelSummary,
   fetchSearch,
+  fetchSheetDetail,
 } from './catalog';
 
 describe('catalog fetchers', () => {
@@ -108,5 +109,25 @@ describe('catalog fetchers', () => {
     await fetchGenreSheets({ id: 'g1', slug: 'pop' }, { page: 1, sort: 'newest' });
     expect(fetchMock.mock.calls[1]![0]).toBe('http://api:4000/sheets?genre=pop&sort=newest&page=1');
     expect(fetchMock.mock.calls[1]![1].next.tags).toEqual(['list:genre:g1']);
+  });
+  it('fetchSheetDetail gắn tag search, mã hoá slug, parse; 404/400 -> null; lỗi khác -> ném', async () => {
+    const detail = {
+      id: 's', publicId: 1, slug: 'fur-elise', title: 'Für Elise', subtitle: null, level: 'BEGINNER',
+      difficultyScore: null, difficultyNote: null, description: null,
+      composer: { id: 'c', name: 'B', slug: 'b' }, series: null, genres: [], pageCount: 0, viewCount: 0,
+      isHot: false, updatedAt: '2026-10-05T00:00:00.000Z', pages: [], midi: null, youtubeUrl: null,
+      lyricsChords: null, seriesSheets: [], related: [],
+    };
+    fetchMock.mockImplementation(async () => json(detail));
+    expect(await fetchSheetDetail('fur elise')).toMatchObject({ title: 'Für Elise' });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('http://api:4000/sheets/fur%20elise');
+    expect(init.next.tags).toEqual(['search']);
+    fetchMock.mockImplementation(async () => json({ error: { code: 'NOT_FOUND', message: 'x' } }, 404));
+    expect(await fetchSheetDetail('zzz')).toBeNull();
+    fetchMock.mockImplementation(async () => json({ error: { code: 'VALIDATION_FAILED', message: 'x' } }, 400));
+    expect(await fetchSheetDetail('a'.repeat(300))).toBeNull();
+    fetchMock.mockImplementation(async () => json({}, 500));
+    await expect(fetchSheetDetail('x')).rejects.toThrow('500');
   });
 });

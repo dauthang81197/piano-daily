@@ -5,6 +5,7 @@ import {
   levelSummarySchema,
   publicComposerSchema,
   publicGenreSchema,
+  publicSheetDetailSchema,
   publicSheetListSchema,
 } from '@piano-daily/shared';
 import request from 'supertest';
@@ -394,6 +395,160 @@ describe('API công khai Sheet (Postgres thật)', () => {
         const res = await get(path).expect(404);
         expect(errorResponseSchema.parse(res.body).error.code).toBeTruthy();
       }
+    });
+  });
+
+  describe('GET /sheets/:slug (chi tiết)', () => {
+    const addFile = (
+      sheetId: string,
+      type: 'PAGE_IMAGE' | 'MIDI' | 'MIDI_JSON',
+      key: string,
+      extra: { pageNumber?: number; superseded?: boolean; durationSeconds?: number; noteCount?: number } = {},
+    ) =>
+      prisma.sheetFile.create({
+        data: {
+          sheetId,
+          type,
+          storageKey: key,
+          size: 10,
+          mimeType: type === 'MIDI_JSON' ? 'application/json' : type === 'MIDI' ? 'audio/midi' : 'image/webp',
+          pageNumber: extra.pageNumber ?? null,
+          durationSeconds: extra.durationSeconds ?? null,
+          noteCount: extra.noteCount ?? null,
+          supersededAt: extra.superseded ? new Date() : null,
+        },
+      });
+
+    it('trả đủ thông tin; pages theo thứ tự, bỏ ảnh superseded; midi chỉ có URL note-JSON public', async () => {
+      const sheet = await addSheet({ title: 'Detail', published: '2026-01-01', genreIds: [genres.pop, genres.jazz], lyrics: '# Lời' });
+      await prisma.sheet.update({
+        where: { id: sheet.id },
+        data: { difficultyScore: 15, difficultyNote: 'Dễ', youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', pageCount: 2 },
+      });
+      await addFile(sheet.id, 'PAGE_IMAGE', `public/sheets/${sheet.id}/p2.webp`, { pageNumber: 2 });
+      await addFile(sheet.id, 'PAGE_IMAGE', `public/sheets/${sheet.id}/p1.webp`, { pageNumber: 1 });
+      await addFile(sheet.id, 'PAGE_IMAGE', `public/sheets/${sheet.id}/old.webp`, { pageNumber: 1, superseded: true });
+      await addFile(sheet.id, 'MIDI', `private/sheets/${sheet.id}/a.mid`, { durationSeconds: 12.5, noteCount: 40 });
+      await addFile(sheet.id, 'MIDI_JSON', `public/sheets/${sheet.id}/notes.json`);
+
+      const res = await get(`/sheets/${sheet.slug}`).expect(200);
+      const body = publicSheetDetailSchema.parse(res.body);
+      expect(body).toMatchObject({
+        id: sheet.id,
+        title: 'Detail',
+        level: 'BEGINNER',
+        difficultyScore: 15,
+        difficultyNote: 'Dễ',
+        composer: { id: composerId, name: 'Bach', slug: 'bach' },
+        series: null,
+        lyricsChords: '# Lời',
+        youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        seriesSheets: [],
+        related: [],
+      });
+      expect(body.genres.map((g) => g.slug)).toEqual(['jazz', 'pop']);
+      expect(body.pages.map((p) => p.pageNumber)).toEqual([1, 2]);
+      expect(body.pages[0]!.url).toMatch(/\/public\/sheets\/.+\/p1\.webp$/);
+      expect(body.midi).toMatchObject({ durationSeconds: 12.5, noteCount: 40 });
+      expect(body.midi!.noteJsonUrl).toMatch(/\/public\/sheets\/.+\/notes\.json$/);
+      expect(JSON.stringify(res.body)).not.toMatch(/storageKey|private\/|old\.webp|\.mid"/);
+    });
+
+    it('không có file: pages rỗng, midi null', async () => {
+      const sheet = await addSheet({ title: 'Bare', published: '2026-01-01', thumbnail: false });
+      const body = publicSheetDetailSchema.parse((await get(`/sheets/${sheet.slug}`).expect(200)).body);
+      expect(body.pages).toEqual([]);
+      expect(body.midi).toBeNull();
+    });
+
+    it('MIDI chưa có note-JSON thì midi null', async () => {
+      const sheet = await addSheet({ title: 'NoJson', published: '2026-01-01' });
+      await addFile(sheet.id, 'MIDI', `private/sheets/${sheet.id}/a.mid`, { durationSeconds: 1, noteCount: 1 });
+      expect(publicSheetDetailSchema.parse((await get(`/sheets/${sheet.slug}`).expect(200)).body).midi).toBeNull();
+    });
+
+    it('Draft, Archived và slug lạ đều 404 với cùng nội dung lỗi', async () => {
+      const draft = await addSheet({ title: 'D', status: 'DRAFT' });
+      const archived = await addSheet({ title: 'A', status: 'ARCHIVED', published: '2026-01-01' });
+      const bodies = [];
+      for (const slug of [draft.slug, archived.slug, 'khong-co']) {
+        const res = await get(`/sheets/${slug}`).expect(404);
+        bodies.push(errorResponseSchema.parse(res.body));
+      }
+      expect(bodies[0]).toEqual(bodies[1]);
+      expect(bodies[1]).toEqual(bodies[2]);
+    });
+
+    it('slug quá dài -> 400; /sheets/facets vẫn là facets, không phải slug', async () => {
+      await get(`/sheets/${'a'.repeat(201)}`).expect(400);
+      facetsSchema.parse((await get('/sheets/facets').expect(200)).body);
+    });
+
+    it('seriesSheets: cùng Series, bỏ chính nó và Draft, mới nhất trước, tối đa 12', async () => {
+      const series = await prisma.series.create({ data: { name: 'S', slug: 's', composerId } });
+      const me = await addSheet({ title: 'Me', published: '2026-01-01' });
+      await prisma.sheet.update({ where: { id: me.id }, data: { seriesId: series.id } });
+      const mk = async (title: string, day: number, status: 'PUBLISHED' | 'DRAFT' = 'PUBLISHED') => {
+        const x = await addSheet({ title, status, published: `2026-02-${String(day).padStart(2, '0')}` });
+        await prisma.sheet.update({ where: { id: x.id }, data: { seriesId: series.id } });
+      };
+      for (let d = 1; d <= 13; d += 1) await mk(`P${d}`, d);
+      await mk('Hidden', 20, 'DRAFT');
+      const body = publicSheetDetailSchema.parse((await get(`/sheets/${me.slug}`).expect(200)).body);
+      expect(body.series).toEqual({ id: series.id, name: 'S' });
+      expect(body.seriesSheets).toHaveLength(12);
+      expect(body.seriesSheets[0]!.title).toBe('P13');
+      expect(body.seriesSheets.map((s) => s.title)).not.toContain('Hidden');
+      expect(body.seriesSheets.map((s) => s.id)).not.toContain(me.id);
+    });
+
+    it('related: ưu tiên Series > Composer > Level, không trùng seriesSheets, không có chính nó/Draft, tối đa 6', async () => {
+      const other = (await prisma.composer.create({ data: { name: 'Mozart', slug: 'mozart' } })).id;
+      const series = await prisma.series.create({ data: { name: 'S', slug: 's', composerId } });
+      const me = await addSheet({ title: 'Me', published: '2026-01-01' });
+      await prisma.sheet.update({ where: { id: me.id }, data: { seriesId: series.id } });
+      const inSeries = await addSheet({ title: 'InSeries', published: '2026-01-02' });
+      await prisma.sheet.update({ where: { id: inSeries.id }, data: { seriesId: series.id } });
+      await addSheet({ title: 'SameComposer', level: 'INTERMEDIATE', published: '2026-01-03', viewCount: 1 });
+      await addSheet({ title: 'SameLevel', composerId: other, published: '2026-01-04', viewCount: 100 });
+      await addSheet({ title: 'Unrelated', composerId: other, level: 'INTERMEDIATE', published: '2026-01-05', viewCount: 999 });
+      await addSheet({ title: 'DraftSame', status: 'DRAFT' });
+      const body = publicSheetDetailSchema.parse((await get(`/sheets/${me.slug}`).expect(200)).body);
+      expect(body.seriesSheets.map((s) => s.title)).toEqual(['InSeries']);
+      // SameComposer (2 điểm: composer) và SameLevel (1 điểm: level) khớp; Unrelated không khớp tiêu chí nào.
+      expect(body.related.map((s) => s.title)).toEqual(['SameComposer', 'SameLevel']);
+    });
+
+    it('related: Sheet điểm cao ít lượt xem không bị Sheet điểm thấp nhiều lượt xem đẩy ra (không cắt trước khi chấm)', async () => {
+      const other = (await prisma.composer.create({ data: { name: 'Mozart', slug: 'mozart' } })).id;
+      const me = await addSheet({ title: 'Me', published: '2026-01-01' });
+      // 8 Sheet chỉ trùng Level, nhiều lượt xem; 1 Sheet trùng Composer ít lượt xem.
+      for (let i = 0; i < 8; i += 1) {
+        await addSheet({ title: `Pop${i}`, composerId: other, published: '2026-01-02', viewCount: 1000 + i });
+      }
+      await addSheet({ title: 'ComposerOnly', level: 'INTERMEDIATE', published: '2026-01-03', viewCount: 0 });
+      const body = publicSheetDetailSchema.parse((await get(`/sheets/${me.slug}`).expect(200)).body);
+      expect(body.related).toHaveLength(6);
+      expect(body.related[0]!.title).toBe('ComposerOnly');
+    });
+
+    it('related: Composer+Level (3 điểm) đứng trước chỉ Composer (2 điểm) dù ít lượt xem hơn', async () => {
+      const me = await addSheet({ title: 'Me', published: '2026-01-01' });
+      for (let i = 0; i < 7; i += 1) {
+        await addSheet({ title: `C${i}`, level: 'INTERMEDIATE', published: '2026-01-02', viewCount: 500 });
+      }
+      await addSheet({ title: 'ComposerAndLevel', published: '2026-01-03', viewCount: 1 });
+      const body = publicSheetDetailSchema.parse((await get(`/sheets/${me.slug}`).expect(200)).body);
+      expect(body.related[0]!.title).toBe('ComposerAndLevel');
+      expect(body.related).toHaveLength(6);
+    });
+
+    it('related tối đa 6', async () => {
+      const me = await addSheet({ title: 'Me', published: '2026-01-01' });
+      for (let i = 0; i < 8; i += 1) await addSheet({ title: `R${i}`, published: '2026-01-02', viewCount: i });
+      const body = publicSheetDetailSchema.parse((await get(`/sheets/${me.slug}`).expect(200)).body);
+      expect(body.related).toHaveLength(6);
+      expect(body.related[0]!.title).toBe('R7');
     });
   });
 

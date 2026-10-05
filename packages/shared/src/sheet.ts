@@ -403,7 +403,7 @@ export const publicSheetItemSchema = z.object({
   slug: z.string(),
   title: z.string(),
   level: levelSchema,
-  composer: refSchema,
+  composer: refSchema.extend({ slug: z.string() }),
   viewCount: z.number().int().nonnegative(),
   hasSheet: z.boolean(),
   hasChords: z.boolean(),
@@ -447,3 +447,25 @@ export const facetsSchema = z.object({
 });
 export type Facets = z.infer<typeof facetsSchema>;
 export type FacetItem = z.infer<typeof facetItemSchema>;
+
+/** `GET /composers/:slug`: thông tin công khai của Composer; `avatarUrl` chỉ có khi ảnh nằm ở vùng public. */
+export const publicComposerSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  bio: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+export type PublicComposer = z.infer<typeof publicComposerSchema>;
+
+/** `GET /genres/:slug`: thông tin công khai của Genre (`icon` thuộc `GENRE_ICONS` hoặc `null`). */
+export const publicGenreSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  icon: z.string().nullable(),
+});
+export type PublicGenre = z.infer<typeof publicGenreSchema>;
+
+/** Param `:slug` của hai endpoint trên. */
+export const slugParamSchema = z.object({ slug: z.string().min(1).max(200) });

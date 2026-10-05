@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { PublicSheetItem } from '@piano-daily/shared';
 import { withIntl } from '../layout/test-utils';
@@ -24,7 +24,7 @@ const sheet: PublicSheetItem = {
   slug: 'fur-elise',
   title: 'Für Elise',
   level: 'BEGINNER',
-  composer: { id: 'c1', name: 'Beethoven' },
+  composer: { id: 'c1', name: 'Beethoven', slug: 'beethoven' },
   viewCount: 42,
   hasSheet: true,
   hasChords: false,
@@ -37,20 +37,31 @@ const sheet: PublicSheetItem = {
 };
 
 describe('SheetCard', () => {
-  it('cả thẻ là link tới trang chi tiết; alt đúng; chỉ nhãn định dạng có thật; badge HOT', () => {
-    render(withIntl(<SheetCard sheet={sheet} />));
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/sheet/fur-elise');
-    const img = within(link).getByRole('img');
+  it('link tiêu đề phủ cả thẻ tới trang chi tiết; alt đúng; chỉ nhãn định dạng có thật; badge HOT', () => {
+    const { container } = render(withIntl(<SheetCard sheet={sheet} />));
+    const title = screen.getByRole('link', { name: 'Für Elise' });
+    expect(title).toHaveAttribute('href', '/sheet/fur-elise');
+    expect(title.className).toContain('after:absolute');
+    const img = screen.getByRole('img');
     expect(img).toHaveAttribute('alt', 'Für Elise – page 1');
     expect(img).toHaveAttribute('loading', 'lazy');
-    expect(within(link).getByText('Midi')).toBeInTheDocument();
-    expect(within(link).getByText('Sheet')).toBeInTheDocument();
-    expect(within(link).queryByText('Mp3')).toBeNull();
-    expect(within(link).queryByText('Chords')).toBeNull();
-    expect(within(link).getByText('HOT')).toBeInTheDocument();
-    expect(within(link).getByText('Beginner')).toBeInTheDocument();
-    expect(within(link).getByText(/Beethoven/)).toHaveTextContent('42 views');
+    expect(screen.getByText('Midi')).toBeInTheDocument();
+    expect(screen.getByText('Sheet')).toBeInTheDocument();
+    expect(screen.queryByText('Mp3')).toBeNull();
+    expect(screen.queryByText('Chords')).toBeNull();
+    expect(screen.getByText('HOT')).toBeInTheDocument();
+    expect(screen.getByText('Beginner')).toBeInTheDocument();
+    expect(screen.getByText(/42 views/)).toBeInTheDocument();
+    expect(container.querySelector('a a')).toBeNull();
+  });
+
+  it('tên Composer là link tới trang Composer, nằm trên lớp phủ (z-10), không lồng anchor', () => {
+    const { container } = render(withIntl(<SheetCard sheet={{ ...sheet, composer: { id: 'c', name: 'J. S. Bach', slug: 'j-s bach' } }} />));
+    const link = screen.getByRole('link', { name: 'J. S. Bach' });
+    expect(link).toHaveAttribute('href', '/composer/j-s%20bach');
+    expect(link.className).toContain('z-10');
+    expect(container.querySelectorAll('a')).toHaveLength(2);
+    expect(container.querySelector('a a')).toBeNull();
   });
 
   it('không HOT thì không có badge; thiếu thumbnail thì có placeholder', () => {

@@ -93,5 +93,22 @@
     "previous": "Trước",
     "next": "Sau",
     "page": "Trang {page}"
+  },
+  "Composer": {
+    "title": "Sheet piano của {name}",
+    "total": "{count} bài",
+    "avatarAlt": "Ảnh của {name}",
+    "emptyTitle": "Chưa có bài nào của Composer này.",
+    "emptyHint": "Hãy xem các bài theo trình độ dưới đây.",
+    "browseLevels": "Xem theo trình độ",
+    "loading": "Đang tải danh sách sheet"
+  },
+  "Genre": {
+    "title": "Sheet piano thể loại {name}",
+    "total": "{count} bài",
+    "emptyTitle": "Chưa có bài nào thuộc thể loại này.",
+    "emptyHint": "Hãy xem các bài theo trình độ dưới đây.",
+    "browseLevels": "Xem theo trình độ",
+    "loading": "Đang tải danh sách sheet"
   }
 }

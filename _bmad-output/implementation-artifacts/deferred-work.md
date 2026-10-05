@@ -42,3 +42,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-tu-lam-moi-cache.md`
   summary: Khi làm trang Composer (Story 2.5), việc sửa `composerId` của một Series phải làm mới cả `list:composer:{cũ}` lẫn `list:composer:{mới}` (hiện `SeriesService.update` chỉ phát `list:series:{id}` và 4 tag level).
   evidence: Review Story 2.3 (Blind Hunter, Edge Case Hunter): trang Composer liệt kê Series sẽ cũ tới 10 phút sau khi Series đổi Composer; chưa có hậu quả vì trang Composer chưa tồn tại.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-trang-composer-va-genre.md`
+  summary: Gắn link tới trang Genre (tag Genre) ở trang chi tiết Sheet để trang `/genre/[slug]` không bị mồ côi.
+  evidence: Chỉ thẻ Sheet link tới Composer; không có đường vào `/genre/[slug]` ngoài gõ URL. Spec 2.5 loại tag Genre trên thẻ; trang chi tiết thuộc Story 2.6.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-trang-composer-va-genre.md`
+  summary: Kiểm tra thủ công/e2e hành vi stretched link của `SheetCard` (click thân thẻ mở chi tiết, click tên Composer mở trang Composer).
+  evidence: Test hiện chỉ kiểm tên class Tailwind; jsdom không dựng layout nên không chứng minh vùng bấm.

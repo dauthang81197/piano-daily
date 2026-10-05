@@ -11,6 +11,8 @@ import { resolveTestDatabaseUrl } from './test-env';
 const PUBLIC_ROUTES = ['GET /health', 'POST /auth/login', 'POST /auth/refresh', 'POST /auth/logout',
   'GET /sheets',
   'GET /sheets/facets',
+  'GET /composers/:slug',
+  'GET /genres/:slug',
   'GET /levels/:level/summary',
 ];
 

@@ -1,5 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
-import { errorResponseSchema, facetsSchema, levelSummarySchema, publicSheetListSchema } from '@piano-daily/shared';
+import {
+  errorResponseSchema,
+  facetsSchema,
+  levelSummarySchema,
+  publicComposerSchema,
+  publicGenreSchema,
+  publicSheetListSchema,
+} from '@piano-daily/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -329,6 +336,64 @@ describe('API công khai Sheet (Postgres thật)', () => {
 
     it('không có Sheet nào: rỗng', async () => {
       expect(facetsSchema.parse((await get('/sheets/facets').expect(200)).body)).toEqual({ genres: [], composers: [] });
+    });
+  });
+
+  describe('GET /composers/:slug và /genres/:slug', () => {
+    it('Composer: trả tên, bio, avatarUrl public; thẻ Sheet có composer.slug', async () => {
+      await prisma.composer.update({
+        where: { id: composerId },
+        data: { bio: 'Nhà soạn nhạc Baroque', avatar: 'public/composers/bach/avatar.webp' },
+      });
+      await addSheet({ title: 'A', published: '2026-01-01' });
+      const body = publicComposerSchema.parse((await get('/composers/bach').expect(200)).body);
+      expect(body).toMatchObject({ id: composerId, slug: 'bach', name: 'Bach', bio: 'Nhà soạn nhạc Baroque' });
+      expect(body.avatarUrl).toMatch(/\/public\/composers\/bach\/avatar\.webp$/);
+      const list = publicSheetListSchema.parse((await get('/sheets?composer=bach').expect(200)).body);
+      expect(list.items[0]!.composer).toEqual({ id: composerId, name: 'Bach', slug: 'bach' });
+    });
+
+    it('Composer: avatar key private -> avatarUrl null, không lộ key', async () => {
+      await prisma.composer.update({ where: { id: composerId }, data: { avatar: 'private/composers/bach/a.webp' } });
+      const res = await get('/composers/bach').expect(200);
+      expect(publicComposerSchema.parse(res.body).avatarUrl).toBeNull();
+      expect(JSON.stringify(res.body)).not.toContain('private/');
+    });
+
+    it('Composer: avatar key sai dạng (không public/ hay private/) -> 200, avatarUrl null', async () => {
+      await prisma.composer.update({ where: { id: composerId }, data: { avatar: 'legacy/avatar.png' } });
+      expect(publicComposerSchema.parse((await get('/composers/bach').expect(200)).body).avatarUrl).toBeNull();
+    });
+
+    it('Composer chưa có avatar/bài PUBLISHED vẫn 200', async () => {
+      await addSheet({ title: 'Draft', status: 'DRAFT' });
+      const body = publicComposerSchema.parse((await get('/composers/bach').expect(200)).body);
+      expect(body).toMatchObject({ bio: null, avatarUrl: null });
+      const list = publicSheetListSchema.parse((await get('/sheets?composer=bach').expect(200)).body);
+      expect(list.total).toBe(0);
+    });
+
+    it('Genre: trả tên và icon (null được)', async () => {
+      await prisma.genre.update({ where: { id: genres.jazz }, data: { icon: 'music' } });
+      expect(publicGenreSchema.parse((await get('/genres/jazz').expect(200)).body)).toEqual({
+        id: genres.jazz,
+        slug: 'jazz',
+        name: 'Jazz',
+        icon: 'music',
+      });
+      expect(publicGenreSchema.parse((await get('/genres/pop').expect(200)).body).icon).toBeNull();
+    });
+
+    it('slug quá dài (> 200 ký tự) -> 400 VALIDATION_FAILED', async () => {
+      const res = await get(`/composers/${'a'.repeat(201)}`).expect(400);
+      expect(errorResponseSchema.parse(res.body).error.code).toBe('VALIDATION_FAILED');
+    });
+
+    it('slug không tồn tại -> 404 theo định dạng lỗi chung', async () => {
+      for (const path of ['/composers/khong-co', '/genres/khong-co']) {
+        const res = await get(path).expect(404);
+        expect(errorResponseSchema.parse(res.body).error.code).toBeTruthy();
+      }
     });
   });
 

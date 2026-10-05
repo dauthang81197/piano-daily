@@ -3,6 +3,9 @@ import {
   createSheetSchema,
   facetsSchema,
   parseYoutubeUrl,
+  publicComposerSchema,
+  publicGenreSchema,
+  publicSheetItemSchema,
   publicSheetListQuerySchema,
   removeFileTypeSchema,
   sheetListQuerySchema,
@@ -290,5 +293,37 @@ describe('facetsSchema', () => {
     expect(facetsSchema.safeParse({ genres: [{ id: 'g', slug: 'j', name: 'J', count: 0 }], composers: [] }).success).toBe(
       false,
     );
+  });
+});
+
+describe('hợp đồng công khai Composer/Genre', () => {
+  it('thẻ Sheet có composer.slug', () => {
+    const item = {
+      id: 's',
+      publicId: 1,
+      slug: 'fur-elise',
+      title: 'Für Elise',
+      level: 'BEGINNER',
+      composer: { id: 'c', name: 'Beethoven', slug: 'beethoven' },
+      viewCount: 0,
+      hasSheet: true,
+      hasChords: false,
+      hasMidi: false,
+      hasMp3: false,
+      hasVideo: false,
+      pageCount: 1,
+      isHot: false,
+      thumbnailUrl: null,
+    };
+    expect(publicSheetItemSchema.parse(item).composer.slug).toBe('beethoven');
+    expect(publicSheetItemSchema.safeParse({ ...item, composer: { id: 'c', name: 'B' } }).success).toBe(false);
+  });
+
+  it('Composer cho phép bio/avatarUrl null; Genre cho phép icon null', () => {
+    const composer = { id: 'c', slug: 'bach', name: 'Bach', bio: null, avatarUrl: null };
+    expect(publicComposerSchema.parse(composer)).toEqual(composer);
+    const genre = { id: 'g', slug: 'pop', name: 'Pop', icon: null };
+    expect(publicGenreSchema.parse(genre)).toEqual(genre);
+    expect(publicGenreSchema.safeParse({ id: 'g', slug: 'pop', name: 'Pop' }).success).toBe(false);
   });
 });

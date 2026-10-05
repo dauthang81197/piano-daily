@@ -20,7 +20,21 @@
   "Search": {
     "label": "Search sheet music",
     "placeholder": "Title, composer or ID",
-    "submit": "Search"
+    "submit": "Search",
+    "title": "Search sheet music",
+    "total": "{count, plural, one {# result} other {# results}}",
+    "queryLabel": "Search by title, composer, lyrics or ID",
+    "levelLabel": "Level",
+    "allLevels": "All levels",
+    "composerLabel": "Composer",
+    "allComposers": "All composers",
+    "formatLabel": "Format",
+    "allFormats": "All formats",
+    "emptyTitle": "No sheets match your search.",
+    "emptyHint": "Try removing a filter or using fewer words.",
+    "clearFilter": "Remove filter: {filter}",
+    "browseLevels": "Or browse by level",
+    "loading": "Loading results"
   },
   "Language": {
     "switchTo": "Switch to {language}",
@@ -57,7 +71,8 @@
     "emptyTitle": "No sheets are available here yet.",
     "emptyHint": "Try removing the genre filter or browse another level.",
     "clearFilter": "Show all genres",
-    "loading": "Loading sheets"
+    "loading": "Loading sheets",
+    "sortRelevance": "Relevance"
   },
   "Card": {
     "views": "{count, plural, one {# view} other {# views}}",

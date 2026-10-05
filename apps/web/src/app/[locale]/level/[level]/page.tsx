@@ -77,10 +77,14 @@ export default async function LevelPage({ params, searchParams }: Props) {
         ) : null}
       </header>
 
-      <GenreTags level={level} genres={summary.genres} selectedSlug={genre?.slug} sort={sort} />
+      <GenreTags
+        genres={summary.genres}
+        selectedSlug={genre?.slug}
+        hrefFor={(slug) => levelHref(level, { sort, genre: slug })}
+      />
 
       <div className="flex justify-end">
-        <SortLinks level={level} genre={genre?.slug} sort={sort} />
+        <SortLinks sort={sort} hrefFor={(value) => levelHref(level, { genre: genre?.slug, sort: value })} />
       </div>
 
       {list.items.length === 0 ? (

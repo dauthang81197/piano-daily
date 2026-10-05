@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { levelHref, parseGenre, parseLevelSlug, parsePage, parseSort } from './query';
+import {
+  levelHref,
+  parseFormat,
+  parseGenre,
+  parseLevelParam,
+  parseLevelSlug,
+  parsePage,
+  parseQuery,
+  parseSearchSort,
+  parseSort,
+  searchHref,
+} from './query';
 
 describe('parsePage', () => {
   it('vắng -> 1; số nguyên >= 1 hợp lệ', () => {
@@ -42,5 +53,48 @@ describe('levelHref', () => {
     expect(levelHref('expert', { genre: 'jazz', sort: 'most_viewed', page: 2 })).toBe(
       '/level/expert?genre=jazz&sort=most_viewed&page=2',
     );
+  });
+});
+
+describe('parseQuery / parseFormat / parseLevelParam / parseSearchSort', () => {
+  it('q: trim, cắt 100 ký tự, rỗng -> undefined', () => {
+    expect(parseQuery('  elise ')).toBe('elise');
+    expect(parseQuery('   ')).toBeUndefined();
+    expect(parseQuery(undefined)).toBeUndefined();
+    expect(parseQuery('a'.repeat(150))).toHaveLength(100);
+    expect(parseQuery(['x', 'y'])).toBe('x');
+  });
+  it('format sai bị bỏ', () => {
+    expect(parseFormat('midi')).toBe('midi');
+    expect(parseFormat('pdf')).toBeUndefined();
+    expect(parseFormat(undefined)).toBeUndefined();
+  });
+  it('level chỉ nhận slug chữ thường, sai bị bỏ', () => {
+    expect(parseLevelParam('expert')).toBe('expert');
+    expect(parseLevelParam('foo')).toBeUndefined();
+    expect(parseLevelParam('EXPERT')).toBeUndefined();
+    expect(parseLevelParam('')).toBeUndefined();
+  });
+  it('sort: relevance chỉ khi có q (và là mặc định của nó); sai giá trị về mặc định', () => {
+    expect(parseSearchSort(undefined, true)).toBe('relevance');
+    expect(parseSearchSort('relevance', true)).toBe('relevance');
+    expect(parseSearchSort('relevance', false)).toBe('newest');
+    expect(parseSearchSort('x', false)).toBe('newest');
+    expect(parseSearchSort('most_viewed', true)).toBe('most_viewed');
+    expect(parseSearchSort('newest', true)).toBe('newest');
+  });
+});
+
+describe('searchHref', () => {
+  it('bỏ giá trị mặc định', () => {
+    expect(searchHref()).toBe('/search');
+    expect(searchHref({ sort: 'newest', page: 1 })).toBe('/search');
+    expect(searchHref({ q: 'elise', sort: 'relevance' })).toBe('/search?q=elise');
+  });
+  it('giữ q, level, genre, composer, format, sort, page theo thứ tự', () => {
+    expect(
+      searchHref({ q: 'dem thu', level: 'beginner', genre: 'jazz', composer: 'bach', format: 'midi', sort: 'most_viewed', page: 2 }),
+    ).toBe('/search?q=dem+thu&level=beginner&genre=jazz&composer=bach&format=midi&sort=most_viewed&page=2');
+    expect(searchHref({ q: 'x', sort: 'newest' })).toBe('/search?q=x&sort=newest');
   });
 });

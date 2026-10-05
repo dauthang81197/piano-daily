@@ -331,25 +331,48 @@ export type SheetListItem = z.infer<typeof sheetListItemSchema>;
 
 // ── Public (site công khai, Story 2.2) ───────────────────────
 
-export const PUBLIC_SHEET_SORTS = ['newest', 'most_viewed'] as const;
+export const PUBLIC_SHEET_SORTS = ['newest', 'most_viewed', 'relevance'] as const;
 export type PublicSheetSort = (typeof PUBLIC_SHEET_SORTS)[number];
 export const PUBLIC_PAGE_SIZE_DEFAULT = 12;
 export const PUBLIC_PAGE_SIZE_MAX = 48;
 /** Trang tối đa của endpoint công khai (chặn OFFSET quét hàng triệu dòng khi chưa đăng nhập). */
 export const PUBLIC_PAGE_MAX = 10_000;
 
+/** Định dạng lọc được (tương ứng cột `has_*`). */
+export const PUBLIC_FORMATS = ['sheet', 'chords', 'midi', 'mp3', 'video'] as const;
+export type PublicFormat = (typeof PUBLIC_FORMATS)[number];
+export const PUBLIC_SEARCH_MAX_LENGTH = 100;
+
 const publicPageSizeMessage = `Kích thước trang phải từ 1 đến ${PUBLIC_PAGE_SIZE_MAX}.`;
 
-/** Query `GET /sheets`: `level` bắt buộc, `genre` là slug Genre, mặc định `newest`, 12 bài mỗi trang. */
-export const publicSheetListQuerySchema = z.object({
-  level: levelSchema,
-  genre: z
-    .string()
-    .trim()
-    .max(200, { error: 'Genre không hợp lệ.' })
-    .optional()
-    .transform((value) => value || undefined),
-  sort: z.enum(PUBLIC_SHEET_SORTS, { error: 'Cách sắp xếp không hợp lệ.' }).default('newest'),
+/**
+ * Query `GET /sheets` (Story 2.2, 2.4): mọi bộ lọc tuỳ chọn và kết hợp AND. `genre`/`composer` là slug,
+ * `q` là từ khoá tìm toàn văn, 12 bài mỗi trang. `sort` mặc định `relevance` khi có `q`, ngược lại `newest`
+ * (`relevance` không có `q` thì coi như `newest`).
+ */
+export const publicSheetListQuerySchema = z
+  .object({
+    level: levelSchema.optional(),
+    q: z
+      .string()
+      .trim()
+      .max(PUBLIC_SEARCH_MAX_LENGTH, { error: `Từ khoá tối đa ${PUBLIC_SEARCH_MAX_LENGTH} ký tự.` })
+      .optional()
+      .transform((value) => value || undefined),
+    genre: z
+      .string()
+      .trim()
+      .max(200, { error: 'Genre không hợp lệ.' })
+      .optional()
+      .transform((value) => value || undefined),
+    composer: z
+      .string()
+      .trim()
+      .max(200, { error: 'Composer không hợp lệ.' })
+      .optional()
+      .transform((value) => value || undefined),
+    format: z.enum(PUBLIC_FORMATS, { error: 'Định dạng không hợp lệ.' }).optional(),
+    sort: z.enum(PUBLIC_SHEET_SORTS, { error: 'Cách sắp xếp không hợp lệ.' }).optional(),
   page: z.coerce
     .number({ error: pageMessage })
     .int({ error: pageMessage })
@@ -362,7 +385,11 @@ export const publicSheetListQuerySchema = z.object({
     .min(1, { error: publicPageSizeMessage })
     .max(PUBLIC_PAGE_SIZE_MAX, { error: publicPageSizeMessage })
     .default(PUBLIC_PAGE_SIZE_DEFAULT),
-});
+  })
+  .transform(({ sort, ...rest }) => ({
+    ...rest,
+    sort: (sort === 'relevance' || sort === undefined ? (rest.q ? 'relevance' : 'newest') : sort) as PublicSheetSort,
+  }));
 export type PublicSheetListQueryInput = z.input<typeof publicSheetListQuerySchema>;
 export type PublicSheetListQuery = z.output<typeof publicSheetListQuerySchema>;
 
@@ -406,3 +433,17 @@ export const levelSummarySchema = z.object({
   ),
 });
 export type LevelSummary = z.infer<typeof levelSummarySchema>;
+
+/** `GET /sheets/facets`: Genre và Composer kèm số Sheet PUBLISHED (bỏ mục không có bài). */
+const facetItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  count: z.number().int().positive(),
+});
+export const facetsSchema = z.object({
+  genres: z.array(facetItemSchema),
+  composers: z.array(facetItemSchema),
+});
+export type Facets = z.infer<typeof facetsSchema>;
+export type FacetItem = z.infer<typeof facetItemSchema>;

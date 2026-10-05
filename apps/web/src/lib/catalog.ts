@@ -1,9 +1,12 @@
 import 'server-only';
 import {
   cacheTags,
+  type Facets,
+  facetsSchema,
   type Level,
   type LevelSummary,
   levelSummarySchema,
+  type PublicFormat,
   type PublicSheetList,
   type PublicSheetSort,
   publicSheetListSchema,
@@ -33,4 +36,29 @@ export async function fetchLevelSheets(
   const tags = [cacheTags.listLevel(level)];
   if (opts.genre) tags.push(cacheTags.listGenre(opts.genre.id));
   return publicSheetListSchema.parse(await getJson(`/sheets?${params}`, tags));
+}
+
+export interface SearchOptions {
+  q?: string | undefined;
+  level?: LevelSlug | undefined;
+  genre?: string | undefined;
+  composer?: string | undefined;
+  format?: PublicFormat | undefined;
+  sort: PublicSheetSort;
+  page: number;
+}
+
+/** Tìm kiếm và lọc (trang Search). `genre`/`composer` là slug đã đối chiếu với facets. */
+export async function fetchSearch(opts: SearchOptions): Promise<PublicSheetList> {
+  const params = new URLSearchParams({ sort: opts.sort, page: String(opts.page) });
+  if (opts.q) params.set('q', opts.q);
+  if (opts.level) params.set('level', toApiLevel(opts.level));
+  if (opts.genre) params.set('genre', opts.genre);
+  if (opts.composer) params.set('composer', opts.composer);
+  if (opts.format) params.set('format', opts.format);
+  return publicSheetListSchema.parse(await getJson(`/sheets?${params}`, [cacheTags.search]));
+}
+
+export async function fetchFacets(): Promise<Facets> {
+  return facetsSchema.parse(await getJson('/sheets/facets', [cacheTags.search]));
 }

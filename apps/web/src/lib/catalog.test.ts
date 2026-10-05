@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchLevelSheets, fetchLevelSummary } from './catalog';
+import { fetchFacets, fetchLevelSheets, fetchLevelSummary, fetchSearch } from './catalog';
 
 describe('catalog fetchers', () => {
   const fetchMock = vi.fn();
@@ -35,6 +35,32 @@ describe('catalog fetchers', () => {
     fetchMock.mockResolvedValue(json({ items: [], page: 1, pageSize: 12, total: 0 }));
     await fetchLevelSheets('beginner', { page: 1, sort: 'newest' });
     expect(fetchMock.mock.calls[0]![1].next.tags).toEqual(['list:level:beginner']);
+  });
+
+  it('fetchSearch gửi mọi bộ lọc, level viết hoa, tag search', async () => {
+    fetchMock.mockResolvedValue(json({ items: [], page: 2, pageSize: 12, total: 0 }));
+    await fetchSearch({ q: 'dem thu', level: 'expert', genre: 'jazz', composer: 'bach', format: 'midi', sort: 'relevance', page: 2 });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(
+      'http://api:4000/sheets?sort=relevance&page=2&q=dem+thu&level=EXPERT&genre=jazz&composer=bach&format=midi',
+    );
+    expect(init.next.tags).toEqual(['search']);
+    expect(init.cache).toBe('force-cache');
+  });
+
+  it('fetchSearch không bộ lọc chỉ gửi sort và page', async () => {
+    fetchMock.mockResolvedValue(json({ items: [], page: 1, pageSize: 12, total: 0 }));
+    await fetchSearch({ sort: 'newest', page: 1 });
+    expect(fetchMock.mock.calls[0]![0]).toBe('http://api:4000/sheets?sort=newest&page=1');
+  });
+
+  it('fetchFacets gọi /sheets/facets với tag search', async () => {
+    fetchMock.mockResolvedValue(json({ genres: [{ id: 'g', slug: 'jazz', name: 'Jazz', count: 1 }], composers: [] }));
+    const facets = await fetchFacets();
+    expect(facets.genres[0]!.slug).toBe('jazz');
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('http://api:4000/sheets/facets');
+    expect(init.next.tags).toEqual(['search']);
   });
 
   it('lỗi API được ném ra, không nuốt', async () => {

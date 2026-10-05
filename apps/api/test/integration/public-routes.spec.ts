@@ -10,6 +10,7 @@ import { resolveTestDatabaseUrl } from './test-env';
 /** Allowlist chính xác các route không cần access token. Thêm route public mới = sửa danh sách này. */
 const PUBLIC_ROUTES = ['GET /health', 'POST /auth/login', 'POST /auth/refresh', 'POST /auth/logout',
   'GET /sheets',
+  'GET /sheets/facets',
   'GET /levels/:level/summary',
 ];
 

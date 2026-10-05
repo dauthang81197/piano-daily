@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  composerHref,
+  genreHref,
   levelHref,
   parseFormat,
   parseGenre,
@@ -96,5 +98,17 @@ describe('searchHref', () => {
       searchHref({ q: 'dem thu', level: 'beginner', genre: 'jazz', composer: 'bach', format: 'midi', sort: 'most_viewed', page: 2 }),
     ).toBe('/search?q=dem+thu&level=beginner&genre=jazz&composer=bach&format=midi&sort=most_viewed&page=2');
     expect(searchHref({ q: 'x', sort: 'newest' })).toBe('/search?q=x&sort=newest');
+  });
+});
+
+describe('composerHref / genreHref', () => {
+  it('bỏ giá trị mặc định, giữ sort và page', () => {
+    expect(composerHref('bach')).toBe('/composer/bach');
+    expect(composerHref('bach', { sort: 'newest', page: 1 })).toBe('/composer/bach');
+    expect(composerHref('bach', { sort: 'most_viewed', page: 2 })).toBe('/composer/bach?sort=most_viewed&page=2');
+    expect(genreHref('pop', { page: 3 })).toBe('/genre/pop?page=3');
+  });
+  it('mã hoá slug', () => {
+    expect(genreHref('a b')).toBe('/genre/a%20b');
   });
 });

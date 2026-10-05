@@ -5,9 +5,12 @@ import {
   type LevelSummary,
   levelParamSchema,
   type Page,
+  type PublicComposer,
+  type PublicGenre,
   type PublicSheetItem,
   type PublicSheetListQuery,
   publicSheetListQuerySchema,
+  slugParamSchema,
 } from '@piano-daily/shared';
 import { Public } from '../identity/public.decorator';
 import { PublicSheetsService } from './public-sheets.service';
@@ -26,6 +29,16 @@ export class PublicSheetsController {
   @Get('sheets/facets')
   facets(): Promise<Facets> {
     return this.service.facets();
+  }
+
+  @Get('composers/:slug')
+  composer(@Param({ schema: slugParamSchema }) params: { slug: string }): Promise<PublicComposer> {
+    return this.service.composerBySlug(params.slug);
+  }
+
+  @Get('genres/:slug')
+  genre(@Param({ schema: slugParamSchema }) params: { slug: string }): Promise<PublicGenre> {
+    return this.service.genreBySlug(params.slug);
   }
 
   @Get('levels/:level/summary')

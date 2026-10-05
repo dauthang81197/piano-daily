@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   FileType,
   type Facets,
   type Level,
   type LevelSummary,
   type Page,
+  type PublicComposer,
+  type PublicGenre,
   type PublicSheetItem,
   type PublicSheetListQuery,
   SheetStatus,
@@ -28,7 +30,7 @@ const PUBLIC_SELECT = {
   hasVideo: true,
   pageCount: true,
   isHot: true,
-  composer: { select: { id: true, name: true } },
+  composer: { select: { id: true, name: true, slug: true } },
   // Chỉ THUMBNAIL hiện hành; không chọn storageKey nào khác.
   files: {
     where: { type: FileType.THUMBNAIL, supersededAt: null },
@@ -116,6 +118,28 @@ export class PublicSheetsService {
 
   private toItem({ files, ...row }: Prisma.SheetGetPayload<{ select: typeof PUBLIC_SELECT }>): PublicSheetItem {
     return { ...row, thumbnailUrl: files[0] ? this.storage.publicUrl(files[0].storageKey) : null };
+  }
+
+  /** Thông tin công khai của Composer theo slug (kể cả khi chưa có Sheet PUBLISHED); 404 nếu không có. */
+  async composerBySlug(slug: string): Promise<PublicComposer> {
+    const row = await this.prisma.composer.findUnique({
+      where: { slug },
+      select: { id: true, slug: true, name: true, bio: true, avatar: true },
+    });
+    if (!row) throw new NotFoundException('Không tìm thấy Composer.');
+    // Chỉ key vùng public mới có URL; key private không bao giờ lộ ra ngoài.
+    const avatarUrl = row.avatar?.startsWith('public/') ? this.storage.publicUrl(row.avatar) : null;
+    return { id: row.id, slug: row.slug, name: row.name, bio: row.bio, avatarUrl };
+  }
+
+  /** Thông tin công khai của Genre theo slug; 404 nếu không có. */
+  async genreBySlug(slug: string): Promise<PublicGenre> {
+    const row = await this.prisma.genre.findUnique({
+      where: { slug },
+      select: { id: true, slug: true, name: true, icon: true },
+    });
+    if (!row) throw new NotFoundException('Không tìm thấy Genre.');
+    return row;
   }
 
   /** Genre và Composer kèm số Sheet PUBLISHED, bỏ mục không có bài, sắp `count desc, name asc`. */

@@ -93,5 +93,22 @@
     "previous": "Previous",
     "next": "Next",
     "page": "Page {page}"
+  },
+  "Composer": {
+    "title": "Piano sheet music by {name}",
+    "total": "{count, plural, one {# sheet} other {# sheets}}",
+    "avatarAlt": "Portrait of {name}",
+    "emptyTitle": "There are no sheets by this composer yet.",
+    "emptyHint": "Browse the sheets by level below.",
+    "browseLevels": "Browse by level",
+    "loading": "Loading sheets"
+  },
+  "Genre": {
+    "title": "{name} piano sheet music",
+    "total": "{count, plural, one {# sheet} other {# sheets}}",
+    "emptyTitle": "There are no sheets in this genre yet.",
+    "emptyHint": "Browse the sheets by level below.",
+    "browseLevels": "Browse by level",
+    "loading": "Loading sheets"
   }
 }

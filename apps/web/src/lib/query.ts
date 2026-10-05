@@ -98,3 +98,24 @@ export function searchHref({ q, level, genre, composer, format, sort, page }: Se
   const qs = params.toString();
   return `/search${qs ? `?${qs}` : ''}`;
 }
+
+export interface ListQueryState {
+  sort?: PublicSheetSort | undefined;
+  page?: number | undefined;
+}
+
+function listHref(base: string, { sort, page }: ListQueryState): string {
+  const params = new URLSearchParams();
+  if (sort && sort !== 'newest') params.set('sort', sort);
+  if (page && page > 1) params.set('page', String(page));
+  const qs = params.toString();
+  return `${base}${qs ? `?${qs}` : ''}`;
+}
+
+/** Href (không kèm locale) tới trang Composer; bỏ giá trị mặc định khỏi query. */
+export const composerHref = (slug: string, state: ListQueryState = {}) =>
+  listHref(`/composer/${encodeURIComponent(slug)}`, state);
+
+/** Href (không kèm locale) tới trang Genre; bỏ giá trị mặc định khỏi query. */
+export const genreHref = (slug: string, state: ListQueryState = {}) =>
+  listHref(`/genre/${encodeURIComponent(slug)}`, state);

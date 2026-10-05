@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchFacets, fetchLevelSheets, fetchLevelSummary, fetchSearch } from './catalog';
+import {
+  fetchComposer,
+  fetchComposerSheets,
+  fetchFacets,
+  fetchGenre,
+  fetchGenreSheets,
+  fetchLevelSheets,
+  fetchLevelSummary,
+  fetchSearch,
+} from './catalog';
 
 describe('catalog fetchers', () => {
   const fetchMock = vi.fn();
@@ -66,5 +75,38 @@ describe('catalog fetchers', () => {
   it('lỗi API được ném ra, không nuốt', async () => {
     fetchMock.mockResolvedValue(json({}, 500));
     await expect(fetchLevelSheets('beginner', { page: 1, sort: 'newest' })).rejects.toThrow(/500/);
+  });
+  it('fetchComposer gắn tag search, mã hoá slug và parse kết quả', async () => {
+    fetchMock.mockResolvedValue(json({ id: 'c1', slug: 'bach', name: 'Bach', bio: null, avatarUrl: null }));
+    expect(await fetchComposer('bach')).toMatchObject({ id: 'c1', name: 'Bach' });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('http://api:4000/composers/bach');
+    expect(init.next.tags).toEqual(['search']);
+  });
+
+  it('fetchComposer/fetchGenre: 404 và 400 (slug không hợp lệ) -> null; lỗi khác -> ném', async () => {
+    fetchMock.mockResolvedValue(json({ error: { code: 'NOT_FOUND', message: 'x' } }, 404));
+    expect(await fetchComposer('zzz')).toBeNull();
+    expect(await fetchGenre('zzz')).toBeNull();
+    fetchMock.mockImplementation(async () => json({ error: { code: 'VALIDATION_FAILED', message: 'x' } }, 400));
+    expect(await fetchComposer('a'.repeat(300))).toBeNull();
+    expect(await fetchGenre('a'.repeat(300))).toBeNull();
+    fetchMock.mockResolvedValue(json({}, 500));
+    await expect(fetchComposer('bach')).rejects.toThrow('500');
+  });
+
+  it('fetchGenre parse icon', async () => {
+    fetchMock.mockResolvedValue(json({ id: 'g1', slug: 'pop', name: 'Pop', icon: 'music' }));
+    expect(await fetchGenre('pop')).toEqual({ id: 'g1', slug: 'pop', name: 'Pop', icon: 'music' });
+  });
+
+  it('danh sách Composer/Genre gắn tag theo id và gửi slug', async () => {
+    fetchMock.mockImplementation(async () => json({ items: [], page: 2, pageSize: 12, total: 0 }));
+    await fetchComposerSheets({ id: 'c1', slug: 'bach' }, { page: 2, sort: 'most_viewed' });
+    expect(fetchMock.mock.calls[0]![0]).toBe('http://api:4000/sheets?composer=bach&sort=most_viewed&page=2');
+    expect(fetchMock.mock.calls[0]![1].next.tags).toEqual(['list:composer:c1']);
+    await fetchGenreSheets({ id: 'g1', slug: 'pop' }, { page: 1, sort: 'newest' });
+    expect(fetchMock.mock.calls[1]![0]).toBe('http://api:4000/sheets?genre=pop&sort=newest&page=1');
+    expect(fetchMock.mock.calls[1]![1].next.tags).toEqual(['list:genre:g1']);
   });
 });

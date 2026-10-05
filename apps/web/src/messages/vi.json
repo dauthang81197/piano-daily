@@ -20,7 +20,21 @@
   "Search": {
     "label": "Tìm kiếm bản nhạc",
     "placeholder": "Tên bài, nhà soạn nhạc hoặc mã số",
-    "submit": "Tìm"
+    "submit": "Tìm",
+    "title": "Tìm kiếm sheet",
+    "total": "{count} kết quả",
+    "queryLabel": "Tìm theo tên bài, Composer, lời bài hát hoặc ID",
+    "levelLabel": "Trình độ",
+    "allLevels": "Mọi trình độ",
+    "composerLabel": "Composer",
+    "allComposers": "Mọi Composer",
+    "formatLabel": "Định dạng",
+    "allFormats": "Mọi định dạng",
+    "emptyTitle": "Không tìm thấy bài nào khớp.",
+    "emptyHint": "Hãy thử bỏ bớt bộ lọc hoặc dùng ít từ khoá hơn.",
+    "clearFilter": "Bỏ bộ lọc: {filter}",
+    "browseLevels": "Hoặc xem theo trình độ",
+    "loading": "Đang tải kết quả"
   },
   "Language": {
     "switchTo": "Chuyển sang {language}",
@@ -57,7 +71,8 @@
     "emptyTitle": "Chưa có bài nào ở mục này.",
     "emptyHint": "Hãy thử bỏ bộ lọc thể loại hoặc xem một trình độ khác.",
     "clearFilter": "Xem tất cả thể loại",
-    "loading": "Đang tải danh sách sheet"
+    "loading": "Đang tải danh sách sheet",
+    "sortRelevance": "Liên quan"
   },
   "Card": {
     "views": "{count} lượt xem",

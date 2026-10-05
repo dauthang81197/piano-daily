@@ -10,6 +10,7 @@ import { PublicSheetsService } from './public-sheets.service';
 import { SeriesController } from './series.controller';
 import { SeriesService } from './series.service';
 import { SheetFilesController } from './sheet-files.controller';
+import { SheetSearchRepository } from './sheet-search.repository';
 import { SheetsController } from './sheets.controller';
 import { SheetsService } from './sheets.service';
 import { SheetFileGcService } from './sheet-file-gc.service';
@@ -18,6 +19,6 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 @Module({
   imports: [MediaModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
-  providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetFileGcService],
+  providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService],
 })
 export class CatalogModule {}

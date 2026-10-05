@@ -13,6 +13,7 @@ vi.mock('@/i18n/navigation', () => ({
 
 import { GenreTags } from './genre-tags';
 import { Pagination, pageWindow } from './pagination';
+import { SearchFilters } from './search-filters';
 import { SheetCard } from './sheet-card';
 import { SheetCardSkeleton } from './sheet-card-skeleton';
 import { SortLinks } from './sort-links';
@@ -72,33 +73,70 @@ describe('GenreTags', () => {
     { id: 'g1', slug: 'jazz', name: 'Jazz', count: 3 },
     { id: 'g2', slug: 'pop', name: 'Pop', count: 1 },
   ];
+  const hrefFor = (slug: string | undefined) => `/x?genre=${slug ?? ''}`;
 
-  it('link giữ sort, đặt genre, bỏ page; tag chọn nền secondary và bấm lại bỏ lọc', () => {
-    render(withIntl(<GenreTags level="beginner" genres={genres} selectedSlug="jazz" sort="most_viewed" />));
+  it('link dùng hrefFor; tag chọn nền secondary và bấm lại bỏ lọc', () => {
+    render(withIntl(<GenreTags genres={genres} selectedSlug="jazz" hrefFor={hrefFor} />));
     const jazz = screen.getByRole('link', { name: /Jazz/ });
-    expect(jazz).toHaveAttribute('href', '/level/beginner?sort=most_viewed');
+    expect(jazz).toHaveAttribute('href', '/x?genre=');
     expect(jazz).toHaveClass('bg-secondary');
     const pop = screen.getByRole('link', { name: /Pop/ });
-    expect(pop).toHaveAttribute('href', '/level/beginner?genre=pop&sort=most_viewed');
+    expect(pop).toHaveAttribute('href', '/x?genre=pop');
     expect(pop).not.toHaveClass('bg-secondary');
-    expect(screen.getByRole('link', { name: 'All' })).toHaveAttribute('href', '/level/beginner?sort=most_viewed');
+    expect(screen.getByRole('link', { name: 'All' })).toHaveAttribute('href', '/x?genre=');
   });
 
   it('chưa chọn thì "Tất cả" được chọn', () => {
-    render(withIntl(<GenreTags level="expert" genres={genres} selectedSlug={undefined} sort="newest" />));
+    render(withIntl(<GenreTags genres={genres} selectedSlug={undefined} hrefFor={hrefFor} />));
     expect(screen.getByRole('link', { name: 'All' })).toHaveClass('bg-secondary');
-    expect(screen.getByRole('link', { name: /Jazz/ })).toHaveAttribute('href', '/level/expert?genre=jazz');
+    expect(screen.getByRole('link', { name: /Jazz/ })).toHaveAttribute('href', '/x?genre=jazz');
   });
 });
 
 describe('SortLinks', () => {
-  it('giữ genre và đánh dấu lựa chọn hiện tại', () => {
-    render(withIntl(<SortLinks level="beginner" genre="jazz" sort="newest" />));
+  const hrefFor = (sort: string) => `/x?sort=${sort}`;
+
+  it('dùng hrefFor và đánh dấu lựa chọn hiện tại; không có Liên quan mặc định', () => {
+    render(withIntl(<SortLinks sort="newest" hrefFor={hrefFor} />));
     expect(screen.getByRole('link', { name: 'Newest' })).toHaveAttribute('aria-current', 'true');
-    expect(screen.getByRole('link', { name: 'Most viewed' })).toHaveAttribute(
-      'href',
-      '/level/beginner?genre=jazz&sort=most_viewed',
+    expect(screen.getByRole('link', { name: 'Most viewed' })).toHaveAttribute('href', '/x?sort=most_viewed');
+    expect(screen.queryByRole('link', { name: 'Relevance' })).toBeNull();
+  });
+
+  it('hiện Liên quan khi showRelevance', () => {
+    render(withIntl(<SortLinks sort="relevance" hrefFor={hrefFor} showRelevance />));
+    expect(screen.getByRole('link', { name: 'Relevance' })).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+describe('SearchFilters', () => {
+  const composers = [{ id: 'c1', slug: 'bach', name: 'Bach', count: 2 }];
+
+  it('form GET tới /{locale}/search, giữ giá trị hiện tại và genre bằng input ẩn', () => {
+    const { container } = render(
+      withIntl(
+        <SearchFilters q="elise" level="beginner" composer="bach" format="midi" genre="jazz" composers={composers} />,
+      ),
     );
+    const form = container.querySelector('form')!;
+    expect(form).toHaveAttribute('action', '/en/search');
+    expect(form).toHaveAttribute('method', 'get');
+    expect(container.querySelector('input[name="q"]')).toHaveValue('elise');
+    expect(container.querySelector('select[name="level"]')).toHaveValue('beginner');
+    expect(container.querySelector('select[name="composer"]')).toHaveValue('bach');
+    expect(container.querySelector('select[name="format"]')).toHaveValue('midi');
+    expect(container.querySelector('input[type="hidden"][name="genre"]')).toHaveValue('jazz');
+    expect(screen.getByRole('option', { name: 'Bach (2)' })).toBeInTheDocument();
+  });
+
+  it('không có genre thì không có input ẩn', () => {
+    const { container } = render(
+      withIntl(
+        <SearchFilters q={undefined} level={undefined} composer={undefined} format={undefined} genre={undefined} composers={[]} />,
+      ),
+    );
+    expect(container.querySelector('input[name="genre"]')).toBeNull();
+    expect(container.querySelector('select[name="level"]')).toHaveValue('');
   });
 });
 

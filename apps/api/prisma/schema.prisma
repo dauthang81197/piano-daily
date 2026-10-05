@@ -56,18 +56,21 @@ model RefreshToken {
 // Slug sinh từ tên lúc tạo (bỏ dấu, unique trong bảng, thêm hậu tố -2, -3… khi trùng) và không đổi khi đổi tên.
 
 model Composer {
-  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  name      String
-  slug      String   @unique
-  bio       String?
+  id           String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name         String
+  slug         String                   @unique
+  bio          String?
   /// Ảnh đại diện; upload qua module `media` (Story 1.6).
-  avatar    String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  avatar       String?
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Cột generated (migration `catalog_search`): chỉ đọc bằng SQL thô trong repository tìm kiếm.
+  searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
 
   series Series[]
   sheets Sheet[]
 
+  @@index([searchVector], type: Gin)
   @@map("composers")
 }
 
@@ -118,34 +121,36 @@ enum SheetStatus {
 /// Bài nhạc của thư viện. `has_*` và `page_count` chỉ được ghi bởi `recomputeDerived()` (catalog).
 /// Slug sinh từ tiêu đề; sinh lại khi đổi tiêu đề cho tới lần publish đầu tiên, sau đó đóng băng (AD-16).
 model Sheet {
-  id               String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  publicId         Int         @unique @default(autoincrement()) @map("public_id")
-  slug             String      @unique
+  id               String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  publicId         Int                      @unique @default(autoincrement()) @map("public_id")
+  slug             String                   @unique
   title            String
   subtitle         String?
-  composerId       String      @map("composer_id") @db.Uuid
-  seriesId         String?     @map("series_id") @db.Uuid
+  composerId       String                   @map("composer_id") @db.Uuid
+  seriesId         String?                  @map("series_id") @db.Uuid
   level            Level
   /// 0–100 (CHECK trong migration).
-  difficultyScore  Int?        @map("difficulty_score") @db.SmallInt
-  difficultyNote   String?     @map("difficulty_note")
+  difficultyScore  Int?                     @map("difficulty_score") @db.SmallInt
+  difficultyNote   String?                  @map("difficulty_note")
   description      String?
   /// Markdown.
-  lyricsChords     String?     @map("lyrics_chords")
+  lyricsChords     String?                  @map("lyrics_chords")
   /// Dạng chuẩn `https://www.youtube.com/watch?v=ID`.
-  youtubeUrl       String?     @map("youtube_url")
-  hasSheet         Boolean     @default(false) @map("has_sheet")
-  hasChords        Boolean     @default(false) @map("has_chords")
-  hasMidi          Boolean     @default(false) @map("has_midi")
-  hasMp3           Boolean     @default(false) @map("has_mp3")
-  hasVideo         Boolean     @default(false) @map("has_video")
-  pageCount        Int         @default(0) @map("page_count")
-  viewCount        Int         @default(0) @map("view_count")
-  isHot            Boolean     @default(false) @map("is_hot")
-  status           SheetStatus @default(DRAFT)
-  firstPublishedAt DateTime?   @map("first_published_at") @db.Timestamptz(6)
-  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  youtubeUrl       String?                  @map("youtube_url")
+  hasSheet         Boolean                  @default(false) @map("has_sheet")
+  hasChords        Boolean                  @default(false) @map("has_chords")
+  hasMidi          Boolean                  @default(false) @map("has_midi")
+  hasMp3           Boolean                  @default(false) @map("has_mp3")
+  hasVideo         Boolean                  @default(false) @map("has_video")
+  pageCount        Int                      @default(0) @map("page_count")
+  viewCount        Int                      @default(0) @map("view_count")
+  isHot            Boolean                  @default(false) @map("is_hot")
+  status           SheetStatus              @default(DRAFT)
+  firstPublishedAt DateTime?                @map("first_published_at") @db.Timestamptz(6)
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Cột generated (migration `catalog_search`): chỉ đọc bằng SQL thô trong repository tìm kiếm.
+  searchVector     Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
 
   composer Composer     @relation(fields: [composerId], references: [id], onDelete: Restrict)
   series   Series?      @relation(fields: [seriesId], references: [id], onDelete: Restrict)
@@ -156,6 +161,7 @@ model Sheet {
   @@index([composerId])
   @@index([seriesId])
   @@index([level])
+  @@index([searchVector], type: Gin)
   @@map("sheets")
 }
 

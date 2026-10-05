@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSheetSchema,
+  facetsSchema,
   parseYoutubeUrl,
   publicSheetListQuerySchema,
   removeFileTypeSchema,
@@ -241,16 +242,37 @@ describe('removeFileTypeSchema', () => {
 });
 
 describe('publicSheetListQuerySchema', () => {
-  it('mặc định newest, page 1, pageSize 12; level bắt buộc', () => {
+  it('mặc định newest, page 1, pageSize 12; mọi bộ lọc tuỳ chọn', () => {
     expect(publicSheetListQuerySchema.parse({ level: 'BEGINNER' })).toEqual({
       level: 'BEGINNER',
+      q: undefined,
       genre: undefined,
+      composer: undefined,
+      format: undefined,
       sort: 'newest',
       page: 1,
       pageSize: 12,
     });
-    expect(publicSheetListQuerySchema.safeParse({}).success).toBe(false);
+    expect(publicSheetListQuerySchema.parse({})).toMatchObject({ sort: 'newest' });
+    expect(publicSheetListQuerySchema.parse({}).level).toBeUndefined();
     expect(publicSheetListQuerySchema.safeParse({ level: 'FOO' }).success).toBe(false);
+  });
+
+  it('sort mặc định relevance khi có q; relevance không q thì newest; q trống coi như không có', () => {
+    expect(publicSheetListQuerySchema.parse({ q: ' elise ' })).toMatchObject({ q: 'elise', sort: 'relevance' });
+    expect(publicSheetListQuerySchema.parse({ q: 'elise', sort: 'newest' }).sort).toBe('newest');
+    expect(publicSheetListQuerySchema.parse({ sort: 'relevance' }).sort).toBe('newest');
+    expect(publicSheetListQuerySchema.parse({ q: '   ' })).toMatchObject({ sort: 'newest' });
+  });
+
+  it('q tối đa 100 ký tự; format chỉ nhận các định dạng đã biết', () => {
+    expect(publicSheetListQuerySchema.safeParse({ q: 'a'.repeat(100) }).success).toBe(true);
+    expect(publicSheetListQuerySchema.safeParse({ q: 'a'.repeat(101) }).success).toBe(false);
+    expect(publicSheetListQuerySchema.parse({ format: 'midi', composer: 'bach' })).toMatchObject({
+      format: 'midi',
+      composer: 'bach',
+    });
+    expect(publicSheetListQuerySchema.safeParse({ format: 'pdf' }).success).toBe(false);
   });
 
   it('từ chối sort sai, pageSize > 48 và page < 1', () => {
@@ -258,5 +280,15 @@ describe('publicSheetListQuerySchema', () => {
     expect(publicSheetListQuerySchema.safeParse({ level: 'BEGINNER', pageSize: '49' }).success).toBe(false);
     expect(publicSheetListQuerySchema.safeParse({ level: 'BEGINNER', page: '0' }).success).toBe(false);
     expect(publicSheetListQuerySchema.parse({ level: 'BEGINNER', pageSize: '48', sort: 'most_viewed' }).pageSize).toBe(48);
+  });
+});
+
+describe('facetsSchema', () => {
+  it('nhận genres và composers kèm count dương', () => {
+    const ok = { genres: [{ id: 'g', slug: 'jazz', name: 'Jazz', count: 2 }], composers: [] };
+    expect(facetsSchema.parse(ok)).toEqual(ok);
+    expect(facetsSchema.safeParse({ genres: [{ id: 'g', slug: 'j', name: 'J', count: 0 }], composers: [] }).success).toBe(
+      false,
+    );
   });
 });

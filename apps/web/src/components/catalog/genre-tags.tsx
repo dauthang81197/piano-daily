@@ -1,25 +1,24 @@
-import type { LevelSummary, PublicSheetSort } from '@piano-daily/shared';
+import type { FacetItem } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import type { LevelSlug } from '@/lib/levels';
-import { levelHref } from '@/lib/query';
 
 const tag =
   'inline-block rounded-sm px-3 py-1.5 text-body-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 const idle = 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high';
 const selected = 'bg-secondary text-on-secondary';
 
-/** Tag cloud Genre (`tag-genre`): các `Link` SSR giữ `sort`, bỏ `page`; bấm tag đang chọn thì bỏ lọc. */
+/**
+ * Tag cloud Genre (`tag-genre`): các `Link` SSR; `hrefFor(slug)` do trang dựng (giữ các tham số khác, bỏ `page`),
+ * `hrefFor(undefined)` là bỏ lọc. Bấm tag đang chọn thì bỏ lọc.
+ */
 export function GenreTags({
-  level,
   genres,
   selectedSlug,
-  sort,
+  hrefFor,
 }: {
-  level: LevelSlug;
-  genres: LevelSummary['genres'];
+  genres: FacetItem[];
   selectedSlug: string | undefined;
-  sort: PublicSheetSort;
+  hrefFor: (genreSlug: string | undefined) => string;
 }) {
   const t = useTranslations('Level');
   return (
@@ -27,7 +26,7 @@ export function GenreTags({
       <ul className="flex flex-wrap gap-2">
         <li>
           <Link
-            href={levelHref(level, { sort })}
+            href={hrefFor(undefined)}
             scroll={false}
             aria-current={selectedSlug ? undefined : 'true'}
             className={`${tag} ${selectedSlug ? idle : selected}`}
@@ -40,7 +39,7 @@ export function GenreTags({
           return (
             <li key={genre.id}>
               <Link
-                href={levelHref(level, { sort, genre: active ? undefined : genre.slug })}
+                href={hrefFor(active ? undefined : genre.slug)}
                 scroll={false}
                 aria-current={active ? 'true' : undefined}
                 className={`${tag} ${active ? selected : idle}`}

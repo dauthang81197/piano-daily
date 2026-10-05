@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import {
+  type Facets,
   type Level,
   type LevelSummary,
   levelParamSchema,
@@ -20,6 +21,11 @@ export class PublicSheetsController {
   @Get('sheets')
   list(@Query({ schema: publicSheetListQuerySchema }) query: PublicSheetListQuery): Promise<Page<PublicSheetItem>> {
     return this.service.list(query);
+  }
+
+  @Get('sheets/facets')
+  facets(): Promise<Facets> {
+    return this.service.facets();
   }
 
   @Get('levels/:level/summary')

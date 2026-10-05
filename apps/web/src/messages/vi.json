@@ -110,5 +110,28 @@
     "emptyHint": "Hãy xem các bài theo trình độ dưới đây.",
     "browseLevels": "Xem theo trình độ",
     "loading": "Đang tải danh sách sheet"
+  },
+  "Sheet": {
+    "heading": "{title} PDF, MIDI, MP4 & Hướng dẫn",
+    "breadcrumbLabel": "Đường dẫn",
+    "hot": "HOT",
+    "composer": "Composer",
+    "series": "Series",
+    "difficulty": "Độ khó",
+    "difficultyScore": "{score}/100",
+    "views": "Lượt xem",
+    "pages": "Số trang",
+    "updated": "Cập nhật",
+    "genres": "Thể loại",
+    "pagesTitle": "Xem từng trang",
+    "pageAlt": "{title} – trang {page}",
+    "videoTitle": "Video",
+    "videoFrameTitle": "Video {title}",
+    "videoNote": "Video được cung cấp bởi YouTube, một dịch vụ bên thứ ba; video chỉ phát khi bạn bấm nút phát.",
+    "lyricsTitle": "Lời bài hát & hợp âm",
+    "sidebarLabel": "Bài liên quan",
+    "seriesSheets": "Cùng Series",
+    "related": "Bài liên quan",
+    "loading": "Đang tải bản nhạc"
   }
 }

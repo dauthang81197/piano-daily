@@ -110,5 +110,28 @@
     "emptyHint": "Browse the sheets by level below.",
     "browseLevels": "Browse by level",
     "loading": "Loading sheets"
+  },
+  "Sheet": {
+    "heading": "{title} PDF, MIDI, MP4 & Tutorial",
+    "breadcrumbLabel": "Breadcrumb",
+    "hot": "HOT",
+    "composer": "Composer",
+    "series": "Series",
+    "difficulty": "Difficulty",
+    "difficultyScore": "{score}/100",
+    "views": "Views",
+    "pages": "Pages",
+    "updated": "Updated",
+    "genres": "Genres",
+    "pagesTitle": "Sheet pages",
+    "pageAlt": "{title} – page {page}",
+    "videoTitle": "Video",
+    "videoFrameTitle": "{title} video",
+    "videoNote": "This video is provided by YouTube, a third-party service; it plays only when you press play.",
+    "lyricsTitle": "Lyrics & Chords",
+    "sidebarLabel": "Related sheets",
+    "seriesSheets": "In the same series",
+    "related": "Related sheets",
+    "loading": "Loading sheet"
   }
 }

@@ -119,3 +119,6 @@ export const composerHref = (slug: string, state: ListQueryState = {}) =>
 /** Href (không kèm locale) tới trang Genre; bỏ giá trị mặc định khỏi query. */
 export const genreHref = (slug: string, state: ListQueryState = {}) =>
   listHref(`/genre/${encodeURIComponent(slug)}`, state);
+
+/** Href (không kèm locale) tới trang chi tiết Sheet. */
+export const sheetHref = (slug: string) => `/sheet/${encodeURIComponent(slug)}`;

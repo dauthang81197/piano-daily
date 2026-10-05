@@ -12,6 +12,7 @@ import {
   parseSearchSort,
   parseSort,
   searchHref,
+  sheetHref,
 } from './query';
 
 describe('parsePage', () => {
@@ -110,5 +111,12 @@ describe('composerHref / genreHref', () => {
   });
   it('mã hoá slug', () => {
     expect(genreHref('a b')).toBe('/genre/a%20b');
+  });
+});
+
+describe('sheetHref', () => {
+  it('mã hoá slug', () => {
+    expect(sheetHref('fur-elise')).toBe('/sheet/fur-elise');
+    expect(sheetHref('a b')).toBe('/sheet/a%20b');
   });
 });

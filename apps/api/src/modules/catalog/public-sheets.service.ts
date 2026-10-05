@@ -7,6 +7,9 @@ import {
   type Page,
   type PublicComposer,
   type PublicGenre,
+  type PublicSheetDetail,
+  RELATED_SHEETS_MAX,
+  SERIES_SHEETS_MAX,
   type PublicSheetItem,
   type PublicSheetListQuery,
   SheetStatus,
@@ -118,6 +121,153 @@ export class PublicSheetsService {
 
   private toItem({ files, ...row }: Prisma.SheetGetPayload<{ select: typeof PUBLIC_SELECT }>): PublicSheetItem {
     return { ...row, thumbnailUrl: files[0] ? this.storage.publicUrl(files[0].storageKey) : null };
+  }
+
+  /**
+   * Chi tiết Sheet theo slug. Không tồn tại hoặc không PUBLISHED đều 404 giống hệt nhau (không lộ trạng thái).
+   * Chỉ trả URL public của PAGE_IMAGE/MIDI_JSON hiện hành.
+   */
+  async detailBySlug(slug: string): Promise<PublicSheetDetail> {
+    const row = await this.prisma.sheet.findFirst({
+      where: { slug, ...publishedWhere() },
+      select: {
+        id: true,
+        publicId: true,
+        slug: true,
+        title: true,
+        subtitle: true,
+        level: true,
+        difficultyScore: true,
+        difficultyNote: true,
+        description: true,
+        composerId: true,
+        seriesId: true,
+        composer: { select: { id: true, name: true, slug: true } },
+        series: { select: { id: true, name: true } },
+        genres: { select: { genre: { select: { id: true, name: true, slug: true } } } },
+        pageCount: true,
+        viewCount: true,
+        isHot: true,
+        updatedAt: true,
+        youtubeUrl: true,
+        lyricsChords: true,
+        files: {
+          where: { type: { in: [FileType.PAGE_IMAGE, FileType.MIDI, FileType.MIDI_JSON] }, supersededAt: null },
+          select: { type: true, storageKey: true, pageNumber: true, durationSeconds: true, noteCount: true },
+        },
+      },
+    });
+    if (!row) throw new NotFoundException('Không tìm thấy Sheet.');
+
+    const midi = row.files.find((f) => f.type === FileType.MIDI);
+    const midiJson = row.files.find((f) => f.type === FileType.MIDI_JSON);
+    const seriesSheets = row.seriesId ? await this.seriesSheets(row.id, row.seriesId) : [];
+    const related = await this.relatedSheets(row, new Set(seriesSheets.map((s) => s.id)));
+    return {
+      id: row.id,
+      publicId: row.publicId,
+      slug: row.slug,
+      title: row.title,
+      subtitle: row.subtitle,
+      level: row.level as Level,
+      difficultyScore: row.difficultyScore,
+      difficultyNote: row.difficultyNote,
+      description: row.description,
+      composer: row.composer,
+      series: row.series,
+      genres: row.genres.map((g) => g.genre).sort((a, b) => a.name.localeCompare(b.name)),
+      pageCount: row.pageCount,
+      viewCount: row.viewCount,
+      isHot: row.isHot,
+      updatedAt: row.updatedAt.toISOString(),
+      pages: row.files
+        .filter((f) => f.type === FileType.PAGE_IMAGE && f.pageNumber !== null)
+        .sort((a, b) => a.pageNumber! - b.pageNumber!)
+        .map((f) => ({ pageNumber: f.pageNumber!, url: this.storage.publicUrl(f.storageKey) })),
+      midi:
+        midi && midiJson
+          ? {
+              noteJsonUrl: this.storage.publicUrl(midiJson.storageKey),
+              durationSeconds: midi.durationSeconds ?? 0,
+              noteCount: midi.noteCount ?? 0,
+            }
+          : null,
+      youtubeUrl: row.youtubeUrl,
+      lyricsChords: row.lyricsChords,
+      seriesSheets,
+      related,
+    };
+  }
+
+  /** Sheet PUBLISHED cùng Series (trừ chính nó), mới nhất trước. */
+  private async seriesSheets(sheetId: string, seriesId: string): Promise<PublicSheetItem[]> {
+    const rows = await this.prisma.sheet.findMany({
+      where: { ...publishedWhere(), seriesId, id: { not: sheetId } },
+      select: PUBLIC_SELECT,
+      orderBy: NEWEST,
+      take: SERIES_SHEETS_MAX,
+    });
+    return rows.map((row) => this.toItem(row));
+  }
+
+  /**
+   * Sheet liên quan: PUBLISHED, khác chính nó, chung Series (3 điểm), Composer (2) hoặc Level (1). Duyệt từng bậc điểm
+   * từ cao xuống thấp (mỗi bậc là các tổ hợp tiêu chí khớp chính xác), trong bậc xếp `viewCount desc, id desc`, dừng
+   * khi đủ; nhờ vậy Sheet điểm cao không bị Sheet phổ biến nhưng điểm thấp đẩy ra. Bỏ các Sheet đã ở mục Series.
+   */
+  private async relatedSheets(
+    sheet: { id: string; seriesId: string | null; composerId: string; level: string },
+    exclude: Set<string>,
+  ): Promise<PublicSheetItem[]> {
+    type Combo = { series: boolean; composer: boolean; level: boolean };
+    const tiers: Combo[][] = [
+      [{ series: true, composer: true, level: true }],
+      [{ series: true, composer: true, level: false }],
+      [{ series: true, composer: false, level: true }],
+      [
+        { series: true, composer: false, level: false },
+        { series: false, composer: true, level: true },
+      ],
+      [{ series: false, composer: true, level: false }],
+      [{ series: false, composer: false, level: true }],
+    ];
+    const where = ({ series, composer, level }: Combo): Prisma.SheetWhereInput => ({
+      AND: [
+        series
+          ? { seriesId: sheet.seriesId }
+          : { OR: [{ seriesId: null }, { seriesId: { not: sheet.seriesId } }] },
+        composer ? { composerId: sheet.composerId } : { composerId: { not: sheet.composerId } },
+        level ? { level: sheet.level as Level } : { level: { not: sheet.level as Level } },
+      ],
+    });
+    const taken = new Set<string>([sheet.id, ...exclude]);
+    const out: PublicSheetItem[] = [];
+    for (const tier of tiers) {
+      if (out.length >= RELATED_SHEETS_MAX) break;
+      // Không có Series thì không thể khớp Series.
+      const combos = tier.filter((c) => !c.series || sheet.seriesId);
+      if (combos.length === 0) continue;
+      const rows = (
+        await Promise.all(
+          combos.map((combo) =>
+            this.prisma.sheet.findMany({
+              where: { ...publishedWhere(), id: { notIn: [...taken] }, ...where(combo) },
+              select: PUBLIC_SELECT,
+              orderBy: [{ viewCount: 'desc' }, { id: 'desc' }],
+              take: RELATED_SHEETS_MAX - out.length,
+            }),
+          ),
+        )
+      )
+        .flat()
+        .sort((x, y) => y.viewCount - x.viewCount || (x.id < y.id ? 1 : -1))
+        .slice(0, RELATED_SHEETS_MAX - out.length);
+      for (const row of rows) {
+        taken.add(row.id);
+        out.push(this.toItem(row));
+      }
+    }
+    return out;
   }
 
   /** Thông tin công khai của Composer theo slug (kể cả khi chưa có Sheet PUBLISHED); 404 nếu không có. */

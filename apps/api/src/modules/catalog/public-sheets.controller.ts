@@ -7,6 +7,7 @@ import {
   type Page,
   type PublicComposer,
   type PublicGenre,
+  type PublicSheetDetail,
   type PublicSheetItem,
   type PublicSheetListQuery,
   publicSheetListQuerySchema,
@@ -29,6 +30,12 @@ export class PublicSheetsController {
   @Get('sheets/facets')
   facets(): Promise<Facets> {
     return this.service.facets();
+  }
+
+  // Phải đứng SAU `sheets/facets` để `facets` không bị coi là slug.
+  @Get('sheets/:slug')
+  detail(@Param({ schema: slugParamSchema }) params: { slug: string }): Promise<PublicSheetDetail> {
+    return this.service.detailBySlug(params.slug);
   }
 
   @Get('composers/:slug')

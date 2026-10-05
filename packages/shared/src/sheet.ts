@@ -467,5 +467,41 @@ export const publicGenreSchema = z.object({
 });
 export type PublicGenre = z.infer<typeof publicGenreSchema>;
 
+/**
+ * `GET /sheets/:slug` (Story 2.6): chi tiết công khai của Sheet PUBLISHED. Chỉ có URL public của ảnh trang và
+ * note-JSON; không bao giờ có key, URL private, PDF/MP3 hay file `.mid` gốc.
+ */
+export const publicSheetDetailSchema = z.object({
+  id: z.string(),
+  publicId: z.number().int().positive(),
+  slug: z.string(),
+  title: z.string(),
+  subtitle: z.string().nullable(),
+  level: levelSchema,
+  difficultyScore: z.number().int().min(DIFFICULTY_MIN).max(DIFFICULTY_MAX).nullable(),
+  difficultyNote: z.string().nullable(),
+  description: z.string().nullable(),
+  composer: refSchema.extend({ slug: z.string() }),
+  series: refSchema.nullable(),
+  genres: z.array(refSchema.extend({ slug: z.string() })),
+  pageCount: z.number().int().nonnegative(),
+  viewCount: z.number().int().nonnegative(),
+  isHot: z.boolean(),
+  updatedAt: z.string(),
+  pages: z.array(sheetPageSchema),
+  midi: z
+    .object({ noteJsonUrl: z.string(), durationSeconds: z.number().nonnegative(), noteCount: z.number().int().nonnegative() })
+    .nullable(),
+  youtubeUrl: z.string().nullable(),
+  lyricsChords: z.string().nullable(),
+  seriesSheets: z.array(publicSheetItemSchema),
+  related: z.array(publicSheetItemSchema),
+});
+export type PublicSheetDetail = z.infer<typeof publicSheetDetailSchema>;
+
+/** Số Sheet tối đa ở mục "cùng Series" và "liên quan" của trang chi tiết. */
+export const SERIES_SHEETS_MAX = 12;
+export const RELATED_SHEETS_MAX = 6;
+
 /** Param `:slug` của hai endpoint trên. */
 export const slugParamSchema = z.object({ slug: z.string().min(1).max(200) });

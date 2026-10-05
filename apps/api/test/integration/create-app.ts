@@ -6,6 +6,7 @@ export const TEST_JWT_ACCESS_SECRET = 'test-only-jwt-access-secret-0123456789abc
 export const TEST_CORS_ADMIN_ORIGIN = 'http://admin.piano-daily.test:3001';
 export const TEST_CORS_WEB_ORIGIN = 'http://web.piano-daily.test:3000';
 export const TEST_INTERNAL_API_SECRET = 'test-only-internal-api-secret-0123456789abcdef';
+export const TEST_VIEW_SALT = 'test-only-view-salt-0123456789abcdef0123';
 
 /**
  * S3 cho integration test: SeaweedFS local (`docker compose up -d seaweedfs`) với bucket riêng
@@ -38,6 +39,7 @@ export async function createApp(
   process.env.CORS_ADMIN_ORIGIN = TEST_CORS_ADMIN_ORIGIN;
   process.env.CORS_WEB_ORIGIN = TEST_CORS_WEB_ORIGIN;
   process.env.INTERNAL_API_SECRET = TEST_INTERNAL_API_SECRET;
+  process.env.VIEW_SALT = TEST_VIEW_SALT;
   Object.assign(process.env, TEST_S3, { S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL });
   const { AppModule } = await import('../../src/app.module.js');
   const { configureApp } = await import('../../src/bootstrap.js');

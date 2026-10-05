@@ -7,6 +7,7 @@ const valid = {
   CORS_ADMIN_ORIGIN: 'http://localhost:3001',
   CORS_WEB_ORIGIN: 'http://localhost:4100',
   INTERNAL_API_SECRET: 'y'.repeat(32),
+  VIEW_SALT: 'z'.repeat(32),
   S3_ENDPOINT: 'http://localhost:8333',
   S3_ACCESS_KEY_ID: 'piano',
   S3_SECRET_ACCESS_KEY: 'piano-secret',
@@ -157,16 +158,20 @@ describe('validateEnv', () => {
         'JWT_ACCESS_SECRET',
         'LOG_LEVEL',
         'PORT',
+        'VIEW_SALT',
       ]);
     }
   });
 });
 
-describe('validateEnv — INTERNAL_API_SECRET và CORS_WEB_ORIGIN', () => {
+describe('validateEnv — INTERNAL_API_SECRET, VIEW_SALT và CORS_WEB_ORIGIN', () => {
   it.each([
     ['INTERNAL_API_SECRET', ''],
     ['INTERNAL_API_SECRET', 'short'],
     ['INTERNAL_API_SECRET', `change-me-${'x'.repeat(40)}`],
+    ['VIEW_SALT', ''],
+    ['VIEW_SALT', 'short'],
+    ['VIEW_SALT', `change-me-${'x'.repeat(40)}`],
     ['CORS_WEB_ORIGIN', ''],
     ['CORS_WEB_ORIGIN', 'localhost:4100'],
   ])('%s = %j -> lỗi nêu tên biến, không lộ giá trị', (variable, value) => {

@@ -193,6 +193,17 @@ describe('SheetDetail', () => {
     expect(container.querySelector('a[download]')).toBeNull();
   });
 
+  it('render SheetDetail không gửi request nào (beacon lượt xem nằm ở trang, để preview Draft không đếm)', () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      view(full);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('PlayerSlot chưa hiện gì (không khối giả) dù Sheet có MIDI; 2.8 sẽ thay thân component', () => {
     expect(PlayerSlot({ midi: full.midi })).toBeNull();
     expect(PlayerSlot({ midi: null })).toBeNull();

@@ -123,6 +123,18 @@ export const envSchema = z.object({
   ),
 
   /**
+   * Muối băm `visitor_hash = sha256(ip + ua + VIEW_SALT)` của bộ đếm lượt xem (AD-11, Story 2.7).
+   * Bắt buộc (thiếu muối thì hash IP/UA có thể bị dò ngược): thiếu thì API không khởi động.
+   */
+  VIEW_SALT: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(32, { error: 'cần ít nhất 32 ký tự' })
+      .refine((v) => !v.startsWith('change-me'), { error: 'vẫn là giá trị mẫu, hãy sinh khoá ngẫu nhiên' }),
+  ),
+
+  /**
    * URL nội bộ của web (vd. `http://web:4100`) để API gọi `POST /api/revalidate` (Story 2.3).
    * Tuỳ chọn: thiếu thì tắt revalidate (lưới an toàn `revalidate: 600` của web vẫn chạy). Bỏ `/` cuối.
    */

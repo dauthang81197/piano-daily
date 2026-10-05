@@ -13,13 +13,16 @@ vi.mock('next-intl/server', () => ({
   getTranslations: async () => (key: string, values?: Record<string, string>) =>
     values?.title ? `${key}:${values.title}` : key,
 }));
+vi.mock('@/components/sheet/view-beacon', () => ({
+  ViewBeacon: ({ sheetId }: { sheetId: string }) => <span data-testid="beacon" data-sheet-id={sheetId} />,
+}));
 vi.mock('@/components/sheet/sheet-detail', () => ({
   SheetDetail: ({ sheet }: { sheet: { title: string } }) => <h1>{sheet.title}</h1>,
 }));
 
 import SheetPage, { generateMetadata } from './page';
 
-const sheet = { slug: 'fur-elise', title: 'Für Elise', description: 'Một bản nhạc nổi tiếng' };
+const sheet = { id: 'sheet-1', slug: 'fur-elise', title: 'Für Elise', description: 'Một bản nhạc nổi tiếng' };
 
 describe('SheetPage', () => {
   beforeEach(() => {
@@ -30,6 +33,11 @@ describe('SheetPage', () => {
     render(await SheetPage({ params: Promise.resolve({ locale: 'en', slug: 'fur-elise' }) }));
     expect(screen.getByRole('heading', { name: 'Für Elise' })).toBeInTheDocument();
     expect(fetchSheetDetail).toHaveBeenCalledWith('fur-elise');
+  });
+
+  it('gắn ViewBeacon với id Sheet (ngoài SheetDetail để preview không đếm)', async () => {
+    render(await SheetPage({ params: Promise.resolve({ locale: 'en', slug: 'fur-elise' }) }));
+    expect(screen.getByTestId('beacon')).toHaveAttribute('data-sheet-id', 'sheet-1');
   });
 
   it('notFound: slug không tồn tại hoặc locale lạ', async () => {

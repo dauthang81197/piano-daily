@@ -11,6 +11,9 @@ import { SeriesController } from './series.controller';
 import { SeriesService } from './series.service';
 import { SheetFilesController } from './sheet-files.controller';
 import { SheetSearchRepository } from './sheet-search.repository';
+import { SheetViewDedupeGcService } from './sheet-view-dedupe-gc.service';
+import { SheetViewsRepository } from './sheet-views.repository';
+import { SheetViewsService } from './sheet-views.service';
 import { SheetsController } from './sheets.controller';
 import { SheetsService } from './sheets.service';
 import { SheetFileGcService } from './sheet-file-gc.service';
@@ -19,6 +22,6 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 @Module({
   imports: [MediaModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
-  providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService],
+  providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
 })
 export class CatalogModule {}

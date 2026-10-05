@@ -156,6 +156,7 @@ model Sheet {
   series   Series?      @relation(fields: [seriesId], references: [id], onDelete: Restrict)
   genres   SheetGenre[]
   files    SheetFile[]
+  views    SheetViewDedupe[]
 
   @@index([status])
   @@index([composerId])
@@ -218,4 +219,19 @@ model SheetFile {
   @@index([sheetId])
   @@index([sourceFileId])
   @@map("sheet_files")
+}
+
+/// Dedupe lượt xem (AD-11, Story 2.7): mỗi `(sheet, visitor_hash, giờ UTC)` được đếm đúng một lần.
+/// `visitor_hash` = sha256(ip + ua + VIEW_SALT) hex 64 ký tự; không lưu IP/UA thô. Chỉ ghi bằng SQL thô trong
+/// repository `catalog` (cùng câu lệnh tăng `view_count`); job dọn xoá dòng cũ hơn 24 giờ.
+model SheetViewDedupe {
+  sheetId     String   @map("sheet_id") @db.Uuid
+  visitorHash String   @map("visitor_hash") @db.Char(64)
+  hourBucket  DateTime @map("hour_bucket") @db.Timestamptz(6)
+
+  sheet Sheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@id([sheetId, visitorHash, hourBucket])
+  @@index([hourBucket])
+  @@map("sheet_view_dedupe")
 }

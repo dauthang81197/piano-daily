@@ -3,6 +3,7 @@ import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { SheetDetail } from '@/components/sheet/sheet-detail';
+import { ViewBeacon } from '@/components/sheet/view-beacon';
 import { routing } from '@/i18n/routing';
 import { fetchSheetDetail } from '@/lib/catalog';
 import { sheetHref } from '@/lib/query';
@@ -29,5 +30,10 @@ export default async function SheetPage({ params }: Props) {
   setRequestLocale(locale);
   const sheet = await fetchSheetDetail(slug);
   if (!sheet) notFound();
-  return <SheetDetail sheet={sheet} />;
+  return (
+    <>
+      <SheetDetail sheet={sheet} />
+      <ViewBeacon sheetId={sheet.id} />
+    </>
+  );
 }

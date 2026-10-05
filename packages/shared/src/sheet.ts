@@ -503,5 +503,8 @@ export type PublicSheetDetail = z.infer<typeof publicSheetDetailSchema>;
 export const SERIES_SHEETS_MAX = 12;
 export const RELATED_SHEETS_MAX = 6;
 
+/** Param `:id` (UUID) của `POST /sheets/:id/view` (Story 2.7). */
+export const sheetIdParamSchema = z.object({ id: z.uuid({ error: 'id không hợp lệ.' }) });
+
 /** Param `:slug` của hai endpoint trên. */
 export const slugParamSchema = z.object({ slug: z.string().min(1).max(200) });

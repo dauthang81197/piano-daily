@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { PublicSheetDetail, PublicSheetItem } from '@piano-daily/shared';
 import { withIntl } from '@/components/layout/test-utils';
@@ -11,7 +11,6 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }));
 
-import { PlayerSlot } from './player-slot';
 import { SheetDetail } from './sheet-detail';
 
 const item = (id: string, title: string): PublicSheetItem => ({
@@ -188,7 +187,9 @@ describe('SheetDetail', () => {
 
   it('không có nút hay link Download/tải', () => {
     const { container } = view(full);
-    expect(screen.queryByRole('button')).toBeNull();
+    // Chỉ có nút của player (Play/Pause/đang tải), không có nút tải.
+    expect(screen.queryAllByRole('button').every((b) => /play|pause|loading|chơi|phát|tạm dừng|đang tải/i.test(b.textContent ?? ''))).toBe(true);
+    expect(screen.queryByRole('button', { name: /download|tải/i })).toBeNull();
     expect(container.textContent).not.toMatch(/download|tải (xuống|về)/i);
     expect(container.querySelector('a[download]')).toBeNull();
   });
@@ -204,8 +205,31 @@ describe('SheetDetail', () => {
     }
   });
 
-  it('PlayerSlot chưa hiện gì (không khối giả) dù Sheet có MIDI; 2.8 sẽ thay thân component', () => {
-    expect(PlayerSlot({ midi: full.midi })).toBeNull();
-    expect(PlayerSlot({ midi: null })).toBeNull();
+  it('PlayerSlot truyền đúng tên bài và đúng URL note-JSON (không phải URL nào khác) cho player', async () => {
+    vi.stubGlobal('AudioContext', class {});
+    const fetchMock = vi.fn().mockRejectedValue(new Error('stop'));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      view(full);
+      expect(screen.getByRole('img', { name: 'Virtual piano keyboard for Für Elise' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Play & Practice this piece' }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      expect(fetchMock.mock.calls[0]![0]).toBe(full.midi!.noteJsonUrl);
+      expect(String(fetchMock.mock.calls[0]![0])).not.toMatch(/\.mid$/i);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('PlayerSlot: có MIDI thì hiện khối player (giữa meta và ảnh trang), không MIDI thì không có khối', () => {
+    const { container, unmount } = view(full);
+    const text = container.textContent ?? '';
+    expect(text.indexOf('Listen')).toBeGreaterThan(text.indexOf('Composer'));
+    expect(text.indexOf('Listen')).toBeLessThan(text.indexOf('Sheet pages'));
+    expect(screen.getByRole('heading', { name: 'Listen' })).toBeInTheDocument();
+    unmount();
+    view(bare);
+    expect(screen.queryByRole('heading', { name: 'Listen' })).toBeNull();
+    expect(screen.queryByText(/Simulated playback/)).toBeNull();
   });
 });

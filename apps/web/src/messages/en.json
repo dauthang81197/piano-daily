@@ -133,5 +133,21 @@
     "seriesSheets": "In the same series",
     "related": "Related sheets",
     "loading": "Loading sheet"
+  },
+  "Player": {
+    "title": "Listen",
+    "playPractice": "Play & Practice this piece",
+    "play": "Play",
+    "pause": "Pause",
+    "loading": "Loading player",
+    "speedLabel": "Speed",
+    "speedOption": "{rate}x",
+    "seekLabel": "Seek within the piece",
+    "keyboardLabel": "Virtual piano keyboard for {title}",
+    "nowPlaying": "Now playing:",
+    "simulatedNote": "Simulated playback, for reference only.",
+    "unsupported": "Your browser does not support Web Audio, so this piece cannot be played here. Try a newer browser.",
+    "errorLoad": "The note data could not be loaded. Check your connection and press the button again to retry.",
+    "errorEmpty": "This piece has no notes to play."
   }
 }

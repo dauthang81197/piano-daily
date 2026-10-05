@@ -133,5 +133,21 @@
     "seriesSheets": "Cùng Series",
     "related": "Bài liên quan",
     "loading": "Đang tải bản nhạc"
+  },
+  "Player": {
+    "title": "Nghe thử",
+    "playPractice": "Chơi thử & luyện tập bản nhạc này",
+    "play": "Phát",
+    "pause": "Tạm dừng",
+    "loading": "Đang tải trình phát",
+    "speedLabel": "Tốc độ",
+    "speedOption": "{rate}x",
+    "seekLabel": "Tua đến vị trí trong bản nhạc",
+    "keyboardLabel": "Phím đàn ảo cho {title}",
+    "nowPlaying": "Đang phát:",
+    "simulatedNote": "Đây là bản mô phỏng, chỉ để tham khảo.",
+    "unsupported": "Trình duyệt của bạn không hỗ trợ Web Audio nên không thể nghe thử bản nhạc này. Hãy thử trình duyệt mới hơn.",
+    "errorLoad": "Không tải được dữ liệu nốt nhạc. Hãy kiểm tra kết nối rồi bấm lại để thử lần nữa.",
+    "errorEmpty": "Bản nhạc này không có nốt nào để phát."
   }
 }

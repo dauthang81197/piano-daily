@@ -464,6 +464,29 @@ describe('Trang sửa Sheet', () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/sheets'));
   });
 
+  it('"Xem như người dùng": xin preview token của đúng Sheet rồi mở tab tới route preview (Sheet vẫn Draft)', async () => {
+    const tab = { opener: {} as unknown, close: vi.fn(), location: { href: '' } };
+    vi.stubGlobal('open', vi.fn(() => tab));
+    try {
+    const fetchMock = await signIn((url, init) => {
+      if (url.pathname === '/admin/preview-tokens' && init.method === 'POST') {
+        return jsonResponse(200, { token: 'tok.en.sig', expiresAt: '2026-10-06T00:10:00.000Z' });
+      }
+      if (url.pathname === `/admin/sheets/${SHEET.id}`) return jsonResponse(200, SHEET);
+      return undefined;
+    });
+    render(<SheetEditPage id={SHEET.id} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Xem như người dùng/ }));
+    await waitFor(() => expect(tab.location.href).toContain(`/vi/preview/sheet/${SHEET.id}?token=tok.en.sig`));
+    expect(JSON.parse(String(requests(fetchMock, 'POST', '/admin/preview-tokens')[0]!.init.body))).toEqual({ sheetId: SHEET.id });
+    // Xem trước không đổi trạng thái Sheet (không PATCH status).
+    expect(requests(fetchMock, 'PATCH', `/admin/sheets/${SHEET.id}/status`)).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('tải Sheet, điền sẵn dữ liệu + preview; lưu -> PATCH đúng body và báo "Đã lưu"', async () => {
     const fetchMock = await signIn((url, init) => {
       if (url.pathname !== `/admin/sheets/${SHEET.id}`) return undefined;

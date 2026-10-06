@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Headers, HttpCode, HttpStatus, NotFoundException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   type Facets,
@@ -16,7 +16,9 @@ import {
   slugParamSchema,
 } from '@piano-daily/shared';
 import { getClientIp } from '../../common/http/client-ip';
+import { PreviewTokenService } from '../identity/preview-token.service';
 import { Public } from '../identity/public.decorator';
+import { UuidParamPipe } from './catalog.helpers';
 import { PublicSheetsService } from './public-sheets.service';
 import { SheetViewsService } from './sheet-views.service';
 
@@ -27,6 +29,7 @@ export class PublicSheetsController {
   constructor(
     private readonly service: PublicSheetsService,
     private readonly views: SheetViewsService,
+    private readonly previewTokens: PreviewTokenService,
   ) {}
 
   @Get('sheets')
@@ -59,6 +62,22 @@ export class PublicSheetsController {
   ): Promise<void> {
     const ua = req.headers['user-agent'];
     await this.views.record(params.id, getClientIp(req), Array.isArray(ua) ? ua[0] : ua);
+  }
+
+  /**
+   * Xem trước Sheet ở mọi trạng thái bằng preview token (AD-19); web SSR gọi, token trong header (không vào URL).
+   * Mọi thất bại (thiếu/sai/hết hạn/khác Sheet/Sheet không tồn tại/`:id` sai dạng) đều 404 giống hệt nhau.
+   */
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Header('Cache-Control', 'no-store')
+  @Get('sheets/:id/preview')
+  async preview(
+    @Param('id', UuidParamPipe) id: string,
+    @Headers('x-preview-token') token: string | undefined,
+  ): Promise<PublicSheetDetail> {
+    if (!(await this.previewTokens.verify(token, id))) throw new NotFoundException('Không tìm thấy Sheet.');
+    return this.service.detailForPreview(id);
   }
 
   @Get('composers/:slug')

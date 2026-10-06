@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { IdentityModule } from '../identity/identity.module';
 import { MediaModule } from '../media/media.module';
 import { CacheInvalidator } from './cache-invalidator';
 import { ComposersController } from './composers.controller';
@@ -20,7 +21,7 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 
 /** Module chủ của bảng Composer, Genre, Series, Sheet, SheetGenre, SheetFile (AD-1). Storage đi qua `media`. */
 @Module({
-  imports: [MediaModule],
+  imports: [MediaModule, IdentityModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
   providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
 })

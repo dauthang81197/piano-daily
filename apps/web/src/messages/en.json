@@ -153,5 +153,10 @@
     "unsupported": "Your browser does not support Web Audio, so this piece cannot be played here. Try a newer browser.",
     "errorLoad": "The note data could not be loaded. Check your connection and press the button again to retry.",
     "errorEmpty": "This piece has no notes to play."
+  },
+  "Preview": {
+    "title": "Preview: {title}",
+    "banner": "Preview — not public. Anyone with this link can view it until it expires after 10 minutes; do not share it.",
+    "loading": "Loading preview"
   }
 }

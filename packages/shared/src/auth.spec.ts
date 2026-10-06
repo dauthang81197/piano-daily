@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { changePasswordRequestSchema, loginRequestSchema, utf8ByteLength } from './auth';
+import {
+  changePasswordRequestSchema,
+  loginRequestSchema,
+  PREVIEW_TOKEN_AUDIENCE,
+  PREVIEW_TOKEN_TTL_SECONDS,
+  previewTokenRequestSchema,
+  previewTokenResponseSchema,
+  utf8ByteLength,
+} from './auth';
 
 describe('loginRequestSchema', () => {
   it('chuẩn hoá email (trim + lowercase)', () => {
@@ -46,5 +54,27 @@ describe('changePasswordRequestSchema', () => {
     ['mật khẩu mới trùng mật khẩu cũ', { currentPassword: 'same-password-1', newPassword: 'same-password-1' }],
   ])('từ chối %s', (_label, body) => {
     expect(changePasswordRequestSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe('preview token (Story 2.10)', () => {
+  const UUID = '0192a000-0000-7000-8000-000000000001';
+
+  it('hằng số: hạn 10 phút, audience riêng', () => {
+    expect(PREVIEW_TOKEN_TTL_SECONDS).toBe(600);
+    expect(PREVIEW_TOKEN_AUDIENCE).toBe('piano-daily:preview');
+  });
+
+  it('request: chỉ nhận { sheetId } là UUID, từ chối key lạ và id sai dạng', () => {
+    expect(previewTokenRequestSchema.parse({ sheetId: UUID })).toEqual({ sheetId: UUID });
+    expect(previewTokenRequestSchema.safeParse({ sheetId: 'abc' }).success).toBe(false);
+    expect(previewTokenRequestSchema.safeParse({}).success).toBe(false);
+    expect(previewTokenRequestSchema.safeParse({ sheetId: UUID, extra: 1 }).success).toBe(false);
+  });
+
+  it('response: token không rỗng và expiresAt là chuỗi', () => {
+    expect(previewTokenResponseSchema.parse({ token: 't', expiresAt: '2026-10-06T00:10:00.000Z' }).token).toBe('t');
+    expect(previewTokenResponseSchema.safeParse({ token: '', expiresAt: 'x' }).success).toBe(false);
+    expect(previewTokenResponseSchema.safeParse({ token: 't' }).success).toBe(false);
   });
 });

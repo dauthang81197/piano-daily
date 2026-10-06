@@ -13,6 +13,7 @@ import { sheetsApi } from '@/lib/api/sheets';
 import { MidiUploader } from './midi-uploader';
 import { Mp3Uploader } from './mp3-uploader';
 import { PdfUploader } from './pdf-uploader';
+import { PreviewButton } from './preview-button';
 import { SheetForm } from './sheet-form';
 
 function BackLink() {
@@ -88,6 +89,7 @@ export function SheetEditPage({ id }: { id: string }) {
           <Button key={status} type="button" variant="outline" disabled={busy} onClick={() => void updateLifecycle(() => sheetsApi.setStatus(sheet.id, status))}>
             {status === 'PUBLISHED' ? 'Publish' : status === 'ARCHIVED' ? 'Lưu trữ' : 'Chuyển về Draft'}
           </Button>)}
+        <PreviewButton sheetId={sheet.id} />
         <Button type="button" variant="outline" disabled={busy} onClick={() => void updateLifecycle(() => sheetsApi.setHot(sheet.id, !sheet.isHot))}>
           <Flame aria-hidden="true" className="size-4" /> {sheet.isHot ? 'Bỏ HOT' : 'Đánh dấu HOT'}
         </Button>

@@ -74,3 +74,31 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
     expect(bad.packages).toContain('zod');
   });
 });
+
+describe('bundle ban đầu của nút nghe thử trên thẻ (NFR6, Story 2.9)', () => {
+  const graph = eagerGraph(path.join(src, 'components/catalog/card-preview-button.tsx'));
+
+  it('chỉ kéo nút, bộ điều phối và adapter nhẹ; không kéo zod, tone, note-json, lõi phát hay lõi preview', () => {
+    expect(graph.files).toEqual(
+      expect.arrayContaining(['components/catalog/card-preview-button.tsx', 'lib/midi/preview-controller.ts', 'lib/midi/tone-audio.ts']),
+    );
+    expect(graph.packages).not.toContain('zod');
+    expect(graph.packages).not.toContain('tone');
+    for (const heavy of ['lib/midi/note-json.ts', 'lib/midi/card-preview.ts', 'lib/midi/player-core.ts', 'lib/midi/fetch-note-json.ts']) {
+      expect(graph.files).not.toContain(heavy);
+    }
+  });
+
+  it('lõi preview chỉ được nạp bằng import() động khi bấm', () => {
+    expect(readFileSync(path.join(src, 'components/catalog/card-preview-button.tsx'), 'utf8')).toContain(
+      "import('@/lib/midi/card-preview')",
+    );
+  });
+
+  it('SheetCard (server component) chỉ import nút, không import lõi preview', () => {
+    const card = eagerGraph(path.join(src, 'components/catalog/sheet-card.tsx'));
+    expect(card.packages).not.toContain('zod');
+    expect(card.packages).not.toContain('tone');
+    expect(card.files).not.toContain('lib/midi/card-preview.ts');
+  });
+});

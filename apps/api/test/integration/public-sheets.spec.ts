@@ -398,6 +398,76 @@ describe('API công khai Sheet (Postgres thật)', () => {
     });
   });
 
+  describe('noteJsonUrl trên thẻ Sheet (nghe thử, Story 2.9)', () => {
+    const addMidiJson = (sheetId: string, key: string, superseded = false) =>
+      prisma.sheetFile.create({
+        data: {
+          sheetId,
+          type: 'MIDI_JSON',
+          storageKey: key,
+          size: 10,
+          mimeType: 'application/json',
+          supersededAt: superseded ? new Date() : null,
+        },
+      });
+
+    it('có note-JSON hiện hành: URL public; thumbnailUrl vẫn đúng; không lộ key/file gốc', async () => {
+      const sheet = await addSheet({ title: 'Has', published: '2026-01-01' });
+      await addMidiJson(sheet.id, `public/sheets/${sheet.id}/notes.json`);
+      await prisma.sheetFile.create({
+        data: { sheetId: sheet.id, type: 'MIDI', storageKey: `private/sheets/${sheet.id}/a.mid`, size: 5, mimeType: 'audio/midi' },
+      });
+      const res = await get('/sheets').expect(200);
+      const item = publicSheetListSchema.parse(res.body).items[0]!;
+      expect(item.noteJsonUrl).toMatch(new RegExp(`/public/sheets/${sheet.id}/notes\\.json$`));
+      expect(item.thumbnailUrl).toMatch(new RegExp(`/public/sheets/${sheet.id}/thumb\\.webp$`));
+      expect(JSON.stringify(res.body)).not.toMatch(/storageKey|private\/|\.mid"/);
+    });
+
+    it('không có MIDI hoặc note-JSON: noteJsonUrl null; chỉ MIDI (chưa có JSON) cũng null', async () => {
+      const bare = await addSheet({ title: 'Bare', published: '2026-01-02' });
+      const midiOnly = await addSheet({ title: 'MidiOnly', published: '2026-01-03' });
+      await prisma.sheetFile.create({
+        data: { sheetId: midiOnly.id, type: 'MIDI', storageKey: `private/sheets/${midiOnly.id}/a.mid`, size: 5, mimeType: 'audio/midi' },
+      });
+      const items = publicSheetListSchema.parse((await get('/sheets').expect(200)).body).items;
+      expect(items.find((i) => i.id === bare.id)!.noteJsonUrl).toBeNull();
+      expect(items.find((i) => i.id === midiOnly.id)!.noteJsonUrl).toBeNull();
+    });
+
+    it('note-JSON đã bị thay (superseded) không xuất hiện; bản hiện hành được dùng', async () => {
+      const sheet = await addSheet({ title: 'Replaced', published: '2026-01-01' });
+      await addMidiJson(sheet.id, `public/sheets/${sheet.id}/old.json`, true);
+      await addMidiJson(sheet.id, `public/sheets/${sheet.id}/new.json`);
+      const item = publicSheetListSchema.parse((await get('/sheets').expect(200)).body).items[0]!;
+      expect(item.noteJsonUrl).toMatch(/new\.json$/);
+      const only = await addSheet({ title: 'OnlyOld', published: '2026-01-02' });
+      await addMidiJson(only.id, `public/sheets/${only.id}/old.json`, true);
+      const items = publicSheetListSchema.parse((await get('/sheets').expect(200)).body).items;
+      expect(items.find((i) => i.id === only.id)!.noteJsonUrl).toBeNull();
+    });
+
+    it('tìm kiếm, seriesSheets và related cũng có noteJsonUrl', async () => {
+      const series = await prisma.series.create({ data: { name: 'S', slug: 's', composerId } });
+      const me = await addSheet({ title: 'Moonlight me', published: '2026-01-01' });
+      const sib = await addSheet({ title: 'Moonlight sibling', published: '2026-01-02' });
+      await prisma.sheet.updateMany({ where: { id: { in: [me.id, sib.id] } }, data: { seriesId: series.id } });
+      await addMidiJson(sib.id, `public/sheets/${sib.id}/notes.json`);
+
+      const found = publicSheetListSchema.parse((await get('/sheets?q=sibling').expect(200)).body).items;
+      expect(found[0]!.noteJsonUrl).toMatch(/notes\.json$/);
+
+      // Sheet cùng Composer, KHÔNG cùng Series, có note-JSON: phải nằm ở `related` kèm URL.
+      const rel = await addSheet({ title: 'Related with notes', level: 'INTERMEDIATE', published: '2026-01-03' });
+      await addMidiJson(rel.id, `public/sheets/${rel.id}/rel-notes.json`);
+      const detail = publicSheetDetailSchema.parse((await get(`/sheets/${me.slug}`).expect(200)).body);
+      expect(detail.seriesSheets[0]!.noteJsonUrl).toMatch(/notes\.json$/);
+      const related = detail.related.find((r) => r.id === rel.id);
+      expect(related).toBeDefined();
+      expect(related!.noteJsonUrl).toMatch(/rel-notes\.json$/);
+    });
+  });
+
   describe('GET /sheets/:slug (chi tiết)', () => {
     const addFile = (
       sheetId: string,

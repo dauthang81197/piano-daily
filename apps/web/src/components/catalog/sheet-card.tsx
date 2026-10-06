@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import type { PublicSheetItem } from '@piano-daily/shared';
 import { Link } from '@/i18n/navigation';
+import { CardPreviewButton } from './card-preview-button';
 
 export const LEVEL_BADGE: Record<PublicSheetItem['level'], string> = {
   BEGINNER: 'bg-level-beginner',
@@ -47,6 +48,7 @@ export function SheetCard({ sheet }: { sheet: PublicSheetItem }) {
           {nav(`levels.${sheet.level.toLowerCase() as 'beginner'}`)}
         </span>
         {sheet.isHot ? <span className={`${badge} absolute right-2 top-2 bg-hot-accent`}>{t('hot')}</span> : null}
+        {sheet.noteJsonUrl ? <CardPreviewButton id={sheet.id} title={sheet.title} noteJsonUrl={sheet.noteJsonUrl} /> : null}
       </div>
       <div className="flex flex-col gap-2 p-4">
         <h3 className="font-display text-headline-sm text-on-surface">

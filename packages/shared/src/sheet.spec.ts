@@ -315,8 +315,14 @@ describe('hợp đồng công khai Composer/Genre', () => {
       pageCount: 1,
       isHot: false,
       thumbnailUrl: null,
+      noteJsonUrl: null,
     };
     expect(publicSheetItemSchema.parse(item).composer.slug).toBe('beethoven');
+    expect(publicSheetItemSchema.parse({ ...item, noteJsonUrl: 'http://cdn/n.json' }).noteJsonUrl).toBe('http://cdn/n.json');
+    // Phản hồi cache/cũ chưa có trường (triển khai cuốn chiếu) vẫn parse được, thành null.
+    const { noteJsonUrl: _omit, ...legacy } = item;
+    expect(publicSheetItemSchema.parse(legacy).noteJsonUrl).toBeNull();
+    expect(publicSheetItemSchema.safeParse({ ...item, noteJsonUrl: 5 }).success).toBe(false);
     expect(publicSheetItemSchema.safeParse({ ...item, composer: { id: 'c', name: 'B' } }).success).toBe(false);
   });
 

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 import type { AudioPort } from '@/lib/midi/player-core';
+import { claimAudio, resetAudioClaims } from '@/lib/midi/audio-exclusive';
 import { LOAD_TIMEOUT_MS, MidiPlayer, type MidiPlayerDeps } from './midi-player';
 
 const note = (midi: number, time: number, duration = 1) => ({ midi, time, duration, velocity: 0.8, name: 'x' });
@@ -37,6 +38,7 @@ const FIRST = 'Play & Practice this piece';
 
 describe('MidiPlayer', () => {
   beforeEach(() => {
+    resetAudioClaims();
     vi.stubGlobal('AudioContext', class {});
   });
   afterEach(() => {
@@ -284,5 +286,52 @@ describe('MidiPlayer', () => {
     const alert = await screen.findByRole('alert');
     const seek = screen.getByLabelText('Seek within the piece');
     expect(alert.compareDocumentPosition(seek) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it('lỗi tải: đóng AudioContext đã mở khoá trong cú bấm (không rò rỉ context)', async () => {
+    const close = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('AudioContext', class { resume = vi.fn(); close = close; });
+    setup({ loadAudio: vi.fn().mockRejectedValue(new Error('chunk')) });
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('alert');
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('nghe thử trên thẻ bắt đầu thì player chính tạm dừng (một nguồn âm thanh tại một thời điểm)', async () => {
+    const { audio } = setup();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    (audio.releaseAll as ReturnType<typeof vi.fn>).mockClear();
+    act(() => {
+      claimAudio('card-preview', vi.fn()); // nghe thử trên thẻ nhận quyền phát
+    });
+    await screen.findByRole('button', { name: 'Play' });
+    expect(audio.releaseAll).toHaveBeenCalled();
+    // Bấm Play lại: player nhận lại quyền và dừng nghe thử.
+    const stopPreview = vi.fn();
+    act(() => {
+      claimAudio('card-preview', stopPreview);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    expect(stopPreview).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('bấm phát ở player chính dừng nghe thử ngay từ lúc bấm (kể cả khi còn đang tải)', () => {
+    setup({ loadAudio: vi.fn(() => new Promise<AudioPort>(() => undefined)) });
+    const stopPreview = vi.fn();
+    claimAudio('card-preview', stopPreview);
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    expect(stopPreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('Pause hoặc hết bài nhả quyền: nghe thử bắt đầu sau đó không làm player dừng lần nữa', async () => {
+    const { audio } = setup();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pause' }));
+    (audio.releaseAll as ReturnType<typeof vi.fn>).mockClear();
+    act(() => {
+      claimAudio('card-preview', vi.fn());
+    });
+    expect(audio.releaseAll).not.toHaveBeenCalled();
   });
 });

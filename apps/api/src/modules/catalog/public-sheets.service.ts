@@ -34,11 +34,12 @@ const PUBLIC_SELECT = {
   pageCount: true,
   isHot: true,
   composer: { select: { id: true, name: true, slug: true } },
-  // Chỉ THUMBNAIL hiện hành; không chọn storageKey nào khác.
+  // Chỉ THUMBNAIL và MIDI_JSON (note-JSON public) hiện hành; không chọn storageKey nào khác.
   files: {
-    where: { type: FileType.THUMBNAIL, supersededAt: null },
-    select: { storageKey: true },
-    take: 1,
+    where: { type: { in: [FileType.THUMBNAIL, FileType.MIDI_JSON] }, supersededAt: null },
+    select: { type: true, storageKey: true },
+    // Có nhiều bản hiện hành (hiếm, khi đang thay file) thì chọn bản mới nhất, kết quả ổn định.
+    orderBy: { createdAt: 'desc' },
   },
 } as const satisfies Prisma.SheetSelect;
 
@@ -120,7 +121,11 @@ export class PublicSheetsService {
   }
 
   private toItem({ files, ...row }: Prisma.SheetGetPayload<{ select: typeof PUBLIC_SELECT }>): PublicSheetItem {
-    return { ...row, thumbnailUrl: files[0] ? this.storage.publicUrl(files[0].storageKey) : null };
+    const urlOf = (type: FileType) => {
+      const file = files.find((f) => f.type === type);
+      return file ? this.storage.publicUrl(file.storageKey) : null;
+    };
+    return { ...row, thumbnailUrl: urlOf(FileType.THUMBNAIL), noteJsonUrl: urlOf(FileType.MIDI_JSON) };
   }
 
   /**

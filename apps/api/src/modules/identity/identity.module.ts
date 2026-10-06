@@ -6,6 +6,8 @@ import { AuthController } from './auth.controller';
 import { ACCESS_TOKEN_TTL_SECONDS, AuthService } from './auth.service';
 import { JWT_ALGORITHM, JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordService } from './password.service';
+import { PreviewTokenService } from './preview-token.service';
+import { PreviewTokensController } from './preview-tokens.controller';
 import { RefreshTokenService } from './refresh-token.service';
 
 /** Module chủ của bảng User và RefreshToken (AD-13). */
@@ -20,8 +22,8 @@ import { RefreshTokenService } from './refresh-token.service';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PasswordService, RefreshTokenService, JwtAuthGuard],
-  exports: [JwtAuthGuard, JwtModule],
+  controllers: [AuthController, PreviewTokensController],
+  providers: [AuthService, PasswordService, RefreshTokenService, JwtAuthGuard, PreviewTokenService],
+  exports: [JwtAuthGuard, JwtModule, PreviewTokenService],
 })
 export class IdentityModule {}

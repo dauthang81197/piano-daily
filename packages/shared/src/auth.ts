@@ -74,3 +74,18 @@ export const loginResponseSchema = z.object({
 });
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
+
+/** Preview token (Story 2.10, AD-19): JWT ngắn hạn cho phép xem một Sheet (kể cả Draft) trên route preview. */
+export const PREVIEW_TOKEN_AUDIENCE = 'piano-daily:preview';
+export const PREVIEW_TOKEN_TTL_SECONDS = 10 * 60;
+
+/** `POST /admin/preview-tokens` */
+export const previewTokenRequestSchema = z.strictObject({ sheetId: z.uuid({ error: 'sheetId không hợp lệ.' }) });
+export type PreviewTokenRequest = z.infer<typeof previewTokenRequestSchema>;
+
+export const previewTokenResponseSchema = z.object({
+  token: z.string().min(1),
+  /** ISO 8601: thời điểm token hết hạn. */
+  expiresAt: z.string(),
+});
+export type PreviewTokenResponse = z.infer<typeof previewTokenResponseSchema>;

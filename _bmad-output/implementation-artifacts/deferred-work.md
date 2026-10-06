@@ -49,3 +49,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-5-trang-composer-va-genre.md`
   summary: Kiểm tra thủ công/e2e hành vi stretched link của `SheetCard` (click thân thẻ mở chi tiết, click tên Composer mở trang Composer).
   evidence: Test hiện chỉ kiểm tên class Tailwind; jsdom không dựng layout nên không chứng minh vùng bấm.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-10-xem-truoc-sheet-draft-tu-admin.md`
+  summary: Trả HTTP 404 thật (thay vì 200 kèm giao diện 404 và `noindex`) cho Sheet, Composer, Genre và route preview không tồn tại hoặc sai token.
+  evidence: Đã chạy server standalone và `curl`: `/vi/sheet/khong-co`, `/vi/composer/khong-co`, `/vi/genre/khong-co`, `/vi/preview/sheet/<id>?token=sai` đều trả 200 (body là trang 404 và có `<meta name="robots" content="noindex">`), trong khi `/vi/level/zzz` trả 404 vì `LevelLayout` kiểm tra ở layout (xem comment ở `level/[level]/layout.tsx`). Cờ `htmlLimitedBots: /.*/` và việc bỏ `loading.tsx` đều không đổi kết quả. Cách sửa: kiểm tra ở layout; riêng preview cần `proxy.ts` chuyển token vào header vì layout không đọc được `searchParams`. Nên làm cùng Story 2.11 (SEO).

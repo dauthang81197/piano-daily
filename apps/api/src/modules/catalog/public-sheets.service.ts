@@ -133,8 +133,21 @@ export class PublicSheetsService {
    * Chỉ trả URL public của PAGE_IMAGE/MIDI_JSON hiện hành.
    */
   async detailBySlug(slug: string): Promise<PublicSheetDetail> {
+    return this.buildDetail({ slug, ...publishedWhere() });
+  }
+
+  /**
+   * Chi tiết của Sheet ở MỌI trạng thái (cho route preview của admin, Story 2.10). Người gọi PHẢI đã xác minh
+   * preview token. `seriesSheets`/`related` vẫn chỉ gồm Sheet PUBLISHED nên không lộ Draft khác.
+   */
+  async detailForPreview(id: string): Promise<PublicSheetDetail> {
+    return this.buildDetail({ id });
+  }
+
+  /** Dựng `PublicSheetDetail` cho Sheet khớp `where` (một nguồn duy nhất cho trang công khai và preview). */
+  private async buildDetail(where: Prisma.SheetWhereInput): Promise<PublicSheetDetail> {
     const row = await this.prisma.sheet.findFirst({
-      where: { slug, ...publishedWhere() },
+      where,
       select: {
         id: true,
         publicId: true,

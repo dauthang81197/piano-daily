@@ -17,7 +17,7 @@ import {
   type PublicSheetSort,
   publicSheetListSchema,
 } from '@piano-daily/shared';
-import { publicFetch } from './api';
+import { apiFetch, publicFetch } from './api';
 import type { LevelSlug } from './levels';
 
 const toApiLevel = (level: LevelSlug) => level.toUpperCase() as Level;
@@ -112,4 +112,19 @@ export async function fetchGenreSheets(
 export async function fetchSheetDetail(slug: string): Promise<PublicSheetDetail | null> {
   const body = await getJsonOrNull(`/sheets/${encodeURIComponent(slug)}`, [cacheTags.search]);
   return body === null ? null : publicSheetDetailSchema.parse(body);
+}
+
+/**
+ * Chi tiết Sheet ở mọi trạng thái cho route preview của admin (Story 2.10, AD-19). KHÔNG cache (`no-store`, không
+ * `publicFetch`/tag) và token đi trong header, không vào URL. 404/400/401 (token thiếu/sai/hết hạn/khác Sheet,
+ * Sheet không tồn tại) đều là `null`; lỗi khác ném.
+ */
+export async function fetchPreviewSheet(id: string, token: string): Promise<PublicSheetDetail | null> {
+  const res = await apiFetch(`/sheets/${encodeURIComponent(id)}/preview`, {
+    cache: 'no-store',
+    headers: { Accept: 'application/json', 'X-Preview-Token': token },
+  });
+  if (res.status === 404 || res.status === 400 || res.status === 401) return null;
+  if (!res.ok) throw new Error(`API preview trả ${res.status}`);
+  return publicSheetDetailSchema.parse(await res.json());
 }

@@ -8,6 +8,7 @@ import {
   fetchLevelSheets,
   fetchLevelSummary,
   fetchSearch,
+  fetchPreviewSheet,
   fetchSheetDetail,
 } from './catalog';
 
@@ -129,5 +130,40 @@ describe('catalog fetchers', () => {
     expect(await fetchSheetDetail('a'.repeat(300))).toBeNull();
     fetchMock.mockImplementation(async () => json({}, 500));
     await expect(fetchSheetDetail('x')).rejects.toThrow('500');
+  });
+  describe('fetchPreviewSheet (xem trước Draft)', () => {
+    const detail = {
+      id: 's', publicId: 1, slug: 'draft-one', title: 'Draft', subtitle: null, level: 'BEGINNER',
+      difficultyScore: null, difficultyNote: null, description: null,
+      composer: { id: 'c', name: 'B', slug: 'b' }, series: null, genres: [], pageCount: 0, viewCount: 0,
+      isHot: false, updatedAt: '2026-10-06T00:00:00.000Z', pages: [], midi: null, youtubeUrl: null,
+      lyricsChords: null, seriesSheets: [], related: [],
+    };
+
+    it('không cache: no-store, không tag/revalidate; token trong header, không trong URL', async () => {
+      fetchMock.mockImplementation(async () => json(detail));
+      expect(await fetchPreviewSheet('0192a000-0000-7000-8000-000000000001', 'tok.en.value')).toMatchObject({ title: 'Draft' });
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe('http://api:4000/sheets/0192a000-0000-7000-8000-000000000001/preview');
+      expect(String(url)).not.toContain('tok.en.value');
+      expect(init.cache).toBe('no-store');
+      expect(init.next).toBeUndefined();
+      expect(new Headers(init.headers).get('X-Preview-Token')).toBe('tok.en.value');
+      expect(new Headers(init.headers).get('X-Internal-Secret')).toBe('secret');
+    });
+
+    it('404, 400 và 401 -> null; lỗi khác -> ném', async () => {
+      for (const status of [404, 400, 401]) {
+        fetchMock.mockImplementation(async () => json({ error: { code: 'NOT_FOUND', message: 'x' } }, status));
+        expect(await fetchPreviewSheet('id', 't')).toBeNull();
+      }
+      fetchMock.mockImplementation(async () => json({}, 500));
+      await expect(fetchPreviewSheet('id', 't')).rejects.toThrow('500');
+    });
+
+    it('body sai hợp đồng thì ném (không render dữ liệu lạ)', async () => {
+      fetchMock.mockImplementation(async () => json({ nope: true }));
+      await expect(fetchPreviewSheet('id', 't')).rejects.toThrow();
+    });
   });
 });

@@ -153,5 +153,10 @@
     "unsupported": "Trình duyệt của bạn không hỗ trợ Web Audio nên không thể nghe thử bản nhạc này. Hãy thử trình duyệt mới hơn.",
     "errorLoad": "Không tải được dữ liệu nốt nhạc. Hãy kiểm tra kết nối rồi bấm lại để thử lần nữa.",
     "errorEmpty": "Bản nhạc này không có nốt nào để phát."
+  },
+  "Preview": {
+    "title": "Xem trước: {title}",
+    "banner": "Bản xem trước — chưa công khai. Bất kỳ ai có liên kết này đều xem được cho tới khi nó hết hạn sau 10 phút; đừng chia sẻ.",
+    "loading": "Đang tải bản xem trước"
   }
 }

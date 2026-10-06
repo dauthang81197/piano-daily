@@ -119,7 +119,7 @@ export function SheetDetail({ sheet }: { sheet: PublicSheetDetail }) {
             ) : null}
           </header>
 
-          <PlayerSlot midi={sheet.midi} />
+          <PlayerSlot midi={sheet.midi} title={sheet.title} />
 
           {sheet.pages.length > 0 ? (
             <section aria-labelledby="sheet-pages" className="flex flex-col gap-4">

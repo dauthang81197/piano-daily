@@ -1,7 +1,12 @@
+import type { PublicSheetDetail } from '@piano-daily/shared';
+import { MidiPlayer } from './midi-player';
+
 /**
- * Vị trí của MIDI player trong bố cục trang chi tiết (giữa meta và ảnh trang).
- * Cố ý trả `null` cho tới Story 2.8: không hiện khối giả. 2.8 thay thân component này, thứ tự bố cục giữ nguyên.
+ * Vị trí của MIDI player trong bố cục trang chi tiết (giữa meta và ảnh trang). Sheet không có MIDI (hoặc chưa có
+ * note-JSON) thì không hiện khối. Player là client component, tải Tone.js và note-JSON chỉ khi người dùng bấm phát.
  */
-export function PlayerSlot(_props: { midi: { noteJsonUrl: string; durationSeconds: number; noteCount: number } | null }) {
-  return null;
+export function PlayerSlot({ midi, title }: { midi: PublicSheetDetail['midi']; title: string }) {
+  if (!midi) return null;
+  // `key` theo URL: điều hướng sang Sheet khác phải dựng player mới, không giữ lõi/âm thanh của bài trước.
+  return <MidiPlayer key={midi.noteJsonUrl} noteJsonUrl={midi.noteJsonUrl} title={title} />;
 }

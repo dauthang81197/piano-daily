@@ -29,6 +29,15 @@ export function unlockAudioContext(win: Record<string, unknown> = window as unkn
   }
 }
 
+/** Đóng AudioContext (nếu có), nuốt mọi lỗi: trình duyệt giới hạn số context nên phải trả lại khi không dùng nữa. */
+export function closeAudioContext(ctx: AudioContext | undefined): void {
+  try {
+    void ctx?.close?.().catch(() => undefined);
+  } catch {
+    /* context không đóng được: bỏ qua */
+  }
+}
+
 /**
  * Adapter Tone.js, chỉ tạo khi người dùng bấm phát lần đầu: `import('tone')` động (không vào bundle trang),
  * dùng AudioContext đã mở khoá, `PolySynth` (bộ tổng hợp, không tải mẫu âm thanh).
@@ -39,8 +48,13 @@ export function unlockAudioContext(win: Record<string, unknown> = window as unkn
 export async function createToneAudio(unlocked?: AudioContext): Promise<AudioPort> {
   const Tone = await import('tone');
   if (unlocked) Tone.setContext(unlocked);
+  // Context toàn cục của Tone có thể đã bị một lần nghe thử trước đó đóng: dựng lại thay vì dùng context đã chết.
+  else if (Tone.getContext().state === 'closed') Tone.setContext(new Tone.Context());
   await Tone.start();
-  if (Tone.getContext().state !== 'running') throw new Error('AudioContext chưa chạy (bị trình duyệt chặn)');
+  // Giữ context của chính adapter này: `Tone.setContext` là toàn cục nên một nguồn khác (nghe thử trên thẻ) có thể đổi
+  // nó giữa chừng; đồng hồ của synth này phải luôn là đồng hồ của context nó được tạo trên đó.
+  const context = Tone.getContext();
+  if (context.state !== 'running') throw new Error('AudioContext chưa chạy (bị trình duyệt chặn)');
 
   const makeSynth = () => {
     const synth = new Tone.PolySynth(Tone.Synth).toDestination();
@@ -49,8 +63,9 @@ export async function createToneAudio(unlocked?: AudioContext): Promise<AudioPor
     return synth;
   };
   let synth = makeSynth();
+  let disposed = false;
   return {
-    now: () => Tone.now(),
+    now: () => context.now(),
     triggerAttackRelease: (name, duration, time, velocity) => {
       synth.triggerAttackRelease(name, duration, time, velocity);
     },
@@ -59,7 +74,11 @@ export async function createToneAudio(unlocked?: AudioContext): Promise<AudioPor
       synth = makeSynth();
     },
     dispose: () => {
+      if (disposed) return;
+      disposed = true;
       synth.dispose();
+      // Đóng AudioContext do ta tạo: trình duyệt giới hạn số context, nên mỗi lần nghe thử phải trả lại.
+      closeAudioContext(unlocked);
     },
   };
 }

@@ -86,7 +86,11 @@
       "midi": "Midi",
       "mp3": "Mp3",
       "video": "Video"
-    }
+    },
+    "previewPlay": "Preview {title}",
+    "previewStop": "Stop preview of {title}",
+    "previewLoading": "Loading preview of {title}",
+    "previewError": "Preview of {title} could not be played. Press to try again"
   },
   "Pagination": {
     "label": "Pagination",

@@ -34,6 +34,7 @@ const sheet: PublicSheetItem = {
   pageCount: 3,
   isHot: true,
   thumbnailUrl: 'http://cdn/x.webp',
+  noteJsonUrl: null,
 };
 
 describe('SheetCard', () => {

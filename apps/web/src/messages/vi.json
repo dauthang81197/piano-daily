@@ -86,7 +86,11 @@
       "midi": "Midi",
       "mp3": "Mp3",
       "video": "Video"
-    }
+    },
+    "previewPlay": "Nghe thử {title}",
+    "previewStop": "Dừng nghe thử {title}",
+    "previewLoading": "Đang tải bản nghe thử {title}",
+    "previewError": "Không phát được bản nghe thử {title}. Bấm để thử lại"
   },
   "Pagination": {
     "label": "Phân trang",

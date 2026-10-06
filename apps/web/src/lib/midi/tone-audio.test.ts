@@ -16,7 +16,8 @@ class FakeSynth {
     this.disposed = true;
   }
 }
-const state = { started: false, ctxState: 'running', setContext: vi.fn() };
+const state = { started: false, ctxState: 'running', setContext: vi.fn(), ctx: { state: 'running', now: () => 42.5 } as { state: string; now: () => number } };
+const contexts: unknown[] = [];
 vi.mock('tone', () => ({
   PolySynth: class extends FakeSynth {
     constructor() {
@@ -25,22 +26,47 @@ vi.mock('tone', () => ({
     }
   },
   Synth: class {},
-  now: () => 42.5,
+  Context: class {
+    state = 'running';
+    now = () => 7;
+    constructor() {
+      contexts.push(this);
+    }
+  },
   start: async () => {
     state.started = true;
   },
-  getContext: () => ({ state: state.ctxState }),
+  getContext: () => ({ state: state.ctxState, now: state.ctx.now }),
   setContext: (ctx: unknown) => state.setContext(ctx),
 }));
 
-import { createToneAudio, hasWebAudio, unlockAudioContext } from './tone-audio';
+import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from './tone-audio';
 
 describe('createToneAudio', () => {
   beforeEach(() => {
     synths.length = 0;
     state.started = false;
     state.ctxState = 'running';
+    state.ctx = { state: 'running', now: () => 42.5 };
     state.setContext.mockReset();
+    contexts.length = 0;
+  });
+
+  it('now() dùng đồng hồ của context lúc tạo adapter, không bị đổi khi nguồn khác đặt context toàn cục mới', async () => {
+    const audio = await createToneAudio();
+    // Nguồn khác (nghe thử trên thẻ) đổi context toàn cục của Tone giữa chừng.
+    state.ctx = { state: 'running', now: () => 999 };
+    expect(audio.now()).toBe(42.5);
+  });
+
+  it('context toàn cục đã bị đóng (lần nghe thử trước) thì dựng context mới thay vì dùng context chết', async () => {
+    state.ctxState = 'closed';
+    state.setContext.mockImplementation(() => {
+      state.ctxState = 'running';
+    });
+    await createToneAudio();
+    expect(contexts).toHaveLength(1);
+    expect(state.setContext).toHaveBeenCalledTimes(1);
   });
 
   it('chờ Tone.start(), now() lấy từ Tone.now(), cấu hình synth', async () => {
@@ -76,6 +102,27 @@ describe('createToneAudio', () => {
     audio.triggerAttackRelease('D4', 1, 6, 0.8);
     expect(synths[1]!.attacks).toEqual([['D4', 1, 6, 0.8]]);
     expect(synths[0]!.attacks).toHaveLength(1);
+  });
+
+  it('dispose đóng AudioContext do ta tạo (chỉ một lần dù gọi nhiều lần) và huỷ synth', async () => {
+    const close = vi.fn().mockResolvedValue(undefined);
+    const audio = await createToneAudio({ close } as unknown as AudioContext);
+    audio.dispose();
+    audio.dispose();
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(synths[0]!.disposed).toBe(true);
+  });
+
+  it('dispose không ném khi context không có close() hoặc close() từ chối', async () => {
+    const noClose = await createToneAudio({} as AudioContext);
+    expect(() => noClose.dispose()).not.toThrow();
+    const rejecting = await createToneAudio({ close: () => Promise.reject(new Error('closed')) } as unknown as AudioContext);
+    expect(() => rejecting.dispose()).not.toThrow();
+  });
+
+  it('không có context đã mở khoá thì dispose không đụng tới context nào', async () => {
+    const audio = await createToneAudio();
+    expect(() => audio.dispose()).not.toThrow();
   });
 
   it('dispose huỷ synth hiện tại', async () => {
@@ -122,5 +169,17 @@ describe('hasWebAudio / unlockAudioContext', () => {
 
   it('context không có resume() vẫn không ném', () => {
     expect(unlockAudioContext({ AudioContext: class {} })).toBeDefined();
+  });
+});
+
+describe('closeAudioContext', () => {
+  it('đóng context; không ném khi thiếu close(), close() từ chối hoặc ném đồng bộ, hoặc không có context', async () => {
+    const close = vi.fn().mockResolvedValue(undefined);
+    closeAudioContext({ close } as unknown as AudioContext);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(() => closeAudioContext(undefined)).not.toThrow();
+    expect(() => closeAudioContext({} as AudioContext)).not.toThrow();
+    expect(() => closeAudioContext({ close: () => Promise.reject(new Error('x')) } as unknown as AudioContext)).not.toThrow();
+    expect(() => closeAudioContext({ close: () => { throw new Error('sync'); } } as unknown as AudioContext)).not.toThrow();
   });
 });

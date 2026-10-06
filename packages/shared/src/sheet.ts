@@ -413,6 +413,9 @@ export const publicSheetItemSchema = z.object({
   pageCount: z.number().int().nonnegative(),
   isHot: z.boolean(),
   thumbnailUrl: z.string().nullable(),
+  /** URL public của note-JSON hiện hành (nghe thử trên thẻ, Story 2.9); `null` khi không có MIDI/note-JSON. */
+  // `default(null)`: phản hồi cache/cũ chưa có trường này (triển khai cuốn chiếu) vẫn parse được, thành `null`.
+  noteJsonUrl: z.string().nullable().default(null),
 });
 export type PublicSheetItem = z.infer<typeof publicSheetItemSchema>;
 

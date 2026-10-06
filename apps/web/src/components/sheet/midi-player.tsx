@@ -7,7 +7,9 @@ import { layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
 import type { ParsedNotes } from '@/lib/midi/note-json';
 import { PlayerCore, PLAYBACK_RATES, type AudioPort } from '@/lib/midi/player-core';
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
-import { createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
+import { claimAudio } from '@/lib/midi/audio-exclusive';
+import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
+import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
 import { PianoKeyboard } from './piano-keyboard';
 
 export interface MidiPlayerDeps {
@@ -29,22 +31,6 @@ const defaultDeps: MidiPlayerDeps = {
 export const LOAD_TIMEOUT_MS = 15_000;
 /** Kéo thanh tua: chỉ áp dụng vị trí mới sau khoảng lặng này, tránh khởi động lại phát ở mỗi bước kéo. */
 const SEEK_COMMIT_MS = 150;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
 
 /** Cập nhật hình tối đa ~30 khung/giây. */
 const FRAME_MS = 33;
@@ -86,6 +72,8 @@ export function MidiPlayer({
   const coreRef = useRef<PlayerCore | null>(null);
   /** Đang kéo thanh tua: vòng cập nhật hình không ghi đè vị trí người dùng đang chọn. */
   const scrubTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Quyền phát âm thanh toàn trang (một nguồn tại một thời điểm, xem `audio-exclusive`). */
+  const releaseClaim = useRef<(() => void) | undefined>(undefined);
 
   useEffect(() => {
     mounted.current = true;
@@ -94,6 +82,7 @@ export function MidiPlayer({
     return () => {
       mounted.current = false;
       clearTimeout(scrubTimer.current);
+      releaseClaim.current?.();
       coreRef.current?.dispose();
       coreRef.current = null;
     };
@@ -128,15 +117,31 @@ export function MidiPlayer({
     [view, layout],
   );
 
+  /** Nguồn khác (nghe thử trên thẻ) bắt đầu phát: tạm dừng player chính, không huỷ trạng thái. */
+  const pauseExternally = useCallback(() => {
+    const c = coreRef.current;
+    if (!c || !mounted.current) return;
+    c.pause();
+    setPosition(c.position());
+    setPlaying(false);
+  }, []);
+
+  const claim = useCallback(() => {
+    releaseClaim.current?.();
+    releaseClaim.current = claimAudio('main-player', pauseExternally);
+  }, [pauseExternally]);
+
   const onToggle = useCallback(async () => {
     if (phase === 'loading') return;
     if (phase === 'ready' && coreRef.current) {
       const c = coreRef.current;
       if (playing) {
         c.pause();
+        releaseClaim.current?.();
         setPosition(c.position());
         setPlaying(false);
       } else {
+        claim();
         c.play();
         setPlaying(true);
       }
@@ -144,10 +149,12 @@ export function MidiPlayer({
     }
 
     setPhase('loading');
+    // Bắt đầu nghe ở player chính thì dừng mọi nghe thử trên thẻ ngay từ lúc bấm (kể cả khi còn đang tải).
+    claim();
     // Mở khoá AudioContext đồng bộ trong cử chỉ bấm, trước mọi await (Safari/iOS).
     const unlocked = unlockAudioContext();
     const [audioResult, jsonResult] = await Promise.allSettled([
-      withTimeout(deps.loadAudio(unlocked), LOAD_TIMEOUT_MS),
+      withTimeoutDispose(deps.loadAudio(unlocked), LOAD_TIMEOUT_MS),
       withTimeout(deps.fetchJson(noteJsonUrl), LOAD_TIMEOUT_MS),
     ]);
     const audio = audioResult.status === 'fulfilled' ? audioResult.value : null;
@@ -165,6 +172,7 @@ export function MidiPlayer({
         duration: data.duration,
         audio,
         onEnd: () => {
+          releaseClaim.current?.();
           if (!mounted.current) return;
           setPlaying(false);
           setPosition(0);
@@ -178,12 +186,14 @@ export function MidiPlayer({
       next.play();
       setPlaying(true);
     } catch (err) {
-      audio?.dispose();
+      if (audio) audio.dispose();
+      else closeAudioContext(unlocked);
+      releaseClaim.current?.();
       if (!mounted.current) return;
       setErrorKind((err as { reason?: unknown })?.reason === 'empty' ? 'empty' : 'load');
       setPhase('error');
     }
-  }, [deps, noteJsonUrl, phase, playing, rate]);
+  }, [claim, deps, noteJsonUrl, phase, playing, rate]);
 
   // Kéo thanh tua: cập nhật hình ngay, nhưng chỉ áp vào lõi phát khi ngừng kéo (debounce). Sau khi áp, lấy lại vị trí
   // thật từ lõi (tua tới cuối bài thì lõi đã tự dừng và về 0).

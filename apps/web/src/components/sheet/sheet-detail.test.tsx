@@ -29,6 +29,7 @@ const item = (id: string, title: string): PublicSheetItem => ({
   pageCount: 1,
   isHot: false,
   thumbnailUrl: null,
+  noteJsonUrl: null,
 });
 
 const full: PublicSheetDetail = {

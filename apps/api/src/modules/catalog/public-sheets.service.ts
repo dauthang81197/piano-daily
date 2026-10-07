@@ -12,6 +12,7 @@ import {
   SERIES_SHEETS_MAX,
   type PublicSheetItem,
   type PublicSheetListQuery,
+  type SitemapEntries,
   SheetStatus,
 } from '@piano-daily/shared';
 import type { Prisma } from '../../generated/client';
@@ -47,6 +48,9 @@ const PUBLIC_SELECT = {
 export function publishedWhere(level?: Level): Prisma.SheetWhereInput {
   return { status: SheetStatus.PUBLISHED, ...(level ? { level } : {}) };
 }
+
+/** Cùng một thứ tự cho Sheet, Composer và Genre trong sitemap (so sánh code unit, không phụ thuộc collation của DB). */
+const compareSlug = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 const NEWEST: Prisma.SheetOrderByWithRelationInput[] = [{ firstPublishedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }];
 const ORDER_BY: Record<PublicSheetListQuery['sort'], Prisma.SheetOrderByWithRelationInput[]> = {
@@ -308,6 +312,44 @@ export class PublicSheetsService {
     });
     if (!row) throw new NotFoundException('Không tìm thấy Genre.');
     return row;
+  }
+
+  /**
+   * Dữ liệu dựng sitemap: Sheet PUBLISHED, cùng Composer/Genre có ít nhất một bài PUBLISHED. `updatedAt` của Composer
+   * và Genre là lớn nhất trong các Sheet PUBLISHED của nó. Sắp theo slug để kết quả ổn định.
+   */
+  async sitemapEntries(): Promise<SitemapEntries> {
+    const sheets = (
+      await this.prisma.sheet.findMany({
+        where: publishedWhere(),
+        select: { slug: true, updatedAt: true, composerId: true, genres: { select: { genreId: true } } },
+      })
+    ).sort((a, b) => compareSlug(a.slug, b.slug));
+    const latest = (map: Map<string, Date>, id: string, at: Date) => {
+      const seen = map.get(id);
+      if (!seen || at > seen) map.set(id, at);
+    };
+    const composerAt = new Map<string, Date>();
+    const genreAt = new Map<string, Date>();
+    for (const sheet of sheets) {
+      latest(composerAt, sheet.composerId, sheet.updatedAt);
+      for (const { genreId } of sheet.genres) latest(genreAt, genreId, sheet.updatedAt);
+    }
+    const [composers, genres] = await Promise.all([
+      composerAt.size
+        ? this.prisma.composer.findMany({ where: { id: { in: [...composerAt.keys()] } }, select: { id: true, slug: true } })
+        : [],
+      genreAt.size
+        ? this.prisma.genre.findMany({ where: { id: { in: [...genreAt.keys()] } }, select: { id: true, slug: true } })
+        : [],
+    ]);
+    const entries = (rows: { id: string; slug: string }[], at: Map<string, Date>) =>
+      rows.map((row) => ({ slug: row.slug, updatedAt: at.get(row.id)!.toISOString() })).sort((a, b) => compareSlug(a.slug, b.slug));
+    return {
+      sheets: sheets.map((s) => ({ slug: s.slug, updatedAt: s.updatedAt.toISOString() })),
+      composers: entries(composers, composerAt),
+      genres: entries(genres, genreAt),
+    };
   }
 
   /** Genre và Composer kèm số Sheet PUBLISHED, bỏ mục không có bài, sắp `count desc, name asc`. */

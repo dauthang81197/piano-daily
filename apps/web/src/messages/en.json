@@ -158,5 +158,18 @@
     "title": "Preview: {title}",
     "banner": "Preview — not public. Anyone with this link can view it until it expires after 10 minutes; do not share it.",
     "loading": "Loading preview"
+  },
+  "Seo": {
+    "homeDescription": "A piano sheet music library organised by skill level: browse every page, preview the MIDI and watch the tutorial video.",
+    "levelDescription": "{count, plural, one {# piano sheet} other {# piano sheets}} for {level} players: browse every page, preview the MIDI and watch the tutorial video.",
+    "searchDescription": "Search piano sheet music by title, composer, lyrics or ID, and filter by level, genre and format.",
+    "genreDescription": "{count, plural, one {# {name} piano sheet} other {# {name} piano sheets}}: browse every page, preview the MIDI and watch the tutorial video.",
+    "composerDescription": "Piano sheet music by {name}: browse every page, preview the MIDI and watch the tutorial video.",
+    "sheetDescription": "{title} by {composer}: {level} piano sheet music{parts}.",
+    "sheetParts": ", including {list}",
+    "partPages": "every page",
+    "partMidi": "a MIDI preview",
+    "partVideo": "a tutorial video",
+    "partLyrics": "lyrics and chords"
   }
 }

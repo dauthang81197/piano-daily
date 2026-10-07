@@ -8,6 +8,7 @@ import {
   publicSheetDetailSchema,
   publicSheetItemSchema,
   publicSheetListQuerySchema,
+  sitemapEntriesSchema,
   removeFileTypeSchema,
   sheetListQuerySchema,
   sheetSchema,
@@ -368,5 +369,21 @@ describe('publicSheetDetailSchema', () => {
   it('từ chối thiếu composer.slug hoặc điểm khó ngoài 0–100', () => {
     expect(publicSheetDetailSchema.safeParse({ ...base, composer: { id: 'c', name: 'B' } }).success).toBe(false);
     expect(publicSheetDetailSchema.safeParse({ ...base, difficultyScore: 101 }).success).toBe(false);
+  });
+});
+
+describe('sitemapEntriesSchema', () => {
+  it('nhận ba mảng slug + updatedAt, kể cả rỗng', () => {
+    const ok = {
+      sheets: [{ slug: 'fur-elise', updatedAt: '2026-10-07T00:00:00.000Z' }],
+      composers: [],
+      genres: [{ slug: 'pop', updatedAt: '2026-10-07T00:00:00.000Z' }],
+    };
+    expect(sitemapEntriesSchema.parse(ok)).toEqual(ok);
+    expect(sitemapEntriesSchema.parse({ sheets: [], composers: [], genres: [] }).sheets).toEqual([]);
+  });
+  it('thiếu mảng hoặc entry thiếu trường thì từ chối', () => {
+    expect(sitemapEntriesSchema.safeParse({ sheets: [], composers: [] }).success).toBe(false);
+    expect(sitemapEntriesSchema.safeParse({ sheets: [{ slug: 'x' }], composers: [], genres: [] }).success).toBe(false);
   });
 });

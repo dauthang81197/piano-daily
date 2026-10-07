@@ -12,6 +12,8 @@ import {
   type PublicGenre,
   type PublicSheetDetail,
   publicSheetDetailSchema,
+  type SitemapEntries,
+  sitemapEntriesSchema,
   publicGenreSchema,
   type PublicSheetList,
   type PublicSheetSort,
@@ -127,4 +129,9 @@ export async function fetchPreviewSheet(id: string, token: string): Promise<Publ
   if (res.status === 404 || res.status === 400 || res.status === 401) return null;
   if (!res.ok) throw new Error(`API preview trả ${res.status}`);
   return publicSheetDetailSchema.parse(await res.json());
+}
+
+/** Dữ liệu dựng `sitemap.xml`; gắn tag `sitemap` nên `revalidateTag('sitemap')` (Story 2.3) làm mới ngay. */
+export async function fetchSitemapEntries(): Promise<SitemapEntries> {
+  return sitemapEntriesSchema.parse(await getJson('/sitemap-entries', [cacheTags.sitemap]));
 }

@@ -9,7 +9,7 @@ import { SortLinks } from '@/components/catalog/sort-links';
 import { routing } from '@/i18n/routing';
 import { fetchComposer, fetchComposerSheets } from '@/lib/catalog';
 import { composerHref, parsePage, parseSort } from '@/lib/query';
-import { localeAlternates } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -22,11 +22,14 @@ export async function generateMetadata({ params }: Pick<Props, 'params'>): Promi
   const composer = await fetchComposer(slug);
   if (!composer) return {};
   const t = await getTranslations({ locale, namespace: 'Composer' });
-  return {
+  const seo = await getTranslations({ locale, namespace: 'Seo' });
+  return pageMetadata({
+    locale,
+    path: composerHref(composer.slug),
     title: t('title', { name: composer.name }),
-    ...(composer.bio ? { description: Array.from(composer.bio).slice(0, 160).join('') } : {}),
-    alternates: localeAlternates(composerHref(composer.slug), locale),
-  };
+    description: composer.bio?.trim() ? composer.bio : seo('composerDescription', { name: composer.name }),
+    image: composer.avatarUrl,
+  });
 }
 
 export default async function ComposerPage({ params, searchParams }: Props) {

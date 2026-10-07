@@ -106,6 +106,10 @@ describe('GenrePage', () => {
 });
 
 describe('generateMetadata', () => {
+  beforeEach(() => {
+    fetchGenre.mockReset().mockResolvedValue(item);
+  });
+
   const meta = () =>
     generateMetadata({ params: Promise.resolve({ locale: 'en', slug: 'pop' }) });
 
@@ -119,5 +123,15 @@ describe('generateMetadata', () => {
   it('slug không tồn tại: metadata rỗng', async () => {
     fetchGenre.mockResolvedValue(null);
     expect(await meta()).toEqual({});
+  });
+
+  it('description mặc định theo tên thể loại, OG website không ảnh, hreflang vi/en', async () => {
+    const m = await meta();
+    expect(m.description).toBe('genreDescription:Pop');
+    // Số bài lấy từ trang đầu (mặc định newest) để đưa vào mô tả.
+    expect(fetchGenreSheets).toHaveBeenCalledWith(item, { page: 1, sort: 'newest' });
+    expect(m.openGraph).toMatchObject({ type: 'website', locale: 'en_US' });
+    expect((m.openGraph as Record<string, unknown>).images).toBeUndefined();
+    expect(m.alternates?.languages).toMatchObject({ vi: '/vi/genre/pop', en: '/en/genre/pop' });
   });
 });

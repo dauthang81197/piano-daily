@@ -7,11 +7,12 @@ import {
   publicGenreSchema,
   publicSheetDetailSchema,
   publicSheetListSchema,
+  sitemapEntriesSchema,
 } from '@piano-daily/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { createApp } from './create-app';
+import { createApp, TEST_INTERNAL_API_SECRET } from './create-app';
 import { resolveTestDatabaseUrl } from './test-env';
 
 const parseList = (res: { body: unknown }) => publicSheetListSchema.parse(res.body);
@@ -395,6 +396,72 @@ describe('API công khai Sheet (Postgres thật)', () => {
         const res = await get(path).expect(404);
         expect(errorResponseSchema.parse(res.body).error.code).toBeTruthy();
       }
+    });
+  });
+
+  describe('GET /sitemap-entries (Story 2.11)', () => {
+    const sitemap = async () => sitemapEntriesSchema.parse((await get('/sitemap-entries').expect(200)).body);
+
+    it('chỉ Sheet PUBLISHED; Composer/Genre chỉ khi có bài PUBLISHED; sắp theo slug', async () => {
+      const mozart = await prisma.composer.create({ data: { name: 'Mozart', slug: 'mozart' } });
+      const orphan = await prisma.composer.create({ data: { name: 'Orphan', slug: 'orphan' } });
+      const classical = await prisma.genre.create({ data: { name: 'Classical', slug: 'classical' } });
+      await prisma.genre.create({ data: { name: 'Empty', slug: 'empty' } });
+      const b = await addSheet({ title: 'B', published: '2026-01-02', genreIds: [genres.pop, classical.id] });
+      const a = await addSheet({ title: 'A', published: '2026-01-01', composerId: mozart.id, genreIds: [genres.jazz] });
+      await addSheet({ title: 'Draft', status: 'DRAFT', composerId: orphan.id, genreIds: [classical.id] });
+      await addSheet({ title: 'Archived', status: 'ARCHIVED', published: '2026-01-03', composerId: orphan.id });
+
+      const body = await sitemap();
+      expect(body.sheets.map((s) => s.slug)).toEqual([a.slug, b.slug].sort());
+      expect(body.composers.map((c) => c.slug)).toEqual(['bach', 'mozart']); // `orphan` chỉ có Draft/Archived
+      expect(body.genres.map((g) => g.slug)).toEqual(['classical', 'jazz', 'pop']); // `empty` không có bài
+    });
+
+    it('updatedAt của Composer/Genre là lớn nhất trong các Sheet PUBLISHED của nó (Draft không tính)', async () => {
+      const old = await addSheet({ title: 'Old', published: '2026-01-01', genreIds: [genres.pop] });
+      const fresh = await addSheet({ title: 'Fresh', published: '2026-01-02', genreIds: [genres.pop] });
+      const draft = await addSheet({ title: 'Draft', status: 'DRAFT', genreIds: [genres.pop] });
+      await prisma.sheet.update({ where: { id: old.id }, data: { title: 'Old', updatedAt: new Date('2026-02-01T00:00:00Z') } });
+      await prisma.sheet.update({ where: { id: fresh.id }, data: { updatedAt: new Date('2026-03-01T00:00:00Z') } });
+      await prisma.sheet.update({ where: { id: draft.id }, data: { updatedAt: new Date('2026-09-01T00:00:00Z') } });
+      const body = await sitemap();
+      expect(body.sheets.find((s) => s.slug === old.slug)!.updatedAt).toBe('2026-02-01T00:00:00.000Z');
+      expect(body.composers.find((c) => c.slug === 'bach')!.updatedAt).toBe('2026-03-01T00:00:00.000Z');
+      expect(body.genres.find((g) => g.slug === 'pop')!.updatedAt).toBe('2026-03-01T00:00:00.000Z');
+    });
+
+    it('chưa có dữ liệu: ba mảng rỗng', async () => {
+      expect(await sitemap()).toEqual({ sheets: [], composers: [], genres: [] });
+    });
+
+    it('chỉ trả slug và updatedAt, không lộ id/trạng thái/trường khác', async () => {
+      await addSheet({ title: 'Only', published: '2026-01-01', genreIds: [genres.pop] });
+      const res = await get('/sitemap-entries').expect(200);
+      for (const group of Object.values(res.body as Record<string, Record<string, unknown>[]>)) {
+        for (const entry of group) expect(Object.keys(entry).sort()).toEqual(['slug', 'updatedAt']);
+      }
+      expect(JSON.stringify(res.body)).not.toMatch(/status|DRAFT|PUBLISHED|storageKey|private\//);
+    });
+
+    it('throttle 30 request/phút/IP: request thứ 31 bị 429; IP khác và secret nội bộ không bị ảnh hưởng', async () => {
+      const ip = '198.51.100.240';
+      const call = (headers: Record<string, string> = {}) => {
+        let req = request(app.getHttpServer()).get('/sitemap-entries').set('CF-Connecting-IP', ip);
+        for (const [k, v] of Object.entries(headers)) req = req.set(k, v);
+        return req;
+      };
+      for (let i = 0; i < 30; i += 1) await call().expect(200);
+      const blocked = await call().expect(429);
+      expect(blocked.headers['retry-after']).toBeDefined();
+      await request(app.getHttpServer()).get('/sitemap-entries').set('CF-Connecting-IP', '198.51.100.241').expect(200);
+      // Web SSR mang secret nội bộ đúng thì được miễn (cấu hình toàn cục của ThrottlerModule).
+      await call({ 'X-Internal-Secret': TEST_INTERNAL_API_SECRET }).expect(200);
+    });
+
+    it('/sheets/:slug và /sheets/facets không bị route sitemap ảnh hưởng', async () => {
+      await get('/sheets/facets').expect(200);
+      await get('/sheets/khong-co').expect(404);
     });
   });
 

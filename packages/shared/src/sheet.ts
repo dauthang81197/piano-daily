@@ -437,6 +437,18 @@ export const levelSummarySchema = z.object({
 });
 export type LevelSummary = z.infer<typeof levelSummarySchema>;
 
+/**
+ * `GET /sitemap-entries` (Story 2.11): slug và ngày cập nhật của nội dung công khai để dựng `sitemap.xml`.
+ * Chỉ Sheet PUBLISHED; Composer/Genre chỉ khi có ít nhất một Sheet PUBLISHED (`updatedAt` = lớn nhất trong các Sheet đó).
+ */
+const sitemapEntrySchema = z.object({ slug: z.string(), updatedAt: z.string() });
+export const sitemapEntriesSchema = z.object({
+  sheets: z.array(sitemapEntrySchema),
+  composers: z.array(sitemapEntrySchema),
+  genres: z.array(sitemapEntrySchema),
+});
+export type SitemapEntries = z.infer<typeof sitemapEntriesSchema>;
+
 /** `GET /sheets/facets`: Genre và Composer kèm số Sheet PUBLISHED (bỏ mục không có bài). */
 const facetItemSchema = z.object({
   id: z.string(),

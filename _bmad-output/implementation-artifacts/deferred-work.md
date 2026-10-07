@@ -53,3 +53,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-10-xem-truoc-sheet-draft-tu-admin.md`
   summary: Trả HTTP 404 thật (thay vì 200 kèm giao diện 404 và `noindex`) cho Sheet, Composer, Genre và route preview không tồn tại hoặc sai token.
   evidence: Đã chạy server standalone và `curl`: `/vi/sheet/khong-co`, `/vi/composer/khong-co`, `/vi/genre/khong-co`, `/vi/preview/sheet/<id>?token=sai` đều trả 200 (body là trang 404 và có `<meta name="robots" content="noindex">`), trong khi `/vi/level/zzz` trả 404 vì `LevelLayout` kiểm tra ở layout (xem comment ở `level/[level]/layout.tsx`). Cờ `htmlLimitedBots: /.*/` và việc bỏ `loading.tsx` đều không đổi kết quả. Cách sửa: kiểm tra ở layout; riêng preview cần `proxy.ts` chuyển token vào header vì layout không đọc được `searchParams`. Nên làm cùng Story 2.11 (SEO).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-seo-metadata-json-ld-va-sitemap.md`
+  summary: Cập nhật mục "HTTP 404 thật" ở Story 2.10: đã xử lý cho Sheet, Composer, Genre (kiểm tra ở `layout.tsx`, đã `curl` xác nhận 404 và Draft không lộ); còn lại **chỉ route preview** (`/{locale}/preview/sheet/[id]?token=`) vẫn trả 200 kèm giao diện 404 và `noindex` khi token sai.
+  evidence: Layout không đọc được `searchParams` nên không kiểm token được; cần `proxy.ts` chuyển `token` vào request header để layout xác minh. Rủi ro thấp: không lộ dữ liệu, có `noindex` và `X-Robots-Tag`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-11-seo-metadata-json-ld-va-sitemap.md`
+  summary: Điều tra test tích hợp API chập chờn khi chạy cả bộ (`pnpm exec turbo run test --concurrency=1`).
+  evidence: Ba lần (Story 2.8, 2.10, 2.11) có đúng một test thuộc nhóm `catalog-*` fail ở lần chạy cả bộ đầu tiên (`catalog-sheets.spec.ts`: timeout 20 giây và một ca `genreIds`; `catalog-taxonomy.spec.ts`: "xoá Composer không có Series -> 204"), nhưng chạy riêng file đó hoặc chạy lại cả bộ đều qua. Nghi do tải máy sau bước build/lint, hoặc dữ liệu còn sót giữa các file dùng chung một DB test. Chưa có bằng chứng nguyên nhân; cần chạy lặp nhiều lần có ghi log để tìm.

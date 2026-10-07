@@ -26,7 +26,7 @@ vi.mock('@/i18n/navigation', () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
 
-import LevelPage from './page';
+import LevelPage, { generateMetadata } from './page';
 
 const summary = {
   total: 3,
@@ -73,5 +73,37 @@ describe('LevelPage', () => {
     expect(screen.getByText('emptyTitle')).toBeInTheDocument();
     expect(screen.queryByText('clearFilter')).toBeNull();
     expect(fetchLevelSheets).toHaveBeenCalledWith('beginner', { page: 1, sort: 'newest' });
+  });
+});
+
+describe('generateMetadata (Level)', () => {
+  const meta = (level = 'beginner', locale = 'en') =>
+    generateMetadata({ params: Promise.resolve({ locale, level }) });
+
+  beforeEach(() => {
+    fetchLevelSummary.mockReset().mockResolvedValue({ ...summary, total: 42 });
+  });
+
+  it('title, description kèm tổng số bài, canonical + hreflang, Open Graph website', async () => {
+    const m = await meta();
+    expect(m.title).toBe('heroTitle');
+    expect(m.description).toBe('levelDescription');
+    expect(m.alternates?.canonical).toBe('/en/level/beginner');
+    expect(m.alternates?.languages).toMatchObject({ vi: '/vi/level/beginner', en: '/en/level/beginner' });
+    expect(m.openGraph).toMatchObject({ type: 'website', locale: 'en_US', alternateLocale: ['vi_VN'] });
+    expect(fetchLevelSummary).toHaveBeenCalledWith('beginner');
+  });
+
+  it('locale vi: canonical /vi và og:locale vi_VN', async () => {
+    const m = await meta('expert', 'vi');
+    expect(m.alternates?.canonical).toBe('/vi/level/expert');
+    expect(m.openGraph).toMatchObject({ locale: 'vi_VN' });
+  });
+
+  it('level hoặc locale lạ: metadata rỗng, không gọi API', async () => {
+    fetchLevelSummary.mockClear();
+    expect(await meta('zzz')).toEqual({});
+    expect(await meta('beginner', 'xx')).toEqual({});
+    expect(fetchLevelSummary).not.toHaveBeenCalled();
   });
 });

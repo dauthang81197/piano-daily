@@ -10,6 +10,7 @@ import {
   type PublicGenre,
   type PublicSheetDetail,
   type PublicSheetItem,
+  type SitemapEntries,
   type PublicSheetListQuery,
   publicSheetListQuerySchema,
   sheetIdParamSchema,
@@ -35,6 +36,14 @@ export class PublicSheetsController {
   @Get('sheets')
   list(@Query({ schema: publicSheetListQuerySchema }) query: PublicSheetListQuery): Promise<Page<PublicSheetItem>> {
     return this.service.list(query);
+  }
+
+  /** Dữ liệu cho `sitemap.xml` của web (Story 2.11); web SSR được miễn throttle qua secret nội bộ. */
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('sitemap-entries')
+  sitemapEntries(): Promise<SitemapEntries> {
+    return this.service.sitemapEntries();
   }
 
   @Get('sheets/facets')

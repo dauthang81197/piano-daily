@@ -12,7 +12,7 @@ import { Link } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
 import { fetchLevelSheets, fetchLevelSummary } from '@/lib/catalog';
 import { levelHref, parseGenre, parseLevelSlug, parsePage, parseSort } from '@/lib/query';
-import { localeAlternates } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 
 type Props = {
   params: Promise<{ locale: string; level: string }>;
@@ -25,10 +25,16 @@ export async function generateMetadata({ params }: Pick<Props, 'params'>): Promi
   if (!hasLocale(routing.locales, locale) || !level) return {};
   const nav = await getTranslations({ locale, namespace: 'Nav' });
   const t = await getTranslations({ locale, namespace: 'Level' });
-  return {
-    title: t('heroTitle', { level: nav(`levels.${level}`) }),
-    alternates: localeAlternates(`/level/${level}`, locale),
-  };
+  const seo = await getTranslations({ locale, namespace: 'Seo' });
+  const levelName = nav(`levels.${level}`);
+  // Tổng số bài lấy từ summary (cùng tag/URL với trang nên Next gộp request).
+  const { total } = await fetchLevelSummary(level);
+  return pageMetadata({
+    locale,
+    path: `/level/${level}`,
+    title: t('heroTitle', { level: levelName }),
+    description: seo('levelDescription', { count: total, level: levelName }),
+  });
 }
 
 export default async function LevelPage({ params, searchParams }: Props) {

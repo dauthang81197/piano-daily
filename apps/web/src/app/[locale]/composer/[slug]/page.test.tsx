@@ -100,6 +100,10 @@ describe('ComposerPage', () => {
 });
 
 describe('generateMetadata', () => {
+  beforeEach(() => {
+    fetchComposer.mockReset().mockResolvedValue(item);
+  });
+
   const meta = () =>
     generateMetadata({ params: Promise.resolve({ locale: 'en', slug: 'bach' }) });
 
@@ -113,5 +117,26 @@ describe('generateMetadata', () => {
   it('slug không tồn tại: metadata rỗng', async () => {
     fetchComposer.mockResolvedValue(null);
     expect(await meta()).toEqual({});
+  });
+
+  it('description = bio của Composer; OG có ảnh avatar; hreflang vi/en', async () => {
+    const m = await meta();
+    expect(m.description).toBe('Baroque master');
+    expect(m.openGraph).toMatchObject({
+      type: 'website',
+      locale: 'en_US',
+      images: [{ url: 'http://cdn/a.webp' }],
+      url: expect.stringMatching(/\/en\/composer\/bach$/),
+    });
+    expect(m.twitter).toMatchObject({ card: 'summary_large_image' });
+    expect(m.alternates?.languages).toMatchObject({ vi: '/vi/composer/bach', en: '/en/composer/bach' });
+  });
+
+  it('không có bio: mô tả mặc định theo tên; không có avatar: không bịa ảnh', async () => {
+    fetchComposer.mockResolvedValue({ ...item, bio: '  ', avatarUrl: null });
+    const m = await meta();
+    expect(m.description).toBe('composerDescription:Bach');
+    expect((m.openGraph as Record<string, unknown>).images).toBeUndefined();
+    expect(m.twitter).toMatchObject({ card: 'summary' });
   });
 });

@@ -5,14 +5,16 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { routing } from '@/i18n/routing';
 import { LEVELS } from '@/lib/levels';
-import { localeAlternates } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 
 type Props = { params: Promise<{ locale: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) return {};
-  return { alternates: localeAlternates('/', locale) };
+  const meta = await getTranslations({ locale, namespace: 'Meta' });
+  const seo = await getTranslations({ locale, namespace: 'Seo' });
+  return pageMetadata({ locale, path: '/', title: meta('title'), description: seo('homeDescription'), absoluteTitle: true });
 }
 
 export default async function HomePage({ params }: Props) {

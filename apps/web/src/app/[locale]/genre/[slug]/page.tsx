@@ -10,7 +10,7 @@ import { SortLinks } from '@/components/catalog/sort-links';
 import { routing } from '@/i18n/routing';
 import { fetchGenre, fetchGenreSheets } from '@/lib/catalog';
 import { genreHref, parsePage, parseSort } from '@/lib/query';
-import { localeAlternates } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -23,10 +23,15 @@ export async function generateMetadata({ params }: Pick<Props, 'params'>): Promi
   const genre = await fetchGenre(slug);
   if (!genre) return {};
   const t = await getTranslations({ locale, namespace: 'Genre' });
-  return {
+  const seo = await getTranslations({ locale, namespace: 'Seo' });
+  // Tổng số bài lấy từ trang đầu theo thứ tự mặc định (cùng URL/tag với trang nên Next gộp request khi trùng).
+  const { total } = await fetchGenreSheets(genre, { page: 1, sort: 'newest' });
+  return pageMetadata({
+    locale,
+    path: genreHref(genre.slug),
     title: t('title', { name: genre.name }),
-    alternates: localeAlternates(genreHref(genre.slug), locale),
-  };
+    description: seo('genreDescription', { name: genre.name, count: total }),
+  });
 }
 
 export default async function GenrePage({ params, searchParams }: Props) {

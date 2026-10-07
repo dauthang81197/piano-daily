@@ -10,6 +10,7 @@ import {
   fetchSearch,
   fetchPreviewSheet,
   fetchSheetDetail,
+  fetchSitemapEntries,
 } from './catalog';
 
 describe('catalog fetchers', () => {
@@ -165,5 +166,22 @@ describe('catalog fetchers', () => {
       fetchMock.mockImplementation(async () => json({ nope: true }));
       await expect(fetchPreviewSheet('id', 't')).rejects.toThrow();
     });
+  });
+  it('fetchSitemapEntries gắn tag sitemap (Story 2.3 revalidate), force-cache, parse hợp đồng', async () => {
+    fetchMock.mockImplementation(async () =>
+      json({ sheets: [{ slug: 'a', updatedAt: '2026-10-01T00:00:00.000Z' }], composers: [], genres: [] }),
+    );
+    expect((await fetchSitemapEntries()).sheets[0]!.slug).toBe('a');
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('http://api:4000/sitemap-entries');
+    expect(init.next.tags).toEqual(['sitemap']);
+    expect(init.cache).toBe('force-cache');
+  });
+
+  it('fetchSitemapEntries: lỗi API hoặc body sai hợp đồng thì ném (không trả sitemap rỗng)', async () => {
+    fetchMock.mockImplementation(async () => json({}, 500));
+    await expect(fetchSitemapEntries()).rejects.toThrow('500');
+    fetchMock.mockImplementation(async () => json({ nope: true }));
+    await expect(fetchSitemapEntries()).rejects.toThrow();
   });
 });

@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { routing } from '@/i18n/routing';
+import { siteUrl } from '@/lib/site';
 import { beVietnamPro, playfairDisplay } from '../fonts';
 import '../globals.css';
 
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: Pick<Props, 'params'>): Promi
   if (!hasLocale(routing.locales, locale)) return {};
   const t = await getTranslations({ locale, namespace: 'Meta' });
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4100'),
+    metadataBase: new URL(siteUrl()),
     title: { default: t('title'), template: `%s | ${t('title')}` },
     description: t('description'),
   };

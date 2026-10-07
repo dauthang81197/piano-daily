@@ -22,7 +22,7 @@ import {
   searchHref,
   type SearchQueryState,
 } from '@/lib/query';
-import { localeAlternates } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type Props = {
@@ -41,11 +41,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     const value = query[key];
     return Array.isArray(value) ? value.length > 0 : Boolean(value);
   });
-  return {
+  const seo = await getTranslations({ locale, namespace: 'Seo' });
+  return pageMetadata({
+    locale,
+    path: '/search',
     title: t('title'),
-    alternates: localeAlternates('/search', locale),
+    description: seo('searchDescription'),
     ...(filtered ? { robots: { index: false, follow: true } } : {}),
-  };
+  });
 }
 
 const linkClass =

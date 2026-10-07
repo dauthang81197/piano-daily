@@ -158,5 +158,18 @@
     "title": "Xem trước: {title}",
     "banner": "Bản xem trước — chưa công khai. Bất kỳ ai có liên kết này đều xem được cho tới khi nó hết hạn sau 10 phút; đừng chia sẻ.",
     "loading": "Đang tải bản xem trước"
+  },
+  "Seo": {
+    "homeDescription": "Thư viện sheet piano sắp xếp theo trình độ: xem ảnh từng trang, nghe thử MIDI và xem video hướng dẫn.",
+    "levelDescription": "{count} bài sheet piano trình độ {level}: xem ảnh từng trang, nghe thử MIDI và xem video hướng dẫn.",
+    "searchDescription": "Tìm sheet piano theo tên bài, Composer, lời bài hát hoặc mã số, và lọc theo trình độ, thể loại, định dạng.",
+    "genreDescription": "{count} bài sheet piano thể loại {name}: xem ảnh từng trang, nghe thử MIDI và xem video hướng dẫn.",
+    "composerDescription": "Sheet piano của {name}: xem ảnh từng trang, nghe thử MIDI và xem video hướng dẫn.",
+    "sheetDescription": "{title} của {composer}: sheet piano trình độ {level}{parts}.",
+    "sheetParts": ", gồm {list}",
+    "partPages": "ảnh từng trang",
+    "partMidi": "bản nghe thử MIDI",
+    "partVideo": "video hướng dẫn",
+    "partLyrics": "lời và hợp âm"
   }
 }

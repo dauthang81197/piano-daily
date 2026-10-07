@@ -127,4 +127,13 @@ describe('generateMetadata', () => {
     expect((await meta({})).robots).toBeUndefined();
     expect((await meta({})).alternates?.canonical).toBe('/en/search');
   });
+
+  it('có description và Open Graph; vẫn canonical dù noindex khi có bộ lọc', async () => {
+    const unfiltered = await meta({});
+    expect(unfiltered.description).toBe('searchDescription');
+    expect(unfiltered.openGraph).toMatchObject({ type: 'website', locale: 'en_US' });
+    const filtered = await meta({ genre: 'jazz' });
+    expect(filtered.robots).toEqual({ index: false, follow: true });
+    expect(filtered.alternates?.canonical).toBe('/en/search');
+  });
 });

@@ -14,6 +14,7 @@ import {
   MP3_TOO_LARGE_MESSAGE,
   MP3_WRONG_TYPE_MESSAGE,
   type Page,
+  PURCHASABLE_FILE_TYPES,
   PDF_MAX_BYTES,
   PDF_TOO_LARGE_MESSAGE,
   PDF_WRONG_TYPE_MESSAGE,
@@ -39,6 +40,7 @@ import {
 } from '../media/sheet-media.service';
 import { StorageService } from '../media/storage.service';
 import { notFound } from './catalog.helpers';
+import { computeQuote, isMonetisable, PRICE_SELECT } from './pricing.service';
 import { CacheInvalidator } from './cache-invalidator';
 import { isPrismaError } from './prisma-errors';
 import { recomputeDerived } from './sheet-derived';
@@ -67,6 +69,7 @@ const SELECT = {
   pageCount: true,
   viewCount: true,
   isHot: true,
+  ...PRICE_SELECT,
   status: true,
   firstPublishedAt: true,
   createdAt: true,
@@ -171,6 +174,33 @@ function toListItem({ level, status, updatedAt, ...row }: SheetListRow): SheetLi
 
 function validationFailed(details?: ValidationDetail[]): AppException {
   return new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, details);
+}
+
+const PRICE_FIELDS = ['isFree', 'pricePdfCents', 'priceMidiCents', 'priceMp3Cents', 'priceBundleCents'] as const;
+
+/** Sheet có miễn phí hoặc có ít nhất một type mua được (giá > 0 và có file hiện hành) không. */
+async function isSheetMonetisable(tx: Prisma.TransactionClient, sheetId: string): Promise<boolean> {
+  const sheet = await tx.sheet.findUniqueOrThrow({
+    where: { id: sheetId },
+    select: {
+      ...PRICE_SELECT,
+      files: { where: { supersededAt: null, type: { in: PURCHASABLE_FILE_TYPES.slice() } }, select: { type: true } },
+    },
+  });
+  return isMonetisable(computeQuote(sheetId, sheet, new Set(sheet.files.map((f) => f.type))));
+}
+
+/** Sheet công khai phải miễn phí hoặc có ít nhất một type mua được. */
+async function assertMonetisable(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  fail: (details: ValidationDetail[]) => AppException,
+): Promise<void> {
+  if (!(await isSheetMonetisable(tx, sheetId))) {
+    throw fail([
+      { path: 'price', message: 'Sheet không miễn phí cần ít nhất một loại file có giá lớn hơn 0 và đã tải lên.' },
+    ]);
+  }
 }
 
 function publishValidationFailed(details: ValidationDetail[]): AppException {
@@ -314,6 +344,11 @@ export class SheetsService {
               description: body.description ?? null,
               lyricsChords: body.lyricsChords ?? null,
               youtubeUrl: body.youtubeUrl ?? null,
+              isFree: body.isFree ?? false,
+              pricePdfCents: body.pricePdfCents ?? null,
+              priceMidiCents: body.priceMidiCents ?? null,
+              priceMp3Cents: body.priceMp3Cents ?? null,
+              priceBundleCents: body.priceBundleCents ?? null,
             },
             select: { id: true },
           });
@@ -364,13 +399,19 @@ export class SheetsService {
         if (!locked.length) throw notFound(SHEET_NOT_FOUND);
         const lockedState = await tx.sheet.findUniqueOrThrow({
           where: { id },
-          select: { title: true, firstPublishedAt: true },
+          select: { title: true, firstPublishedAt: true, status: true },
         });
         // Publish and title edits serialize on this row. A request that began as Draft cannot
         // overwrite the slug if publish wins the lock first.
         const lockedSlug = body.title !== undefined && body.title !== lockedState.title && lockedState.firstPublishedAt === null
           ? slug
           : undefined;
+        // Form luôn gửi đủ trường giá: chỉ chặn khi PATCH làm một Sheet đang bán được thành không bán được,
+        // để Sheet cũ chưa có giá (hoặc vừa gỡ file cuối) vẫn sửa được tiêu đề/mô tả.
+        const guardMonetisable =
+          PRICE_FIELDS.some((f) => body[f] !== undefined) &&
+          lockedState.status === 'PUBLISHED' &&
+          (await isSheetMonetisable(tx, id));
         await tx.sheet.update({
           where: { id },
           data: {
@@ -385,9 +426,16 @@ export class SheetsService {
             description: body.description,
             lyricsChords: body.lyricsChords,
             youtubeUrl: body.youtubeUrl,
+            isFree: body.isFree,
+            pricePdfCents: body.pricePdfCents,
+            priceMidiCents: body.priceMidiCents,
+            priceMp3Cents: body.priceMp3Cents,
+            priceBundleCents: body.priceBundleCents,
           },
           select: { id: true },
         });
+        // Sheet đang công khai không được rơi vào trạng thái không-free-và-không-mua-được; throw để rollback.
+        if (guardMonetisable) await assertMonetisable(tx, id, validationFailed);
         if (body.genreIds !== undefined) {
           await tx.sheetGenre.deleteMany({ where: { sheetId: id } });
           if (body.genreIds.length) {
@@ -441,6 +489,7 @@ export class SheetsService {
           if (!sheet.composerId) details.push({ path: 'composerId', message: 'Cần chọn Composer.' });
           if (!sheet.level) details.push({ path: 'level', message: 'Cần chọn Level.' });
           if (details.length) throw publishValidationFailed(details);
+          await assertMonetisable(tx, id, publishValidationFailed);
         }
         await tx.sheet.update({
           where: { id },

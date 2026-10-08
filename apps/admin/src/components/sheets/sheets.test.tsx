@@ -46,6 +46,11 @@ const SHEET: Sheet = {
   mp3: null,
   viewCount: 0,
   isHot: false,
+  isFree: false,
+  pricePdfCents: null,
+  priceMidiCents: null,
+  priceMp3Cents: null,
+  priceBundleCents: null,
   status: 'DRAFT',
   firstPublishedAt: null,
   createdAt: '2026-09-29T01:00:00.000Z',
@@ -340,6 +345,11 @@ describe('Trang tạo Sheet', () => {
       lyricsChords: '## Đoạn A',
       youtubeUrl: `https://www.youtube.com/watch?v=${VIDEO_ID}`,
       genreIds: [CLASSICAL.id],
+      isFree: false,
+      pricePdfCents: null,
+      priceMidiCents: null,
+      priceMp3Cents: null,
+      priceBundleCents: null,
     });
   });
 
@@ -526,6 +536,85 @@ describe('Trang sửa Sheet', () => {
       lyricsChords: '## Đoạn A',
       youtubeUrl: `https://www.youtube.com/watch?v=${VIDEO_ID}`,
       genreIds: [CLASSICAL.id, POP.id],
+      isFree: false,
+      pricePdfCents: null,
+      priceMidiCents: null,
+      priceMp3Cents: null,
+      priceBundleCents: null,
+    });
+  });
+
+  describe('Giá bán (Story 3.1)', () => {
+    const fillRequired = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.type(screen.getByLabelText('Tiêu đề'), 'X');
+      await choose(user, 'Composer', 'Beethoven');
+      await choose(user, 'Cấp độ', 'Cơ bản');
+    };
+
+    it('nhập USD -> gửi cents nguyên; ô trống -> null', async () => {
+      const fetchMock = await signIn((url, init) =>
+        url.pathname === '/admin/sheets' && init.method === 'POST' ? jsonResponse(201, SHEET) : undefined,
+      );
+      render(<SheetCreatePage />);
+      const user = userEvent.setup();
+      await fillRequired(user);
+      await user.type(screen.getByLabelText('Giá PDF (USD)'), '4.99');
+      await user.type(screen.getByLabelText('Giá MIDI (USD)'), '2');
+      await user.type(screen.getByLabelText('Giá Bundle (USD)'), '0.5');
+      await user.click(screen.getByRole('button', { name: 'Tạo Sheet' }));
+      await waitFor(() => expect(requests(fetchMock, 'POST', '/admin/sheets')).toHaveLength(1));
+      expect(JSON.parse(String(requests(fetchMock, 'POST', '/admin/sheets')[0]!.init.body))).toMatchObject({
+        isFree: false,
+        pricePdfCents: 499,
+        priceMidiCents: 200,
+        priceMp3Cents: null,
+        priceBundleCents: 50,
+      });
+    });
+
+    it.each(['4,5', '-1', '1.234', '1001'])('giá "%s" -> lỗi tại ô, không gọi API', async (bad) => {
+      const fetchMock = await signIn(() => undefined);
+      render(<SheetCreatePage />);
+      const user = userEvent.setup();
+      await fillRequired(user);
+      await user.type(screen.getByLabelText('Giá PDF (USD)'), bad);
+      await user.click(screen.getByRole('button', { name: 'Tạo Sheet' }));
+      expect(await screen.findByText(/Nhập giá USD hợp lệ/)).toBeInTheDocument();
+      expect(requests(fetchMock, 'POST', '/admin/sheets')).toHaveLength(0);
+    });
+
+    it('tick Miễn phí -> các ô giá bị vô hiệu nhưng giá đã nhập vẫn được gửi', async () => {
+      const fetchMock = await signIn((url, init) =>
+        url.pathname === '/admin/sheets' && init.method === 'POST' ? jsonResponse(201, SHEET) : undefined,
+      );
+      render(<SheetCreatePage />);
+      const user = userEvent.setup();
+      await fillRequired(user);
+      await user.type(screen.getByLabelText('Giá PDF (USD)'), '3');
+      expect(screen.getByLabelText('Giá PDF (USD)')).toBeEnabled();
+      await user.click(screen.getByRole('checkbox', { name: /Miễn phí/ }));
+      for (const label of ['Giá PDF (USD)', 'Giá MIDI (USD)', 'Giá MP3 (USD)', 'Giá Bundle (USD)']) {
+        expect(screen.getByLabelText(label)).toBeDisabled();
+      }
+      await user.click(screen.getByRole('button', { name: 'Tạo Sheet' }));
+      await waitFor(() => expect(requests(fetchMock, 'POST', '/admin/sheets')).toHaveLength(1));
+      expect(JSON.parse(String(requests(fetchMock, 'POST', '/admin/sheets')[0]!.init.body))).toMatchObject({
+        isFree: true,
+        pricePdfCents: 300,
+      });
+    });
+
+    it('trang sửa hiển thị lại cents thành USD hai chữ số', async () => {
+      await signIn((url) =>
+        url.pathname === `/admin/sheets/${SHEET.id}`
+          ? jsonResponse(200, { ...SHEET, pricePdfCents: 499, priceMp3Cents: 5, priceBundleCents: 100_000 })
+          : undefined,
+      );
+      render(<SheetEditPage id={SHEET.id} />);
+      expect(await screen.findByLabelText('Giá PDF (USD)')).toHaveValue('4.99');
+      expect(screen.getByLabelText('Giá MP3 (USD)')).toHaveValue('0.05');
+      expect(screen.getByLabelText('Giá Bundle (USD)')).toHaveValue('1000.00');
+      expect(screen.getByLabelText('Giá MIDI (USD)')).toHaveValue('');
     });
   });
 

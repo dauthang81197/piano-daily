@@ -6,6 +6,7 @@ import { ComposersController } from './composers.controller';
 import { ComposersService } from './composers.service';
 import { GenresController } from './genres.controller';
 import { GenresService } from './genres.service';
+import { PricingService } from './pricing.service';
 import { PublicSheetsController } from './public-sheets.controller';
 import { PublicSheetsService } from './public-sheets.service';
 import { SeriesController } from './series.controller';
@@ -23,6 +24,6 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 @Module({
   imports: [MediaModule, IdentityModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
-  providers: [CacheInvalidator, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
+  providers: [CacheInvalidator, PricingService, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
 })
 export class CatalogModule {}

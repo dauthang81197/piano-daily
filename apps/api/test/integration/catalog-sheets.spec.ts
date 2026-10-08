@@ -281,6 +281,7 @@ describe('/admin/sheets (Postgres thật)', () => {
     it('thiếu PDF trả 422; đủ điều kiện publish, HOT, status transitions và slug freeze', async () => {
       const composer = await createComposer('Bach');
       const sheet = await createSheet({ title: 'Draft Piece', composerId: composer.id, level: 'BEGINNER' });
+      await patch(`/admin/sheets/${sheet.id}`, { pricePdfCents: 299 }).expect(200);
       const missing = errorOf(await patch(`/admin/sheets/${sheet.id}/status`, { status: 'PUBLISHED' }).expect(422));
       expect(missing.code).toBe('VALIDATION_FAILED');
       expect(missing.details).toEqual(expect.arrayContaining([expect.objectContaining({ path: 'pdf' })]));

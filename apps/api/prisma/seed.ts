@@ -149,6 +149,25 @@ async function seedTaxonomy({ prisma, composers, genres, series }: Services) {
   return { composerIds, genreIds, seriesIds };
 }
 
+/**
+ * Giá mẫu (Story 3.1): cứ 3 Sheet có 1 Sheet miễn phí, còn lại có giá lẻ + Bundle. Chỉ ghi khi Sheet chưa
+ * có cấu hình giá nào, để seed chạy lại không đè giá founder đã sửa.
+ */
+async function seedPricing(prisma: Services['prisma'], sheetId: string, index: number): Promise<void> {
+  const isFree = index % 3 === 2;
+  await prisma.sheet.updateMany({
+    where: {
+      id: sheetId,
+      isFree: false,
+      pricePdfCents: null,
+      priceMidiCents: null,
+      priceMp3Cents: null,
+      priceBundleCents: null,
+    },
+    data: isFree ? { isFree: true } : { pricePdfCents: 299, priceMidiCents: 199, priceMp3Cents: 199, priceBundleCents: 499 },
+  });
+}
+
 async function seedSheets(services: Services, ids: Awaited<ReturnType<typeof seedTaxonomy>>): Promise<void> {
   const { prisma, sheets } = services;
   let createdSheets = 0;
@@ -200,6 +219,8 @@ async function seedSheets(services: Services, ids: Awaited<ReturnType<typeof see
       await sheets.attachFile(sheet.id, 'MP3', { buffer: makeMp3(label), originalName: `${label}.mp3` });
       attached++;
     }
+
+    await seedPricing(prisma, sheet.id, index);
 
     // Story 1.8 (publish) chưa vào develop: ghi thẳng trạng thái, và chỉ khi đã có PDF hiện hành.
     if (item.status === 'PUBLISHED' && sheet.status === 'DRAFT' && sheet.firstPublishedAt === null && has.has('PDF')) {

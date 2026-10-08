@@ -145,6 +145,12 @@ model Sheet {
   pageCount        Int                      @default(0) @map("page_count")
   viewCount        Int                      @default(0) @map("view_count")
   isHot            Boolean                  @default(false) @map("is_hot")
+  /// Miễn phí: bỏ qua giá riêng lẻ (vẫn giữ giá đã nhập). Giá là cents USD, null/0 = không bán.
+  isFree           Boolean                  @default(false) @map("is_free")
+  pricePdfCents    Int?                     @map("price_pdf_cents")
+  priceMidiCents   Int?                     @map("price_midi_cents")
+  priceMp3Cents    Int?                     @map("price_mp3_cents")
+  priceBundleCents Int?                     @map("price_bundle_cents")
   status           SheetStatus              @default(DRAFT)
   firstPublishedAt DateTime?                @map("first_published_at") @db.Timestamptz(6)
   createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)

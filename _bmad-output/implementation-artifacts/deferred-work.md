@@ -61,3 +61,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-11-seo-metadata-json-ld-va-sitemap.md`
   summary: Điều tra test tích hợp API chập chờn khi chạy cả bộ (`pnpm exec turbo run test --concurrency=1`).
   evidence: Ba lần (Story 2.8, 2.10, 2.11) có đúng một test thuộc nhóm `catalog-*` fail ở lần chạy cả bộ đầu tiên (`catalog-sheets.spec.ts`: timeout 20 giây và một ca `genreIds`; `catalog-taxonomy.spec.ts`: "xoá Composer không có Series -> 204"), nhưng chạy riêng file đó hoặc chạy lại cả bộ đều qua. Nghi do tải máy sau bước build/lint, hoặc dữ liệu còn sót giữa các file dùng chung một DB test. Chưa có bằng chứng nguyên nhân; cần chạy lặp nhiều lần có ghi log để tìm.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-dat-gia-sheet-va-danh-dau-mien-phi.md`
+  summary: Gỡ file (PDF/MIDI/MP3) cuối cùng làm Sheet PUBLISHED không free mất type mua được vẫn được phép.
+  evidence: Story 3.1 chỉ kiểm tra khả năng bán khi publish và khi PATCH giá/Miễn phí; `removeFile` chưa kiểm tra, quote sẽ trả `items` rỗng cho tới khi founder sửa.

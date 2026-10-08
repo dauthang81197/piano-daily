@@ -107,6 +107,14 @@ describe('Tự làm mới cache web (Postgres + web giả)', () => {
     );
   });
 
+  it('đổi giá / Miễn phí của Sheet PUBLISHED phát tag (Story 3.1)', async () => {
+    const sheet = await createSheet('Pricing change');
+    await publish(sheet.id);
+    await auth(api().patch(`/admin/sheets/${sheet.id}`)).send({ isFree: true }).expect(200);
+    await waitForCalls(1);
+    expect(calls[0]!.tags).toEqual(expect.arrayContaining([`sheet:${sheet.id}`, 'search']));
+  });
+
   it('đổi Composer: tag của cả hai Composer', async () => {
     const sheet = await createSheet('Composer change');
     await publish(sheet.id);
@@ -160,6 +168,7 @@ describe('Tự làm mới cache web (Postgres + web giả)', () => {
     await file('PDF', 'pdf', 'application/pdf');
     await file('THUMBNAIL', 'webp', 'image/webp');
     await file('PAGE_IMAGE', 'webp', 'image/webp');
+    await prisma.sheet.update({ where: { id: sheet.id }, data: { pricePdfCents: 299 } });
     await settle();
     expect(calls).toEqual([]);
 

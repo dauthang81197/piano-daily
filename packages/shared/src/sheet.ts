@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, pageSchema } from './catalog';
+import { priceCentsSchema } from './pricing';
 
 /**
  * Hợp đồng API Sheet (module `catalog`), Story 1.5: tạo và sửa thông tin Sheet ở trạng thái Draft.
@@ -171,6 +172,11 @@ const sheetFields = {
   lyricsChords: lyricsChordsSchema.optional(),
   youtubeUrl: youtubeUrlSchema.optional(),
   genreIds: genreIdsSchema.optional(),
+  isFree: z.boolean({ error: 'Giá trị Miễn phí không hợp lệ.' }).optional(),
+  pricePdfCents: priceCentsSchema.nullable().optional(),
+  priceMidiCents: priceCentsSchema.nullable().optional(),
+  priceMp3Cents: priceCentsSchema.nullable().optional(),
+  priceBundleCents: priceCentsSchema.nullable().optional(),
 };
 
 const UNKNOWN_KEY_ERROR = 'Trường này không được phép gửi lên.';
@@ -309,6 +315,11 @@ export const sheetSchema = z.object({
   mp3: sheetMp3Schema.nullable(),
   viewCount: z.number().int().nonnegative(),
   isHot: z.boolean(),
+  isFree: z.boolean(),
+  pricePdfCents: priceCentsSchema.nullable(),
+  priceMidiCents: priceCentsSchema.nullable(),
+  priceMp3Cents: priceCentsSchema.nullable(),
+  priceBundleCents: priceCentsSchema.nullable(),
   status: sheetStatusSchema,
   firstPublishedAt: z.string().nullable(),
   createdAt: z.string(),

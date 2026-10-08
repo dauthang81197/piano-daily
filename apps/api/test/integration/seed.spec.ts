@@ -5,6 +5,7 @@ import path from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaClient } from '../../src/generated/client';
+import { computeQuote } from '../../src/modules/catalog/pricing.service';
 import { SEED_SHEETS } from '../../prisma/seed-data';
 import { TEST_S3, TEST_S3_PUBLIC_BASE_URL } from './create-app';
 import { resolveTestDatabaseUrl } from './test-env';
@@ -112,6 +113,13 @@ describe('prisma/seed.ts (db:seed)', { timeout: 180_000 }, () => {
     expect(sheets.filter((x) => x.status === 'DRAFT')).toHaveLength(2);
     expect(sheets.filter((x) => x.status === 'PUBLISHED').every((x) => x.firstPublishedAt)).toBe(true);
     expect(await prisma.sheetFile.count({ where: { type: 'THUMBNAIL' } })).toBe(10);
+    // Giá mẫu (Story 3.1): mọi Sheet PUBLISHED đều miễn phí hoặc có ít nhất một type mua được.
+    const types = new Set(['PDF', 'MIDI', 'MP3']);
+    for (const sheet of sheets.filter((x) => x.status === 'PUBLISHED')) {
+      expect(computeQuote(sheet.id, sheet, types).free || computeQuote(sheet.id, sheet, types).items.length > 0, sheet.title).toBe(true);
+    }
+    expect(sheets.some((x) => x.isFree)).toBe(true);
+    expect(sheets.some((x) => !x.isFree && x.pricePdfCents === 299 && x.priceBundleCents === 499)).toBe(true);
   });
 
   it('chạy lại -> số bản ghi và số sheet_files không đổi', async () => {

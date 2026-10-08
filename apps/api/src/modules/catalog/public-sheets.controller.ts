@@ -10,6 +10,7 @@ import {
   type PublicGenre,
   type PublicSheetDetail,
   type PublicSheetItem,
+  type Quote,
   type SitemapEntries,
   type PublicSheetListQuery,
   publicSheetListQuerySchema,
@@ -20,6 +21,7 @@ import { getClientIp } from '../../common/http/client-ip';
 import { PreviewTokenService } from '../identity/preview-token.service';
 import { Public } from '../identity/public.decorator';
 import { UuidParamPipe } from './catalog.helpers';
+import { PricingService } from './pricing.service';
 import { PublicSheetsService } from './public-sheets.service';
 import { SheetViewsService } from './sheet-views.service';
 
@@ -31,6 +33,7 @@ export class PublicSheetsController {
     private readonly service: PublicSheetsService,
     private readonly views: SheetViewsService,
     private readonly previewTokens: PreviewTokenService,
+    private readonly pricing: PricingService,
   ) {}
 
   @Get('sheets')
@@ -87,6 +90,15 @@ export class PublicSheetsController {
   ): Promise<PublicSheetDetail> {
     if (!(await this.previewTokens.verify(token, id))) throw new NotFoundException('Không tìm thấy Sheet.');
     return this.service.detailForPreview(id);
+  }
+
+  /** Báo giá hiện tại (AD-17): luôn tính lại từ DB, không cache; Sheet không PUBLISHED → 404. */
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Header('Cache-Control', 'no-store')
+  @Get('sheets/:id/quote')
+  quote(@Param('id', UuidParamPipe) id: string): Promise<Quote> {
+    return this.pricing.quote(id);
   }
 
   @Get('composers/:slug')

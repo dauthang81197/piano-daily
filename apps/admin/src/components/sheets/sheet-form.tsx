@@ -5,10 +5,13 @@ import {
   createSheetSchema,
   DIFFICULTY_MAX,
   DIFFICULTY_MIN,
+  formatUsd,
   Level,
   LEVEL_LABELS,
+  parseUsdToCents,
   type Sheet,
   SHEET_STATUS_LABELS,
+  USD_INPUT_ERROR,
 } from '@piano-daily/shared';
 import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -28,6 +31,18 @@ import { YoutubePreview } from './youtube-preview';
 
 const S = createSheetSchema.shape;
 const DIFFICULTY_ERROR = `Độ khó phải là số nguyên từ ${DIFFICULTY_MIN} đến ${DIFFICULTY_MAX}.`;
+
+/** Ô giá USD ("4.99") → cents nguyên (xử lý chuỗi, không float); ô trống = không đặt giá. */
+const usdPriceSchema = z
+  .string()
+  .transform((value, ctx) => {
+    const cents = parseUsdToCents(value);
+    if (cents === undefined) {
+      ctx.issues.push({ code: 'custom', message: USD_INPUT_ERROR, input: value });
+      return z.NEVER;
+    }
+    return cents;
+  });
 
 /** Schema của form: dùng lại DTO shared; ô độ khó là chuỗi (ô trống = không đặt). Output là body gửi API. */
 export const sheetFormSchema = z.object({
@@ -53,6 +68,11 @@ export const sheetFormSchema = z.object({
   lyricsChords: S.lyricsChords,
   youtubeUrl: S.youtubeUrl,
   genreIds: S.genreIds,
+  isFree: z.boolean(),
+  pricePdfCents: usdPriceSchema,
+  priceMidiCents: usdPriceSchema,
+  priceMp3Cents: usdPriceSchema,
+  priceBundleCents: usdPriceSchema,
 });
 
 type FormInput = z.input<typeof sheetFormSchema>;
@@ -69,7 +89,21 @@ const FIELDS = [
   'lyricsChords',
   'youtubeUrl',
   'genreIds',
+  'isFree',
+  'pricePdfCents',
+  'priceMidiCents',
+  'priceMp3Cents',
+  'priceBundleCents',
 ] as const;
+
+const PRICE_INPUTS = [
+  { name: 'pricePdfCents', id: 'sheet-price-pdf', label: 'Giá PDF (USD)' },
+  { name: 'priceMidiCents', id: 'sheet-price-midi', label: 'Giá MIDI (USD)' },
+  { name: 'priceMp3Cents', id: 'sheet-price-mp3', label: 'Giá MP3 (USD)' },
+  { name: 'priceBundleCents', id: 'sheet-price-bundle', label: 'Giá Bundle (USD)' },
+] as const;
+
+const usdText = (cents: number | null | undefined) => (cents == null ? '' : formatUsd(cents));
 
 const NO_SERIES = 'none';
 const LEVEL_ITEMS = Object.values(Level).map((value) => ({ value, label: LEVEL_LABELS[value] }));
@@ -87,6 +121,11 @@ function defaults(sheet: Sheet | null): FormInput {
     lyricsChords: sheet?.lyricsChords ?? '',
     youtubeUrl: sheet?.youtubeUrl ?? '',
     genreIds: sheet?.genres.map((g) => g.id) ?? [],
+    isFree: sheet?.isFree ?? false,
+    pricePdfCents: usdText(sheet?.pricePdfCents),
+    priceMidiCents: usdText(sheet?.priceMidiCents),
+    priceMp3Cents: usdText(sheet?.priceMp3Cents),
+    priceBundleCents: usdText(sheet?.priceBundleCents),
   };
 }
 
@@ -116,6 +155,7 @@ export function SheetForm({ sheet, onSaved }: { sheet: Sheet | null; onSaved: (s
   const composerId = useWatch({ control, name: 'composerId' });
   const seriesId = useWatch({ control, name: 'seriesId' });
   const youtubeUrl = useWatch({ control, name: 'youtubeUrl' });
+  const isFree = useWatch({ control, name: 'isFree' });
 
   const composers = useComposerOptions(sheet?.composer);
   const series = useSeriesOptions(
@@ -344,6 +384,28 @@ export function SheetForm({ sheet, onSaved }: { sheet: Sheet | null; onSaved: (s
         />
         <YoutubePreview url={youtubeUrl} />
       </div>
+
+      <fieldset className="flex flex-col gap-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Giá bán (USD)</legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4" {...register('isFree')} />
+          Miễn phí (bỏ qua giá riêng lẻ; giá đã nhập vẫn được giữ)
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {PRICE_INPUTS.map(({ name, id, label }) => (
+            <FormField
+              key={id}
+              id={id}
+              label={label}
+              inputMode="decimal"
+              placeholder="Ví dụ 4.99 (để trống nếu không bán)"
+              disabled={isFree}
+              error={errors[name]?.message}
+              {...register(name)}
+            />
+          ))}
+        </div>
+      </fieldset>
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
         <p role="status" className="text-sm text-muted-foreground">

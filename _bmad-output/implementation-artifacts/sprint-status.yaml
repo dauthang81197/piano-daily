@@ -47,7 +47,7 @@ development_status:
   1-9-seed-du-lieu-mau: review
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-khung-site-cong-khai-song-ngu: review
   2-2-trang-duyet-theo-level: review
   2-3-tu-lam-moi-cache-khi-admin-thay-doi-noi-dung: review
@@ -58,11 +58,11 @@ development_status:
   2-8-midi-player-voi-phim-dan-ao: done
   2-9-nghe-nhanh-ngay-tren-the-sheet: done
   2-10-xem-truoc-sheet-draft-tu-admin: done
-  2-11-seo-metadata-json-ld-va-sitemap: review
+  2-11-seo-metadata-json-ld-va-sitemap: done
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-dat-gia-sheet-va-danh-dau-mien-phi: backlog
+  epic-3: in-progress
+  3-1-dat-gia-sheet-va-danh-dau-mien-phi: review
   3-2-tai-ngay-sheet-mien-phi: backlog
   3-3-tao-don-hang-paypal-phia-server: backlog
   3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent: backlog

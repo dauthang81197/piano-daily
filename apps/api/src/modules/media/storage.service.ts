@@ -15,6 +15,9 @@ import type { Env } from '../../config/env';
 /** TTL mặc định của presigned URL cho preview MP3 (5 phút, tinh thần AD-6: "chỉ phát signed URL ngắn hạn"). */
 const DEFAULT_PRESIGN_TTL_SECONDS = 300;
 
+/** Tên file tải xuống an toàn để đặt vào header: ASCII chữ, số, `.`, `_`, `-`. */
+const SAFE_DOWNLOAD_NAME = /^[A-Za-z0-9._-]{1,200}$/;
+
 /** Vùng lưu trữ: prefix đầu tiên của key quyết định bucket. */
 export type StorageZone = 'public' | 'private';
 
@@ -118,12 +121,18 @@ export class StorageService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Presigned GET URL ngắn hạn cho object private (admin preview MP3, AD-6). Chỉ nhận key `private/`;
-   * tính HMAC cục bộ (không round-trip S3). Sinh lại mỗi lần gọi, không lưu DB.
+   * Presigned GET URL ngắn hạn cho object private (admin preview MP3, tải file, AD-6). Chỉ nhận key `private/`;
+   * tính HMAC cục bộ (không round-trip S3). Sinh lại mỗi lần gọi, không lưu DB. Có `downloadName` thì URL ép trình
+   * duyệt tải xuống (`Content-Disposition: attachment`) với tên file đó; tên phải là ASCII không có `"` hay `\`.
    */
-  presignPrivateUrl(key: string, ttlSeconds = DEFAULT_PRESIGN_TTL_SECONDS): Promise<string> {
+  presignPrivateUrl(key: string, ttlSeconds = DEFAULT_PRESIGN_TTL_SECONDS, downloadName?: string): Promise<string> {
     if (zoneOf(key) !== 'private') throw new Error('presignPrivateUrl chỉ nhận key private/');
-    const command = new GetObjectCommand({ Bucket: this.buckets.private, Key: key });
+    if (downloadName !== undefined && !SAFE_DOWNLOAD_NAME.test(downloadName)) throw new Error('downloadName không hợp lệ');
+    const command = new GetObjectCommand({
+      Bucket: this.buckets.private,
+      Key: key,
+      ...(downloadName ? { ResponseContentDisposition: `attachment; filename="${downloadName}"` } : {}),
+    });
     return getSignedUrl(this.client, command, { expiresIn: ttlSeconds });
   }
 

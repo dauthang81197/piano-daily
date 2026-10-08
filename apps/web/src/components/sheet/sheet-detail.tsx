@@ -4,6 +4,7 @@ import { LEVEL_BADGE, badge } from '@/components/catalog/sheet-card';
 import { Link } from '@/i18n/navigation';
 import { genreHref, sheetHref } from '@/lib/query';
 import { Breadcrumb } from './breadcrumb';
+import { AudioDownloadCallout, availableDownloads, DownloadButtons } from './download-buttons';
 import { Lyrics } from './lyrics';
 import { PlayerSlot } from './player-slot';
 import { YoutubeEmbed } from './youtube-embed';
@@ -34,13 +35,16 @@ function SheetLinks({ title, items }: { title: string; items: PublicSheetItem[] 
 
 /**
  * Thân trang chi tiết Sheet (UX-DR22): breadcrumb → H1 → meta → vị trí player → ảnh trang → video → Lyrics & Chords;
- * sidebar "cùng Series" và "liên quan". Không tự gọi API (Story 2.10 dùng lại với dữ liệu preview). Không có nút Download.
+ * sidebar "cùng Series" và "liên quan". Không tự gọi API (Story 2.10 dùng lại với dữ liệu preview). Sheet miễn phí có
+ * nút tải trực tiếp (Story 3.2); `showDownloads={false}` (route preview Draft) ẩn mọi nút tải.
  */
-export function SheetDetail({ sheet }: { sheet: PublicSheetDetail }) {
+export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicSheetDetail; showDownloads?: boolean }) {
   const t = useTranslations('Sheet');
   const nav = useTranslations('Nav');
   const format = useFormatter();
   const levelSlug = sheet.level.toLowerCase();
+  const downloads = availableDownloads(sheet, showDownloads);
+  const hasPdf = downloads.includes('PDF');
 
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
@@ -117,6 +121,12 @@ export function SheetDetail({ sheet }: { sheet: PublicSheetDetail }) {
                 ))}
               </ul>
             ) : null}
+
+            {downloads.length > 0 ? (
+              <section aria-label={t('downloadGroup')}>
+                <DownloadButtons sheetId={sheet.id} title={sheet.title} types={downloads} />
+              </section>
+            ) : null}
           </header>
 
           <PlayerSlot midi={sheet.midi} title={sheet.title} />
@@ -141,12 +151,20 @@ export function SheetDetail({ sheet }: { sheet: PublicSheetDetail }) {
             </section>
           ) : null}
 
+          <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={downloads} />
+
           <YoutubeEmbed url={sheet.youtubeUrl} title={sheet.title} />
           <Lyrics markdown={sheet.lyricsChords} />
         </article>
 
-        {sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
+        {hasPdf || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
           <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter">
+            {hasPdf ? (
+              <section aria-label={t('pdfSidebarTitle')} className="flex flex-col gap-3">
+                <h2 className="font-display text-headline-sm text-on-surface">{t('pdfSidebarTitle')}</h2>
+                <DownloadButtons sheetId={sheet.id} title={sheet.title} types={['PDF']} />
+              </section>
+            ) : null}
             <SheetLinks title={t('seriesSheets')} items={sheet.seriesSheets} />
             <SheetLinks title={t('related')} items={sheet.related} />
           </aside>

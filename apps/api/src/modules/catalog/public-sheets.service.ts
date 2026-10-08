@@ -12,6 +12,7 @@ import {
   SERIES_SHEETS_MAX,
   type PublicSheetItem,
   type PublicSheetListQuery,
+  PURCHASABLE_FILE_TYPES,
   type SitemapEntries,
   SheetStatus,
 } from '@piano-daily/shared';
@@ -170,11 +171,15 @@ export class PublicSheetsService {
         pageCount: true,
         viewCount: true,
         isHot: true,
+        isFree: true,
         updatedAt: true,
         youtubeUrl: true,
         lyricsChords: true,
         files: {
-          where: { type: { in: [FileType.PAGE_IMAGE, FileType.MIDI, FileType.MIDI_JSON] }, supersededAt: null },
+          where: {
+            type: { in: [FileType.PAGE_IMAGE, FileType.MIDI, FileType.MIDI_JSON, FileType.PDF, FileType.MP3] },
+            supersededAt: null,
+          },
           select: { type: true, storageKey: true, pageNumber: true, durationSeconds: true, noteCount: true },
         },
       },
@@ -201,6 +206,9 @@ export class PublicSheetsService {
       pageCount: row.pageCount,
       viewCount: row.viewCount,
       isHot: row.isHot,
+      isFree: row.isFree,
+      // Chỉ báo có file để web biết nút nào hiện; `storageKey` của PDF/MP3 không bao giờ ra khỏi service này.
+      downloadTypes: PURCHASABLE_FILE_TYPES.filter((type) => row.files.some((f) => f.type === type)),
       updatedAt: row.updatedAt.toISOString(),
       pages: row.files
         .filter((f) => f.type === FileType.PAGE_IMAGE && f.pageNumber !== null)

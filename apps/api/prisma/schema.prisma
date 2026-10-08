@@ -163,6 +163,7 @@ model Sheet {
   genres   SheetGenre[]
   files    SheetFile[]
   views    SheetViewDedupe[]
+  downloads DownloadLog[]
 
   @@index([status])
   @@index([composerId])
@@ -240,4 +241,21 @@ model SheetViewDedupe {
   @@id([sheetId, visitorHash, hourBucket])
   @@index([hourBucket])
   @@map("sheet_view_dedupe")
+}
+
+/// Nhật ký mọi lượt tải thành công, miễn phí lẫn trả phí (AD-20, Story 3.2). Chỉ module `commerce` ghi.
+/// `ip_hash` = sha256(ip + VIEW_SALT) hex; không lưu IP thô. `token_id` null cho tải miễn phí (token ở Story 3.4).
+model DownloadLog {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sheetId   String   @map("sheet_id") @db.Uuid
+  fileType  FileType @map("file_type")
+  tokenId   String?  @map("token_id") @db.Uuid
+  ipHash    String   @map("ip_hash") @db.Char(64)
+  ua        String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  sheet Sheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId, createdAt])
+  @@map("download_logs")
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, pageSchema } from './catalog';
-import { priceCentsSchema } from './pricing';
+import { PURCHASABLE_FILE_TYPES, priceCentsSchema } from './pricing';
 
 /**
  * Hợp đồng API Sheet (module `catalog`), Story 1.5: tạo và sửa thông tin Sheet ở trạng thái Draft.
@@ -513,6 +513,11 @@ export const publicSheetDetailSchema = z.object({
   pageCount: z.number().int().nonnegative(),
   viewCount: z.number().int().nonnegative(),
   isHot: z.boolean(),
+  /** Sheet miễn phí: web hiện nút Download (Story 3.2). Không lộ giá; giá chỉ có ở `/quote`. */
+  // `default`: phản hồi cache/cũ chưa có trường này (triển khai cuốn chiếu) vẫn parse được.
+  isFree: z.boolean().default(false),
+  /** Loại file tải được (có file hiện hành): PDF/MIDI/MP3, theo thứ tự cố định. */
+  downloadTypes: z.array(z.enum(PURCHASABLE_FILE_TYPES)).default([]),
   updatedAt: z.string(),
   pages: z.array(sheetPageSchema),
   midi: z

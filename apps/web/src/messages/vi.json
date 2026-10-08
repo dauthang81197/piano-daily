@@ -136,7 +136,17 @@
     "sidebarLabel": "Bài liên quan",
     "seriesSheets": "Cùng Series",
     "related": "Bài liên quan",
-    "loading": "Đang tải bản nhạc"
+    "loading": "Đang tải bản nhạc",
+    "download": {
+      "PDF": "Tải PDF",
+      "MIDI": "Tải MIDI",
+      "MP3": "Tải MP3"
+    },
+    "downloadLabel": "{format} cho {title}",
+    "downloadGroup": "Tải về",
+    "audioTitle": "Tải MIDI và MP3",
+    "audioHint": "Dùng file MIDI để luyện tập trên phần mềm của bạn và file MP3 để nghe lại bản trình diễn.",
+    "pdfSidebarTitle": "Bản nhạc PDF"
   },
   "Player": {
     "title": "Nghe thử",

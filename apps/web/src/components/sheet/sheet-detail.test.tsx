@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicSheetDetail, PublicSheetItem } from '@piano-daily/shared';
 import { withIntl } from '@/components/layout/test-utils';
 
@@ -48,6 +48,8 @@ const full: PublicSheetDetail = {
   pageCount: 2,
   viewCount: 1234,
   isHot: true,
+  isFree: false,
+  downloadTypes: ['PDF', 'MIDI', 'MP3'],
   updatedAt: '2026-10-05T00:00:00.000Z',
   pages: [
     { pageNumber: 1, url: 'http://cdn/1.webp' },
@@ -78,6 +80,66 @@ const bare: PublicSheetDetail = {
 };
 
 const view = (sheet: PublicSheetDetail, locale: 'vi' | 'en' = 'en') => render(withIntl(<SheetDetail sheet={sheet} />, locale));
+
+describe('SheetDetail — nút tải (Story 3.2)', () => {
+  const free = { ...full, isFree: true };
+  const hrefs = (links: HTMLElement[]) => links.map((a) => a.getAttribute('href'));
+
+  beforeEach(() => vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.example:4000/'));
+
+  it('Sheet free đủ 3 định dạng: nhóm nút, call-out MIDI/MP3 và PDF ở sidebar, đều là liên kết tải trực tiếp', () => {
+    view(free);
+    const group = screen.getByRole('region', { name: 'Downloads' });
+    expect(hrefs(within(group).getAllByRole('link'))).toEqual([
+      'http://api.example:4000/files/s1/pdf/download',
+      'http://api.example:4000/files/s1/midi/download',
+      'http://api.example:4000/files/s1/mp3/download',
+    ]);
+    const callout = screen.getByRole('region', { name: 'Download MIDI and MP3' });
+    expect(within(callout).getAllByRole('link')).toHaveLength(2);
+    expect(within(callout).queryByRole('link', { name: /PDF/ })).toBeNull();
+    const aside = screen.getByRole('complementary');
+    expect(hrefs(within(aside).getAllByRole('link', { name: /PDF/ }))).toEqual(['http://api.example:4000/files/s1/pdf/download']);
+    for (const a of within(group).getAllByRole('link')) {
+      expect(a.className).toContain('bg-secondary');
+      expect(a).not.toHaveAttribute('aria-disabled');
+    }
+    expect(screen.queryAllByRole('button', { name: /Download/ })).toHaveLength(0);
+  });
+
+  it('thiếu MP3: không có nút hay liên kết MP3 (ẩn hẳn, không disable)', () => {
+    view({ ...free, downloadTypes: ['PDF', 'MIDI'] });
+    expect(screen.queryByRole('link', { name: /MP3/ })).toBeNull();
+    expect(screen.getAllByRole('link', { name: /MIDI/ }).length).toBeGreaterThan(0);
+  });
+
+  it('chỉ có PDF: không có call-out MIDI/MP3', () => {
+    view({ ...free, downloadTypes: ['PDF'] });
+    expect(screen.queryByRole('region', { name: 'Download MIDI and MP3' })).toBeNull();
+  });
+
+  it('Sheet không free: không có nút Download nào', () => {
+    view(full);
+    expect(screen.queryByRole('link', { name: /Download/ })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Downloads' })).toBeNull();
+  });
+
+  it('route preview (showDownloads=false): không có nút dù Sheet free', () => {
+    render(withIntl(<SheetDetail sheet={free} showDownloads={false} />, 'en'));
+    expect(screen.queryByRole('link', { name: /Download/ })).toBeNull();
+  });
+
+  it('thiếu NEXT_PUBLIC_API_URL: không ném, không có nút', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', '');
+    view(free);
+    expect(screen.queryByRole('link', { name: /Download/ })).toBeNull();
+  });
+
+  it('tiếng Việt', () => {
+    view(free, 'vi');
+    expect(within(screen.getByRole('region', { name: 'Tải về' })).getAllByRole('link', { name: /Tải PDF/ })).toHaveLength(1);
+  });
+});
 
 describe('SheetDetail', () => {
   it('đủ các khối theo thứ tự UX-DR22: breadcrumb → H1 → meta → ảnh → video → lyrics; sidebar riêng', () => {

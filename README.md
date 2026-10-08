@@ -115,6 +115,21 @@ POSTGRES_TEST_PORT=55433 docker compose --profile test up -d --wait postgres-tes
 TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm test
 ```
 
+## CI/CD và deploy (GitHub Actions → Docker Hub → VPS)
+
+`.github/workflows/ci-cd.yml`: mọi PR chạy lint, typecheck, build và toàn bộ test (kể cả integration với Postgres/SeaweedFS). Push vào `develop` còn build 3 image (`<user>/piano-daily-{api,web,admin}:sha-<7 ký tự>` và `:latest`), đẩy lên Docker Hub rồi SSH vào VPS chạy `docker compose -f docker-compose.prod.yml up -d --wait`. API tự chạy `prisma migrate deploy` khi khởi động.
+
+**Kiến trúc trên server** (`docker-compose.prod.yml`): chỉ Caddy mở cổng 80/443/8443/9443; web ở `https://<SITE_HOST>`, admin ở `:8443`, API ở `:9443`. Cùng một hostname nên cookie refresh `Secure; SameSite=Strict` giữa admin và API hoạt động. Chưa có domain thì dùng `<ip-gạch-ngang>.sslip.io` (ví dụ `144-91-120-200.sslip.io`), Caddy tự xin chứng chỉ Let's Encrypt. File lưu ở Cloudflare R2. Chỉ chạy MỘT instance API.
+
+**Thiết lập một lần**
+1. Trên server: `ssh root@<server> 'bash -s' < deploy/bootstrap-server.sh` (cài Docker, tạo `/opt/piano-daily/.env` với secret ngẫu nhiên). Điền các biến `S3_*` của R2 vào file đó (mẫu: `deploy/.env.production.example`). Mở cổng 80, 443, 8443, 9443.
+2. Tạo cặp khoá SSH riêng cho deploy, thêm khoá công khai vào `~/.ssh/authorized_keys` của user deploy trên server.
+3. GitHub → Settings → Secrets and variables → Actions:
+   - Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (access token Docker Hub quyền Read/Write), `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` (kết quả `ssh-keyscan <host>`).
+   - Variables: `SITE_HOST` (khớp `SITE_HOST` trong `.env` của server), `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`).
+   - Environment `production` (có thể bật required reviewers nếu muốn duyệt trước khi deploy).
+4. Đổi `NEXT_PUBLIC_*` (host, URL media) thì phải build lại image: chạy lại workflow.
+
 ## Quy ước chính
 
 - **Config:** API chỉ đọc env qua `ConfigModule` (validate bằng zod, `apps/api/src/config/env.ts`). Thiếu/sai biến thì process thoát mã 1 và log nêu tên biến.

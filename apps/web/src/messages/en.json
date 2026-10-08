@@ -136,7 +136,17 @@
     "sidebarLabel": "Related sheets",
     "seriesSheets": "In the same series",
     "related": "Related sheets",
-    "loading": "Loading sheet"
+    "loading": "Loading sheet",
+    "download": {
+      "PDF": "Download PDF",
+      "MIDI": "Download MIDI",
+      "MP3": "Download MP3"
+    },
+    "downloadLabel": "{format} for {title}",
+    "downloadGroup": "Downloads",
+    "audioTitle": "Download MIDI and MP3",
+    "audioHint": "Use the MIDI file to practise in your own software and the MP3 file to listen to the performance again.",
+    "pdfSidebarTitle": "PDF sheet music"
   },
   "Player": {
     "title": "Listen",

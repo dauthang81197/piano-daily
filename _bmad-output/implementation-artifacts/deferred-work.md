@@ -65,3 +65,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-dat-gia-sheet-va-danh-dau-mien-phi.md`
   summary: Gỡ file (PDF/MIDI/MP3) cuối cùng làm Sheet PUBLISHED không free mất type mua được vẫn được phép.
   evidence: Story 3.1 chỉ kiểm tra khả năng bán khi publish và khi PATCH giá/Miễn phí; `removeFile` chưa kiểm tra, quote sẽ trả `items` rỗng cho tới khi founder sửa.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-tai-ngay-sheet-mien-phi.md`
+  summary: Đưa kiểm tra quyền tải Sheet free và ghi DownloadLog vào cùng một transaction (AD-20), hiện là hai bước riêng.
+  evidence: `DownloadsService.freeDownloadUrl` gọi `FreeDownloadSource.resolve` rồi `DownloadLogRepository.recordFree`; Sheet bị gỡ/đổi sang không free giữa hai bước vẫn nhận signed URL tối đa 5 phút. Không liên quan tiền; nên xử lý khi Story 3.5 hợp nhất đường tải.

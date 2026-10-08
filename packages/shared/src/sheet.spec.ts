@@ -358,6 +358,8 @@ describe('publicSheetDetailSchema', () => {
     pageCount: 2,
     viewCount: 0,
     isHot: false,
+    isFree: true,
+    downloadTypes: ['PDF', 'MP3'],
     updatedAt: '2026-10-05T00:00:00.000Z',
     pages: [{ pageNumber: 1, url: 'http://cdn/1.webp' }],
     midi: null,
@@ -370,6 +372,15 @@ describe('publicSheetDetailSchema', () => {
     expect(publicSheetDetailSchema.parse(base)).toEqual(base);
     const midi = { noteJsonUrl: 'http://cdn/n.json', durationSeconds: 12.5, noteCount: 40 };
     expect(publicSheetDetailSchema.parse({ ...base, midi }).midi).toEqual(midi);
+  });
+  it('phản hồi cũ thiếu isFree/downloadTypes parse thành không free, không có file tải', () => {
+    const { isFree: _isFree, downloadTypes: _types, ...legacy } = base;
+    const parsed = publicSheetDetailSchema.parse(legacy);
+    expect(parsed.isFree).toBe(false);
+    expect(parsed.downloadTypes).toEqual([]);
+  });
+  it('từ chối downloadTypes ngoài PDF/MIDI/MP3', () => {
+    expect(publicSheetDetailSchema.safeParse({ ...base, downloadTypes: ['THUMBNAIL'] }).success).toBe(false);
   });
   it('từ chối thiếu composer.slug hoặc điểm khó ngoài 0–100', () => {
     expect(publicSheetDetailSchema.safeParse({ ...base, composer: { id: 'c', name: 'B' } }).success).toBe(false);

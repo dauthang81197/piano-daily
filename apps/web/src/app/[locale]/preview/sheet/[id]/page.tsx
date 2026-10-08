@@ -48,7 +48,7 @@ export default async function PreviewSheetPage({ params, searchParams }: Props) 
         {t('banner')}
       </div>
       {/* Cùng `SheetDetail` của trang công khai; cố ý KHÔNG có `ViewBeacon` nên không đếm lượt xem. */}
-      <SheetDetail sheet={sheet} />
+      <SheetDetail sheet={sheet} showDownloads={false} />
     </>
   );
 }

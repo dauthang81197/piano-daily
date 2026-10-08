@@ -1,0 +1,25 @@
+# Reverse proxy + TLS tự động (Let's Encrypt) cho một hostname duy nhất `{$SITE_HOST}` (vd. 144-91-120-200.sslip.io).
+# Web ở 443, admin ở 8443, API ở 9443: cùng hostname nên cùng "site" → cookie refresh `SameSite=Strict` giữa admin và API hoạt động.
+# Cổng 80 phải mở để Caddy hoàn tất ACME và chuyển hướng http → https.
+#
+# Không có Cloudflare phía trước nên API KHÔNG được tin `CF-Connecting-IP` do client gửi (có thể giả để né rate limit):
+# Caddy ghi đè header này bằng IP thật của kết nối (AD-18 đọc IP khách từ header đó).
+
+{$SITE_HOST} {
+	encode zstd gzip
+	reverse_proxy web:4100 {
+		header_up CF-Connecting-IP {remote_host}
+	}
+}
+
+{$SITE_HOST}:8443 {
+	encode zstd gzip
+	reverse_proxy admin:4101
+}
+
+{$SITE_HOST}:9443 {
+	encode zstd gzip
+	reverse_proxy api:4000 {
+		header_up CF-Connecting-IP {remote_host}
+	}
+}

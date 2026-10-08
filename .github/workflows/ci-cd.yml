@@ -1,0 +1,154 @@
+# CI cho mọi PR và push vào develop; push vào develop còn build image, đẩy lên Docker Hub rồi deploy lên VPS qua SSH.
+# Cần cấu hình trong GitHub (Settings → Secrets and variables → Actions) — xem mục "CI/CD" trong README:
+#   Secrets:   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS
+#   Variables: SITE_HOST, MEDIA_BASE_URL
+name: ci-cd
+
+on:
+  pull_request:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cài pnpm theo packageManager
+        run: corepack enable
+
+      - name: Cài poppler (pdftoppm cho test xử lý PDF)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Dựng Postgres test và SeaweedFS
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait seaweedfs
+          docker compose --profile test up -d --wait postgres-test
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # `turbo test` build trước rồi chạy vitest (unit + integration) của mọi package.
+      - run: pnpm test
+        env:
+          NODE_ENV: ''
+
+      - name: Log container khi lỗi
+        if: failure()
+        run: docker compose --profile test logs --no-color --tail=100
+
+  images:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [api, web, admin]
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # `NEXT_PUBLIC_*` được inline vào bundle lúc build nên là build-arg (chỉ chứa URL công khai, không có secret).
+      # Image API không khai báo các ARG này nên Docker chỉ cảnh báo, không lỗi.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/piano-daily-${{ matrix.app }}:${{ steps.meta.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/piano-daily-${{ matrix.app }}:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://${{ vars.SITE_HOST }}:9443
+            NEXT_PUBLIC_SITE_URL=https://${{ vars.SITE_HOST }}
+            NEXT_PUBLIC_MEDIA_BASE_URL=${{ vars.MEDIA_BASE_URL }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,scope=${{ matrix.app }},mode=max
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      REMOTE_DIR: /opt/piano-daily
+      REMOTE: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+      SSH_OPTS: -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chuẩn bị SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Đồng bộ compose và Caddyfile
+        run: |
+          ssh $SSH_OPTS "$REMOTE" "mkdir -p $REMOTE_DIR/deploy"
+          scp $SSH_OPTS docker-compose.prod.yml "$REMOTE:$REMOTE_DIR/docker-compose.prod.yml"
+          scp $SSH_OPTS deploy/Caddyfile "$REMOTE:$REMOTE_DIR/deploy/Caddyfile"
+
+      - name: Pull image và khởi động lại
+        env:
+          IMAGE_TAG: ${{ needs.images.outputs.tag }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # Token đi qua stdin của ssh nên không nằm trong dòng lệnh hay log của server.
+          printf '%s\n' "$DOCKERHUB_TOKEN" | ssh $SSH_OPTS "$REMOTE" \
+            "set -euo pipefail; cd $REMOTE_DIR
+             docker login -u '$DOCKERHUB_USERNAME' --password-stdin >/dev/null
+             export DOCKERHUB_USERNAME='$DOCKERHUB_USERNAME' IMAGE_TAG='$IMAGE_TAG'
+             docker compose -f docker-compose.prod.yml pull
+             docker compose -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 180
+             docker compose -f docker-compose.prod.yml ps
+             echo \"IMAGE_TAG=\$IMAGE_TAG\" > .last-deploy
+             docker image prune -f >/dev/null"
+
+      - name: Kiểm tra sau deploy
+        env:
+          SITE_HOST: ${{ vars.SITE_HOST }}
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "https://$SITE_HOST:9443/health" >/dev/null; then echo "API khoẻ"; exit 0; fi
+            sleep 10
+          done
+          echo "API không phản hồi /health sau deploy" >&2
+          exit 1

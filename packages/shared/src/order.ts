@@ -64,3 +64,23 @@ export const createOrderResponseSchema = z.object({
   paypalOrderId: z.string(),
 });
 export type CreateOrderResponse = z.infer<typeof createOrderResponseSchema>;
+
+/** Body `POST /payments/paypal/capture-order` (Story 3.4). */
+export const captureOrderRequestSchema = z.strictObject({
+  paypalOrderId: z.string().min(1).max(64),
+});
+export type CaptureOrderRequest = z.infer<typeof captureOrderRequestSchema>;
+
+/** File người mua được tải: chỉ loại và tên hiển thị, không bao giờ có `storage_key`. */
+export const capturedFileSchema = z.object({
+  fileType: z.enum(PURCHASABLE_FILE_TYPES),
+  name: z.string(),
+});
+export type CapturedFile = z.infer<typeof capturedFileSchema>;
+
+export const captureOrderResponseSchema = z.object({
+  orderCode: z.string(),
+  token: z.string(),
+  files: z.array(capturedFileSchema),
+});
+export type CaptureOrderResponse = z.infer<typeof captureOrderResponseSchema>;

@@ -1,10 +1,12 @@
 import type { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../src/config/env';
-import { PaymentProviderNotSupportedError } from '../../src/modules/commerce/payment-provider';
+import { OrderAlreadyCapturedError, PaymentProviderNotSupportedError } from '../../src/modules/commerce/payment-provider';
 import { PaypalNotConfiguredError, PaypalProvider } from '../../src/modules/commerce/paypal.provider';
 
 const createOrder = vi.fn();
+const captureOrder = vi.fn();
+const getOrder = vi.fn();
 const clientCtor = vi.fn();
 
 vi.mock('@paypal/paypal-server-sdk', () => ({
@@ -17,6 +19,8 @@ vi.mock('@paypal/paypal-server-sdk', () => ({
   },
   OrdersController: class {
     createOrder = createOrder;
+    captureOrder = captureOrder;
+    getOrder = getOrder;
   },
 }));
 
@@ -28,6 +32,8 @@ const INPUT = { amountCents: 1999, currency: 'USD', orderCode: 'PD-ABC234', desc
 describe('PaypalProvider', () => {
   beforeEach(() => {
     createOrder.mockReset();
+    captureOrder.mockReset();
+    getOrder.mockReset();
     clientCtor.mockReset();
   });
 
@@ -66,10 +72,58 @@ describe('PaypalProvider', () => {
     await expect(provider.createOrder(INPUT)).rejects.toThrow();
   });
 
-  it('getOrder/capture/refund/verifyWebhook chưa hỗ trợ', async () => {
+  const live = () => new PaypalProvider(config({ PAYPAL_CLIENT_ID: 'id', PAYPAL_CLIENT_SECRET: 's' }));
+  const paidOrder = (status = 'COMPLETED') => ({
+    result: {
+      id: 'PP-1',
+      payer: { emailAddress: 'p@example.com', name: { givenName: 'Jo', surname: 'Payer' } },
+      purchaseUnits: [{ payments: { captures: [{ id: 'CAP-1', status, amount: { currencyCode: 'USD', value: '4.99' } }] } }],
+    },
+  });
+
+  it('capture: chuẩn hoá COMPLETED, truyền request id', async () => {
+    captureOrder.mockResolvedValue(paidOrder());
+    await expect(live().capture('PP-1', 'PD-ABC234')).resolves.toEqual({
+      status: 'COMPLETED',
+      captureId: 'CAP-1',
+      amount: '4.99',
+      currency: 'USD',
+      payer: { email: 'p@example.com', name: 'Jo Payer' },
+    });
+    expect(captureOrder).toHaveBeenCalledWith(expect.objectContaining({ id: 'PP-1' }));
+  });
+
+  it('capture: trạng thái lạ hoặc không có capture là PENDING; DECLINED/FAILED giữ nguyên', async () => {
+    captureOrder.mockResolvedValueOnce(paidOrder('PENDING'));
+    await expect(live().capture('PP-1', 'x')).resolves.toMatchObject({ status: 'PENDING' });
+    captureOrder.mockResolvedValueOnce({ result: { id: 'PP-1', purchaseUnits: [{}] } });
+    await expect(live().capture('PP-1', 'x')).resolves.toMatchObject({ status: 'PENDING', captureId: null });
+    captureOrder.mockResolvedValueOnce(paidOrder('DECLINED'));
+    await expect(live().capture('PP-1', 'x')).resolves.toMatchObject({ status: 'DECLINED' });
+    captureOrder.mockResolvedValueOnce(paidOrder('FAILED'));
+    await expect(live().capture('PP-1', 'x')).resolves.toMatchObject({ status: 'FAILED' });
+  });
+
+  it('capture: 422 INSTRUMENT_DECLINED trả DECLINED; ORDER_ALREADY_CAPTURED ném lỗi riêng; lỗi khác ném nguyên', async () => {
+    const apiError = (issue: string, statusCode = 422) => Object.assign(new Error('x'), { statusCode, result: { details: [{ issue }] } });
+    captureOrder.mockRejectedValueOnce(apiError('INSTRUMENT_DECLINED'));
+    await expect(live().capture('PP-1', 'x')).resolves.toMatchObject({ status: 'DECLINED', captureId: null });
+    captureOrder.mockRejectedValueOnce(apiError('ORDER_ALREADY_CAPTURED'));
+    await expect(live().capture('PP-1', 'x')).rejects.toBeInstanceOf(OrderAlreadyCapturedError);
+    captureOrder.mockRejectedValueOnce(apiError('INSTRUMENT_DECLINED', 500));
+    await expect(live().capture('PP-1', 'x')).rejects.toThrow('x');
+    captureOrder.mockRejectedValueOnce(new Error('network'));
+    await expect(live().capture('PP-1', 'x')).rejects.toThrow('network');
+  });
+
+  it('getOrder: chuẩn hoá giống capture', async () => {
+    getOrder.mockResolvedValue(paidOrder());
+    await expect(live().getOrder('PP-1')).resolves.toMatchObject({ status: 'COMPLETED', captureId: 'CAP-1' });
+    expect(getOrder).toHaveBeenCalledWith({ id: 'PP-1' });
+  });
+
+  it('refund/verifyWebhook chưa hỗ trợ', async () => {
     const provider = new PaypalProvider(config({}));
-    await expect(provider.getOrder()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
-    await expect(provider.capture()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
     await expect(provider.refund()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
     await expect(provider.verifyWebhook()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
   });

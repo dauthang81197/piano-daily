@@ -73,14 +73,28 @@ export class SheetFileGcService {
       if (otherReferences.some((reference) => !reference.supersededAt || reference.supersededAt > cutoff)) return;
       if (await this.hasLiveDownloadTokenReference([...candidateIds, ...otherReferences.map((file) => file.id)])) return;
 
+      // Token hết hạn/revoked/hết lượt không còn giữ file: gỡ tham chiếu (FK RESTRICT) để xoá được dòng bên dưới.
+      await tx.$executeRaw`DELETE FROM download_token_files WHERE sheet_file_id = ANY(${candidateIds}::uuid[])`;
+
       // Keep the rows until every S3 delete succeeds; retry is safe when some objects were already gone.
       await this.media.deleteObjects(keys);
       await tx.sheetFile.deleteMany({ where: { id: { in: group.map((file) => file.id) } } });
     }));
   }
 
-  /** Epic 3 replaces this pre-Epic-3 hook with a live DownloadToken reference lookup. */
-  async hasLiveDownloadTokenReference(_fileIds: string[]): Promise<boolean> {
-    return false;
+  /**
+   * True nếu có DownloadToken còn sống (chưa hết hạn, chưa revoked, còn lượt tải) tham chiếu một trong các file.
+   * Token sống giữ file dù đã superseded quá thời gian ân hạn (Story 3.4).
+   */
+  async hasLiveDownloadTokenReference(fileIds: string[]): Promise<boolean> {
+    if (!fileIds.length) return false;
+    const live = await this.prisma.downloadTokenFile.findFirst({
+      where: {
+        sheetFileId: { in: fileIds },
+        token: { revokedAt: null, expiresAt: { gt: new Date() }, usedDownloads: { lt: this.prisma.downloadToken.fields.maxDownloads } },
+      },
+      select: { tokenId: true },
+    });
+    return live !== null;
   }
 }

@@ -26,6 +26,8 @@ export const ErrorCode = {
   PRICE_CHANGED: 'PRICE_CHANGED',
   /** Thanh toán đang tắt (`payments_enabled=false`) (403). */
   PAYMENTS_DISABLED: 'PAYMENTS_DISABLED',
+  /** PayPal từ chối khoản thanh toán (402, `message` là lý do hiển thị được). */
+  PAYMENT_DECLINED: 'PAYMENT_DECLINED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

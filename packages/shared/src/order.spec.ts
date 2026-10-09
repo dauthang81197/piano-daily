@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canTransition, createOrderRequestSchema, ORDER_CODE_PATTERN, OrderStatus, orderEmailSchema } from './order';
+import {
+  canTransition,
+  captureOrderRequestSchema,
+  captureOrderResponseSchema,
+  createOrderRequestSchema,
+  ORDER_CODE_PATTERN,
+  OrderStatus,
+  orderEmailSchema,
+} from './order';
 
 const ALL = Object.values(OrderStatus);
 const VALID = new Set([
@@ -42,5 +50,19 @@ describe('orderEmailSchema / ORDER_CODE_PATTERN', () => {
     expect(ORDER_CODE_PATTERN.test('PD-7K3M9Q')).toBe(true);
     expect(ORDER_CODE_PATTERN.test('PD-7K3M9I')).toBe(false);
     expect(ORDER_CODE_PATTERN.test('PD-7K3M9')).toBe(false);
+  });
+});
+
+describe('captureOrderRequestSchema / captureOrderResponseSchema', () => {
+  it('request: cần paypalOrderId, từ chối key lạ và chuỗi rỗng', () => {
+    expect(captureOrderRequestSchema.safeParse({ paypalOrderId: '5O190127TN364715T' }).success).toBe(true);
+    expect(captureOrderRequestSchema.safeParse({ paypalOrderId: '' }).success).toBe(false);
+    expect(captureOrderRequestSchema.safeParse({}).success).toBe(false);
+    expect(captureOrderRequestSchema.safeParse({ paypalOrderId: 'x', amount: 1 }).success).toBe(false);
+  });
+  it('response: files chỉ có fileType và name', () => {
+    const ok = { orderCode: 'PD-7K3M9Q', token: 't', files: [{ fileType: 'PDF', name: 'a.pdf' }] };
+    expect(captureOrderResponseSchema.safeParse(ok).success).toBe(true);
+    expect(captureOrderResponseSchema.safeParse({ ...ok, files: [{ fileType: 'THUMBNAIL', name: 'a' }] }).success).toBe(false);
   });
 });

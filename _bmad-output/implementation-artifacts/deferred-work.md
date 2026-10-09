@@ -73,3 +73,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3-tao-don-hang-paypal-phia-server.md`
   summary: CI/deploy chưa truyền `PAYPAL_MODE`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` cho API trên VPS.
   evidence: `docker-compose.yml` để trống mặc định; `payments_enabled` seed `true` nên production không cấu hình sẽ trả 503 mọi lần mua (xem workflow deploy).
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent.md`
+  summary: `sheet-file-gc.service` (catalog) xoá `download_token_files` bằng SQL thô, vi phạm quy tắc mỗi bảng một module chủ; chưa có integration test capture bundle nhiều type (tên file, thứ tự).
+  evidence: sheet-file-gc.service.ts ~L77; `capture-order.spec.ts` chỉ dùng đơn một type PDF. Nên đưa việc xoá qua cổng của commerce và thêm test bundle khi chạm lại.

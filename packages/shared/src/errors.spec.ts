@@ -17,5 +17,6 @@ describe('mã lỗi thanh toán (Story 3.3)', () => {
   it('có PRICE_CHANGED và PAYMENTS_DISABLED', () => {
     expect(errorResponseSchema.safeParse({ error: { code: 'PRICE_CHANGED', message: 'x', details: {} } }).success).toBe(true);
     expect(errorResponseSchema.safeParse({ error: { code: 'PAYMENTS_DISABLED', message: 'x' } }).success).toBe(true);
+    expect(errorResponseSchema.safeParse({ error: { code: 'PAYMENT_DECLINED', message: 'x' } }).success).toBe(true);
   });
 });

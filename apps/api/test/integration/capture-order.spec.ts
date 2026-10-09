@@ -76,7 +76,7 @@ describe('Capture thanh toán và cấp DownloadToken (Story 3.4, Postgres thậ
         items: [{ fileType: 'PDF', priceCents: 499 }],
         amountCents: 499,
         status,
-        paypalOrderId: `PP-${n}`,
+        paypalOrderId: 'PP-1', // mỗi test chỉ có một đơn
       },
     });
     return { sheet, order, files };
@@ -253,7 +253,7 @@ describe('Capture thanh toán và cấp DownloadToken (Story 3.4, Postgres thậ
     it('MP3 superseded quá 24 giờ được token sống giữ; hết hạn/revoked/hết lượt thì GC xoá được', async () => {
       const { order, files } = await addOrder();
       await prisma.order.update({ where: { id: order.id }, data: { items: [{ fileType: 'MP3', priceCents: 199 }] } });
-      await post({ paypalOrderId: `PP-${n}` }).expect(200);
+      await post({ paypalOrderId: 'PP-1' }).expect(200);
       const mp3 = files[2]!;
       await prisma.sheetFile.update({ where: { id: mp3.id }, data: { supersededAt: new Date(Date.now() - 48 * 3_600_000) } });
       const deleteSpy = vi.spyOn(app.get(SheetMediaService), 'deleteObjects').mockResolvedValue();

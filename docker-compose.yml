@@ -86,6 +86,10 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env (xem .env.example)}
       # Muối băm visitor_hash của bộ đếm lượt xem (Story 2.7); chỉ API đọc.
       VIEW_SALT: ${VIEW_SALT:?Thiếu VIEW_SALT trong .env (xem .env.example)}
+      # PayPal (Story 3.3): sandbox mặc định; thiếu client id/secret thì tạo đơn trả 503.
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       # API gọi POST /api/revalidate của web khi admin đổi nội dung (Story 2.3).
       WEB_INTERNAL_URL: http://web:4100
       # Object storage (module `media`): API gọi SeaweedFS qua mạng nội bộ; trình duyệt đọc bucket public qua localhost.

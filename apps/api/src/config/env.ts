@@ -146,8 +146,22 @@ export const envSchema = z.object({
       .optional(),
   ),
 
+  /**
+   * PayPal (module `commerce`, adapter `paypal`). `PAYPAL_MODE` chọn sandbox/live. Client id/secret tuỳ chọn:
+   * thiếu thì tạo đơn trả 503 `SERVICE_UNAVAILABLE` (API vẫn khởi động).
+   */
+  PAYPAL_MODE: z.preprocess(emptyAsUndefined, z.enum(['sandbox', 'live']).default('sandbox')),
+  PAYPAL_CLIENT_ID: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  PAYPAL_CLIENT_SECRET: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+
   ...storageEnvShape,
-}).refine(bucketsDiffer, bucketsDifferIssue);
+})
+  .refine(bucketsDiffer, bucketsDifferIssue)
+  // Chế độ live mà thiếu khoá PayPal thì mọi lần mua đều 503: dừng khởi động thay vì chạy im lặng.
+  .refine((env) => env.PAYPAL_MODE !== 'live' || (env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET), {
+    path: ['PAYPAL_CLIENT_ID'],
+    error: 'PAYPAL_MODE=live bắt buộc có PAYPAL_CLIENT_ID và PAYPAL_CLIENT_SECRET',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

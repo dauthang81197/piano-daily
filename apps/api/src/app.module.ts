@@ -16,6 +16,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { JwtAuthGuard } from './modules/identity/jwt-auth.guard';
+import { SettingsModule } from './modules/settings/settings.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 /** So sánh timing-safe (hash trước để độ dài khác nhau không làm lộ thông tin / ném lỗi). */
@@ -57,6 +58,7 @@ export function safeEqual(a: string, b: string): boolean {
     HealthModule,
     IdentityModule,
     CatalogModule,
+    SettingsModule,
     CommerceModule,
   ],
   providers: [

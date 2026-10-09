@@ -27,6 +27,8 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   FILE_TOO_LARGE: 'File vượt quá dung lượng cho phép.',
   UNSUPPORTED_FILE_TYPE: 'Định dạng file không được hỗ trợ.',
   FILE_PROCESSING_FAILED: 'Không xử lý được file. Hãy kiểm tra file rồi thử lại.',
+  PRICE_CHANGED: 'Giá đã thay đổi. Vui lòng xem lại giá mới rồi thử lại.',
+  PAYMENTS_DISABLED: 'Thanh toán tạm thời đang tắt. Vui lòng quay lại sau.',
 };
 
 /**

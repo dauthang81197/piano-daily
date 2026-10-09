@@ -32,6 +32,8 @@ export const TEST_S3_PUBLIC_BASE_URL = `${TEST_S3.S3_ENDPOINT}/${TEST_S3.S3_BUCK
 export async function createApp(
   databaseUrl: string,
   extraImports: (Type | DynamicModule)[] = [],
+  /** Thay provider của module bằng giá trị giả (vd. `PAYMENT_PROVIDER`): `extraImports` không ghi đè được provider có sẵn. */
+  overrides: { token: unknown; value: unknown }[] = [],
 ): Promise<INestApplication> {
   process.env.DATABASE_URL = databaseUrl;
   process.env.LOG_LEVEL = 'silent';
@@ -40,10 +42,16 @@ export async function createApp(
   process.env.CORS_WEB_ORIGIN = TEST_CORS_WEB_ORIGIN;
   process.env.INTERNAL_API_SECRET = TEST_INTERNAL_API_SECRET;
   process.env.VIEW_SALT = TEST_VIEW_SALT;
+  // PayPal: test không bao giờ gọi PayPal thật; để trống client id/secret (adapter thật sẽ trả 503).
+  process.env.PAYPAL_MODE = 'sandbox';
+  delete process.env.PAYPAL_CLIENT_ID;
+  delete process.env.PAYPAL_CLIENT_SECRET;
   Object.assign(process.env, TEST_S3, { S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL });
   const { AppModule } = await import('../../src/app.module.js');
   const { configureApp } = await import('../../src/bootstrap.js');
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule, ...extraImports] }).compile();
+  let builder = Test.createTestingModule({ imports: [AppModule, ...extraImports] });
+  for (const { token, value } of overrides) builder = builder.overrideProvider(token).useValue(value);
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication({ bufferLogs: true });
   configureApp(app);
   await app.init();

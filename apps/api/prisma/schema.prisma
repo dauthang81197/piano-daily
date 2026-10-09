@@ -158,12 +158,13 @@ model Sheet {
   /// Cột generated (migration `catalog_search`): chỉ đọc bằng SQL thô trong repository tìm kiếm.
   searchVector     Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
 
-  composer Composer     @relation(fields: [composerId], references: [id], onDelete: Restrict)
-  series   Series?      @relation(fields: [seriesId], references: [id], onDelete: Restrict)
-  genres   SheetGenre[]
-  files    SheetFile[]
-  views    SheetViewDedupe[]
+  composer  Composer          @relation(fields: [composerId], references: [id], onDelete: Restrict)
+  series    Series?           @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  genres    SheetGenre[]
+  files     SheetFile[]
+  views     SheetViewDedupe[]
   downloads DownloadLog[]
+  orders    Order[]
 
   @@index([status])
   @@index([composerId])
@@ -258,4 +259,54 @@ model DownloadLog {
 
   @@index([sheetId, createdAt])
   @@map("download_logs")
+}
+
+/// Phải trùng enum `OrderStatus` trong packages/shared (có test kiểm tra).
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+/// Đơn hàng (Story 3.3, AD-20). Chỉ module `commerce` ghi; `status` chỉ đổi qua `OrderService` theo máy trạng thái ở shared.
+/// `sheet_id` FK RESTRICT: Sheet từng có đơn không bị xoá cứng (archive). `items` là snapshot các type đã resolve kèm giá
+/// (`[{fileType, priceCents}]`, bundle được tách từng type). `amount_cents` là cents USD nguyên.
+model Order {
+  id              String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Dạng `PD-XXXXXX` (base32).
+  orderCode       String      @unique @map("order_code")
+  sheetId         String      @map("sheet_id") @db.Uuid
+  /// Chữ thường; không bao giờ ghi vào log.
+  email           String
+  items           Json
+  amountCents     Int         @map("amount_cents")
+  currency        String      @default("USD")
+  status          OrderStatus @default(PENDING)
+  paypalOrderId   String?     @unique @map("paypal_order_id")
+  paypalCaptureId String?     @map("paypal_capture_id")
+  payerEmail      String?     @map("payer_email")
+  payerName       String?     @map("payer_name")
+  paidAt          DateTime?   @map("paid_at") @db.Timestamptz(6)
+  refundedAt      DateTime?   @map("refunded_at") @db.Timestamptz(6)
+  reviewRequired  Boolean     @default(false) @map("review_required")
+  emailSentAt     DateTime?   @map("email_sent_at") @db.Timestamptz(6)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sheet Sheet @relation(fields: [sheetId], references: [id], onDelete: Restrict)
+
+  @@index([sheetId])
+  @@map("orders")
+}
+
+/// Cấu hình key-value của site (Story 3.3). Chỉ module `settings` đọc/ghi. Khoá seed trong migration:
+/// `payments_enabled`, `token_default_days`, `token_default_max_downloads`.
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("site_settings")
 }

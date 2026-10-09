@@ -27,7 +27,20 @@ describe('validateEnv', () => {
       S3_REGION: 'us-east-1',
       S3_FORCE_PATH_STYLE: true,
       S3_AUTO_CREATE_BUCKETS: false,
+      PAYPAL_MODE: 'sandbox',
     });
+  });
+
+  it('PayPal: PAYPAL_MODE sandbox|live, client id/secret tuỳ chọn', () => {
+    expect(() => validateEnv({ ...valid, PAYPAL_MODE: 'live' })).toThrow(EnvValidationError);
+    expect(
+      validateEnv({ ...valid, PAYPAL_MODE: 'live', PAYPAL_CLIENT_ID: 'id', PAYPAL_CLIENT_SECRET: 's' }).PAYPAL_MODE,
+    ).toBe('live');
+    expect(validateEnv({ ...valid, PAYPAL_MODE: '' }).PAYPAL_MODE).toBe('sandbox');
+    expect(() => validateEnv({ ...valid, PAYPAL_MODE: 'prod' })).toThrow(EnvValidationError);
+    const env = validateEnv({ ...valid, PAYPAL_CLIENT_ID: 'id', PAYPAL_CLIENT_SECRET: '' });
+    expect(env.PAYPAL_CLIENT_ID).toBe('id');
+    expect(env.PAYPAL_CLIENT_SECRET).toBeUndefined();
   });
 
   it('WEB_INTERNAL_URL: tuỳ chọn, bỏ / cuối, từ chối URL sai', () => {

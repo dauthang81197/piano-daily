@@ -69,3 +69,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2-tai-ngay-sheet-mien-phi.md`
   summary: Đưa kiểm tra quyền tải Sheet free và ghi DownloadLog vào cùng một transaction (AD-20), hiện là hai bước riêng.
   evidence: `DownloadsService.freeDownloadUrl` gọi `FreeDownloadSource.resolve` rồi `DownloadLogRepository.recordFree`; Sheet bị gỡ/đổi sang không free giữa hai bước vẫn nhận signed URL tối đa 5 phút. Không liên quan tiền; nên xử lý khi Story 3.5 hợp nhất đường tải.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-tao-don-hang-paypal-phia-server.md`
+  summary: CI/deploy chưa truyền `PAYPAL_MODE`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` cho API trên VPS.
+  evidence: `docker-compose.yml` để trống mặc định; `payments_enabled` seed `true` nên production không cấu hình sẽ trả 503 mọi lần mua (xem workflow deploy).

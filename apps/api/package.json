@@ -30,6 +30,7 @@
     "@nestjs/platform-express": "12.1.0",
     "@nestjs/schedule": "12.0.2",
     "@nestjs/throttler": "6.7.1",
+    "@paypal/paypal-server-sdk": "2.5.0",
     "@piano-daily/shared": "workspace:*",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",

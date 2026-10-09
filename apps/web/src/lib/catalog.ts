@@ -1,6 +1,8 @@
 import 'server-only';
 import {
   cacheTags,
+  type DownloadStatusResponse,
+  downloadStatusResponseSchema,
   type Facets,
   facetsSchema,
   type Level,
@@ -129,6 +131,17 @@ export async function fetchPreviewSheet(id: string, token: string): Promise<Publ
   if (res.status === 404 || res.status === 400 || res.status === 401) return null;
   if (!res.ok) throw new Error(`API preview trả ${res.status}`);
   return publicSheetDetailSchema.parse(await res.json());
+}
+
+/**
+ * Trạng thái link tải đã mua (Story 3.5). KHÔNG cache (`no-store`); token chỉ ở đường dẫn gọi nội bộ, không log.
+ * 404 (token lạ hoặc sai dạng) là `null`; lỗi khác ném.
+ */
+export async function fetchDownloadStatus(token: string): Promise<DownloadStatusResponse | null> {
+  const res = await apiFetch(`/downloads/${encodeURIComponent(token)}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`API downloads trả ${res.status}`);
+  return downloadStatusResponseSchema.parse(await res.json());
 }
 
 /** Dữ liệu dựng `sitemap.xml`; gắn tag `sitemap` nên `revalidateTag('sitemap')` (Story 2.3) làm mới ngay. */

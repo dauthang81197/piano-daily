@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { pinoHttp, type Options } from 'pino-http';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildLoggerParams } from '../../src/common/logger';
+import { buildLoggerParams, redactTokenInUrl } from '../../src/common/logger';
 
 type LogLine = Record<string, unknown> & {
   requestId?: string;
@@ -66,6 +66,12 @@ describe('buildLoggerParams (pino-http)', () => {
     expect(res.headers['x-request-id']).not.toBe(bad);
     expect(res.headers['x-request-id']).toMatch(UUID);
     expect(line.requestId).toBe(res.headers['x-request-id']);
+  });
+
+  it('che token tải trong đường dẫn /downloads/:token', () => {
+    expect(redactTokenInUrl('/downloads/abcDEF-_123/pdf')).toBe('/downloads/[REDACTED]/pdf');
+    expect(redactTokenInUrl('/downloads/abcDEF-_123?x=1')).toBe('/downloads/[REDACTED]?x=1');
+    expect(redactTokenInUrl('/sheets/abc')).toBe('/sheets/abc');
   });
 
   it('che header nhạy cảm/mang IP và không log remoteAddress', async () => {

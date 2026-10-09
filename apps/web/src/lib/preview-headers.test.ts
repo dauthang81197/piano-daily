@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PREVIEW_HEADERS, PREVIEW_SOURCE } from './preview-headers';
+import { DOWNLOADS_HEADERS, DOWNLOADS_SOURCE, PREVIEW_HEADERS, PREVIEW_SOURCE } from './preview-headers';
 
 const value = (key: string) => PREVIEW_HEADERS.find((h) => h.key === key)?.value;
 
@@ -16,5 +16,13 @@ describe('header của route preview', () => {
     const re = /^\/[^/]+\/preview(\/.*)?$/;
     for (const ok of ['/vi/preview/sheet/abc', '/en/preview/sheet/abc/x']) expect(re.test(ok)).toBe(true);
     for (const no of ['/vi/sheet/abc', '/vi/level/beginner']) expect(re.test(no)).toBe(false);
+  });
+});
+
+describe('header của trang tải file đã mua (Story 3.5)', () => {
+  it('no-store, noindex và no-referrer cho mọi locale', () => {
+    expect(DOWNLOADS_SOURCE).toBe('/:locale/downloads/:path*');
+    expect(DOWNLOADS_HEADERS).toEqual(PREVIEW_HEADERS);
+    expect(DOWNLOADS_HEADERS.find((h) => h.key === 'Referrer-Policy')?.value).toBe('no-referrer');
   });
 });

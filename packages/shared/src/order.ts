@@ -84,3 +84,17 @@ export const captureOrderResponseSchema = z.object({
   files: z.array(capturedFileSchema),
 });
 export type CaptureOrderResponse = z.infer<typeof captureOrderResponseSchema>;
+
+/** Trạng thái hiệu lực của link tải (`GET /downloads/:token`). */
+export const DOWNLOAD_STATUSES = ['ACTIVE', 'EXPIRED', 'EXHAUSTED', 'REVOKED'] as const;
+export type DownloadStatus = (typeof DOWNLOAD_STATUSES)[number];
+
+/** Response `GET /downloads/:token` (Story 3.5): không có `storage_key` hay email. */
+export const downloadStatusResponseSchema = z.object({
+  sheetTitle: z.string(),
+  files: z.array(capturedFileSchema),
+  remainingDownloads: z.number().int().min(0),
+  expiresAt: z.string(),
+  status: z.enum(DOWNLOAD_STATUSES),
+});
+export type DownloadStatusResponse = z.infer<typeof downloadStatusResponseSchema>;

@@ -31,6 +31,17 @@ describe('validateEnv', () => {
     });
   });
 
+  it('Email: RESEND_API_KEY, EMAIL_FROM, SITE_URL đều tuỳ chọn; SITE_URL phải là URL và bỏ dấu / cuối', () => {
+    const env = validateEnv({ ...valid, RESEND_API_KEY: '', EMAIL_FROM: '' });
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.EMAIL_FROM).toBeUndefined();
+    expect(env.SITE_URL).toBeUndefined();
+    expect(
+      validateEnv({ ...valid, RESEND_API_KEY: 're_x', EMAIL_FROM: 'Piano <a@b.co>', SITE_URL: 'https://piano.test/' }),
+    ).toMatchObject({ RESEND_API_KEY: 're_x', EMAIL_FROM: 'Piano <a@b.co>', SITE_URL: 'https://piano.test' });
+    expect(() => validateEnv({ ...valid, SITE_URL: 'not a url' })).toThrow(EnvValidationError);
+  });
+
   it('PayPal: PAYPAL_MODE sandbox|live, client id/secret tuỳ chọn', () => {
     expect(() => validateEnv({ ...valid, PAYPAL_MODE: 'live' })).toThrow(EnvValidationError);
     expect(

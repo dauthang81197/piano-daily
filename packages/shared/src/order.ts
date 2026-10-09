@@ -38,6 +38,10 @@ export const orderItemSchema = z.object({
 });
 export type OrderItem = z.infer<typeof orderItemSchema>;
 
+/** Locale lưu cùng Order (Story 3.7); khớp CHECK của cột `orders.locale`. */
+export const ORDER_LOCALES = ['vi', 'en'] as const;
+export type OrderLocale = (typeof ORDER_LOCALES)[number];
+
 /**
  * Body `POST /payments/paypal/create-order`. Đúng một trong `fileTypes` / `bundle: true`.
  * `email` ở đây chỉ kiểm là chuỗi: định dạng được kiểm sau bước `payments_enabled` (xem `orderEmailSchema`).
@@ -49,6 +53,8 @@ export const createOrderRequestSchema = z
     bundle: z.literal(true).optional(),
     email: z.string().max(320),
     expectedTotalCents: z.number().int().min(0),
+    /** Ngôn ngữ của người mua (email link tải gửi theo locale này); thiếu thì mặc định `vi`. */
+    locale: z.enum(ORDER_LOCALES).optional(),
   })
   .refine((v) => (v.fileTypes !== undefined) !== (v.bundle !== undefined), {
     error: 'Chỉ gửi một trong fileTypes hoặc bundle.',

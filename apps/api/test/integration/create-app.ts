@@ -46,6 +46,10 @@ export async function createApp(
   process.env.PAYPAL_MODE = 'sandbox';
   delete process.env.PAYPAL_CLIENT_ID;
   delete process.env.PAYPAL_CLIENT_SECRET;
+  // Email: test không gửi thật; thay EMAIL_PORT bằng bản giả khi cần (overrides). Để trống thì adapter thật bỏ qua.
+  delete process.env.RESEND_API_KEY;
+  delete process.env.EMAIL_FROM;
+  delete process.env.SITE_URL;
   Object.assign(process.env, TEST_S3, { S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL });
   const { AppModule } = await import('../../src/app.module.js');
   const { configureApp } = await import('../../src/bootstrap.js');

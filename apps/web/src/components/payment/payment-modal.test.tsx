@@ -131,6 +131,7 @@ describe('PaymentModal (Story 3.6)', () => {
       sheetId: 's1',
       email: 'buyer@example.com',
       expectedTotalCents: 299,
+      locale: 'en',
       fileTypes: ['PDF'],
     });
     expect(bodyOf(fetchMock, '/capture-order')).toEqual({ paypalOrderId: 'PP-1' });
@@ -326,6 +327,29 @@ describe('PaymentModal (Story 3.6)', () => {
     expect(screen.queryByTestId('paypal')).toBeNull();
     expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(screen.getByLabelText('Email address')).toHaveValue('buyer@example.com');
+  });
+
+  it('gửi locale hiện tại của trang trong create-order', async () => {
+    const fetchMock = stubApi();
+    render(withIntl(<PaymentModal sheetId="s1" title="Für Elise" initialType="PDF" onClose={vi.fn()} />, 'vi'));
+    fireEvent.change(await screen.findByLabelText('Địa chỉ email'), { target: { value: 'buyer@example.com' } });
+    await pay();
+    expect(bodyOf(fetchMock, '/create-order')).toMatchObject({ locale: 'vi' });
+  });
+
+  it('create-order trả ALREADY_PURCHASED: thông báo trạng thái (không phải lỗi), không điều hướng, giữ email, thử lại được', async () => {
+    const fetchMock = stubApi({ create: () => apiError(409, 'ALREADY_PURCHASED') });
+    await open();
+    typeEmail();
+    await pay();
+    const status = screen.getByText(/already purchased this piece/i).closest('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status).toHaveTextContent(/resent the download link to your email/);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+    expect(callsTo(fetchMock, '/capture-order')).toBe(0);
+    expect(screen.getByLabelText('Email address')).toHaveValue('buyer@example.com');
+    expect(paypal()).toBeEnabled();
   });
 
   it('lỗi tải báo giá: báo lỗi kèm nút thử lại, thử lại thành công thì hiện form', async () => {

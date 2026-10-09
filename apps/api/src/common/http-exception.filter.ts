@@ -33,6 +33,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   TOKEN_EXPIRED: 'Link tải đã hết hạn.',
   TOKEN_EXHAUSTED: 'Link tải đã hết lượt tải.',
   TOKEN_REVOKED: 'Link tải đã bị vô hiệu.',
+  ALREADY_PURCHASED: 'Bạn đã mua bài này. Chúng tôi đã gửi lại link tải vào email của bạn.',
 };
 
 /**

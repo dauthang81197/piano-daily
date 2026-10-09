@@ -1,3 +1,4 @@
+import type { ConfigService } from '@nestjs/config';
 import { type CreateOrderRequest, ORDER_CODE_PATTERN, type Quote } from '@piano-daily/shared';
 import { describe, expect, it, vi } from 'vitest';
 import type { PricingService } from '../../src/modules/catalog/pricing.service';
@@ -31,6 +32,9 @@ const ORDER = {
   amountCents: 499,
   currency: 'USD',
   items: [{ fileType: 'PDF', priceCents: 499 }],
+  email: 'buyer@example.com',
+  locale: 'en',
+  sheet: { title: 'Für Elise' },
 };
 const COMPLETED: CaptureResult = {
   status: 'COMPLETED',
@@ -51,6 +55,11 @@ function build(
     noToken?: boolean;
     noFiles?: boolean;
     capture?: CaptureResult;
+    /** Đơn PAID cũ của cùng email: các type token bao phủ và trạng thái token. */
+    previous?: { files: string[]; expiresAt?: Date; used?: number; max?: number; revokedAt?: Date | null };
+    emailFails?: boolean;
+    emailSkipped?: boolean;
+    siteUrl?: string;
   } = {},
 ) {
   const repo = {
@@ -62,10 +71,39 @@ function build(
     findById: vi.fn(async () => ({ ...ORDER, status: options.status ?? 'PENDING' })),
     markPaid: vi.fn(async () => options.markPaid ?? true),
     markReviewRequired: vi.fn(async () => undefined),
+    setEmailSentAt: vi.fn(async () => true),
+    findPaidByEmailAndSheet: vi.fn(async () =>
+      options.previous ? [{ id: 'old-order', orderCode: 'PD-OLD234', locale: 'vi', sheetTitle: 'Für Elise' }] : [],
+    ),
   };
   const tokens = {
     create: vi.fn(async () => undefined),
-    findByOrderId: vi.fn(async () => (options.noToken ? null : { token: 'TOKEN-1', files: [{ fileType: 'PDF', name: 'a.pdf' }] })),
+    findByOrderId: vi.fn(async (id: string) =>
+      options.noToken ? null : { token: id === 'old-order' ? 'OLD-TOKEN' : 'TOKEN-1', files: [{ fileType: 'PDF', name: 'a.pdf' }] },
+    ),
+    findByToken: vi.fn(async () => {
+      const prev = options.previous!;
+      return {
+        id: 'tok',
+        sheetTitle: 'Für Elise',
+        sheetSlug: 'fur-elise',
+        expiresAt: prev.expiresAt ?? new Date(Date.now() + 86_400_000),
+        maxDownloads: prev.max ?? 5,
+        usedDownloads: prev.used ?? 0,
+        revokedAt: prev.revokedAt ?? null,
+        orderStatus: 'PAID',
+        files: prev.files.map((fileType) => ({ fileType, name: 'x', storageKey: 'k' })),
+      };
+    }),
+  };
+  const email = {
+    send: vi.fn(async (_m: { to: string; subject: string; html: string; text: string }) => {
+      if (options.emailFails) throw new Error('boom buyer@example.com');
+      return options.emailSkipped ? false : true;
+    }),
+  };
+  const config = {
+    get: vi.fn((key: string) => (key === 'SITE_URL' ? options.siteUrl : key === 'CORS_WEB_ORIGIN' ? 'http://web.test' : undefined)),
   };
   const files = { currentFiles: vi.fn(async () => (options.noFiles ? [] : [{ id: 'file-1', type: 'PDF' }])) };
   const prisma = { $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({})) };
@@ -91,8 +129,10 @@ function build(
     tokens as unknown as DownloadTokenRepository,
     files as unknown as PurchasableFilesSource,
     prisma as unknown as PrismaService,
+    email,
+    config as unknown as ConfigService<never, true>,
   );
-  return { service, repo, pricing, settings, provider, tokens, files, prisma };
+  return { service, repo, pricing, settings, provider, tokens, files, prisma, email };
 }
 
 const request = (over: Partial<CreateOrderRequest> = {}): CreateOrderRequest => ({
@@ -194,6 +234,141 @@ describe('OrderService.createPaypalOrder', () => {
     expect(err).toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
     expect((err as Error).message).not.toContain('a@b.co');
     expect(repo.updateStatus).toHaveBeenCalledWith('order-1', 'PENDING', 'FAILED');
+  });
+});
+
+describe('OrderService.createPaypalOrder: đã mua cùng email (Story 3.7)', () => {
+  it('token sống bao phủ type: 409 ALREADY_PURCHASED không token, không tạo Order/PayPal, gửi lại email', async () => {
+    const { service, repo, provider, email } = build({ previous: { files: ['PDF', 'MIDI'] } });
+    const err = await service.createPaypalOrder(request({ locale: 'en' })).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'ALREADY_PURCHASED' });
+    expect(JSON.stringify(err)).not.toContain('OLD-TOKEN');
+    expect((err as { details?: unknown }).details).toBeUndefined();
+    expect(repo.createPending).not.toHaveBeenCalled();
+    expect(provider.createOrder).not.toHaveBeenCalled();
+    expect(repo.findPaidByEmailAndSheet).toHaveBeenCalledWith('buyer@example.com', SHEET);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const sent = email.send.mock.calls[0]![0];
+    expect(sent.to).toBe('buyer@example.com');
+    expect(sent.text).toContain('http://web.test/en/downloads/OLD-TOKEN');
+    expect(sent.text).toContain('PD-OLD234');
+  });
+
+  it('SITE_URL thắng CORS_WEB_ORIGIN và bỏ dấu / cuối; locale lấy từ đơn khi request không gửi', async () => {
+    const { service, email } = build({ previous: { files: ['PDF'] }, siteUrl: 'https://piano.example/' });
+    await service.createPaypalOrder(request()).catch(() => undefined);
+    expect(email.send.mock.calls[0]![0].text).toContain('https://piano.example/vi/downloads/OLD-TOKEN');
+  });
+
+  it.each([
+    ['Resend lỗi', { emailFails: true }],
+    ['chưa cấu hình Resend (bỏ qua gửi)', { emailSkipped: true }],
+  ])('%s khi gửi lại: 503 (không nói đã gửi) và hoàn lượt gửi', async (_name, opts) => {
+    const { service, email } = build({ previous: { files: ['PDF'] }, ...opts });
+    for (let i = 0; i < 5; i += 1) {
+      await expect(service.createPaypalOrder(request())).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    }
+    expect(email.send).toHaveBeenCalledTimes(5); // lượt gửi lỗi không bị tính vào hạn mức 3/giờ
+  });
+
+  it.each([
+    ['thiếu type (đã mua PDF, giờ mua MP3)', { files: ['PDF'] }, request({ fileTypes: ['MP3'] }), 199],
+    ['token hết hạn', { files: ['PDF'], expiresAt: new Date(Date.now() - 1000) }, request(), 499],
+    ['token hết lượt', { files: ['PDF'], used: 5, max: 5 }, request(), 499],
+    ['token bị thu hồi', { files: ['PDF'], revokedAt: new Date() }, request(), 499],
+  ] as const)('%s: tạo Order mới như thường, không gửi email', async (_n, previous, req, total) => {
+    const { service, repo, email } = build({ previous: { ...previous, files: [...previous.files] } });
+    await expect(service.createPaypalOrder({ ...req, expectedTotalCents: total })).resolves.toMatchObject({ paypalOrderId: 'PP-1' });
+    expect(repo.createPending).toHaveBeenCalledTimes(1);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it('bundle được bao phủ khi token có đủ mọi type', async () => {
+    const { service, repo } = build({ previous: { files: ['PDF', 'MIDI', 'MP3'] } });
+    await expect(
+      service.createPaypalOrder({ sheetId: SHEET, bundle: true, email: 'a@b.co', expectedTotalCents: 700 }),
+    ).rejects.toMatchObject({ code: 'ALREADY_PURCHASED' });
+    expect(repo.createPending).not.toHaveBeenCalled();
+  });
+
+  it('gửi lại tối đa 3 lần/giờ cho mỗi email: lần 4 là 429, không gửi; email khác không bị ảnh hưởng', async () => {
+    const { service, email } = build({ previous: { files: ['PDF'] } });
+    for (let i = 0; i < 3; i += 1) {
+      await expect(service.createPaypalOrder(request())).rejects.toMatchObject({ code: 'ALREADY_PURCHASED' });
+    }
+    await expect(service.createPaypalOrder(request({ email: ' BUYER@example.com ' }))).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+    expect(email.send).toHaveBeenCalledTimes(3);
+    await expect(service.createPaypalOrder(request({ email: 'other@example.com' }))).rejects.toMatchObject({ code: 'ALREADY_PURCHASED' });
+    expect(email.send).toHaveBeenCalledTimes(4);
+  });
+
+  it('PRICE_CHANGED được kiểm trước khi xét đã mua', async () => {
+    const { service, repo } = build({ previous: { files: ['PDF'] } });
+    await expect(service.createPaypalOrder(request({ expectedTotalCents: 1 }))).rejects.toMatchObject({ code: 'PRICE_CHANGED' });
+    expect(repo.findPaidByEmailAndSheet).not.toHaveBeenCalled();
+  });
+
+  it('locale được lưu vào Order mới', async () => {
+    const { service, repo } = build();
+    await service.createPaypalOrder(request({ locale: 'en' }));
+    expect(repo.createPending).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en' }));
+  });
+});
+
+describe('OrderService: email sau khi PAID (Story 3.7)', () => {
+  const REQ = { paypalOrderId: 'PP-1' };
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+  it('capture thành công gửi đúng 1 email (locale của đơn, link token), rồi set email_sent_at', async () => {
+    const { service, email, repo } = build();
+    await service.captureOrder(REQ);
+    await settle();
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const sent = email.send.mock.calls[0]![0];
+    expect(sent.to).toBe('buyer@example.com');
+    expect(sent.subject).toContain('PD-ABC234');
+    expect(sent.text).toContain('Für Elise');
+    expect(sent.text).toContain('http://web.test/en/downloads/TOKEN-1');
+    expect(sent.html).toContain('http://web.test/en/downloads/TOKEN-1');
+    expect(repo.setEmailSentAt).toHaveBeenCalledWith('order-1');
+  });
+
+  it('Resend lỗi: response vẫn có token, email_sent_at không ghi, log không chứa email/token', async () => {
+    const { service, repo } = build({ emailFails: true });
+    const errors: string[] = [];
+    const logger = (service as unknown as { logger: { error: (m: string) => void } }).logger;
+    const spy = vi.spyOn(logger, 'error').mockImplementation((m) => void errors.push(m));
+    await expect(service.captureOrder(REQ)).resolves.toMatchObject({ token: 'TOKEN-1' });
+    await settle();
+    expect(repo.setEmailSentAt).not.toHaveBeenCalled();
+    expect(errors.join(' ')).toContain('PD-ABC234');
+    expect(errors.join(' ')).not.toMatch(/buyer@example\.com|TOKEN-1/);
+    spy.mockRestore();
+  });
+
+  it('adapter bỏ qua (chưa cấu hình): thanh toán bình thường, không set email_sent_at', async () => {
+    const { service, repo } = build({ emailSkipped: true });
+    await expect(service.captureOrder(REQ)).resolves.toMatchObject({ token: 'TOKEN-1' });
+    await settle();
+    expect(repo.setEmailSentAt).not.toHaveBeenCalled();
+  });
+
+  it('gọi capture lại khi đã PAID, hoặc thua cuộc đua: không gửi email', async () => {
+    const paid = build({ status: 'PAID' });
+    await paid.service.captureOrder(REQ);
+    const lost = build({ markPaid: false });
+    lost.repo.findById.mockResolvedValueOnce({ ...ORDER, status: 'PENDING' }).mockResolvedValueOnce({ ...ORDER, status: 'PAID' });
+    await lost.service.fulfil('order-1', COMPLETED);
+    await settle();
+    expect(paid.email.send).not.toHaveBeenCalled();
+    expect(lost.email.send).not.toHaveBeenCalled();
+  });
+
+  it('thiếu file đã mua (không PAID): không gửi email', async () => {
+    const { service, email } = build({ noFiles: true });
+    await service.captureOrder(REQ).catch(() => undefined);
+    await settle();
+    expect(email.send).not.toHaveBeenCalled();
   });
 });
 

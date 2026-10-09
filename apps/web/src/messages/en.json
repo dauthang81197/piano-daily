@@ -217,6 +217,7 @@
     "payPrompt": "Enter a valid email address and select at least one file to continue to PayPal.",
     "loadingQuote": "Loading current prices",
     "processing": "Processing your payment. Please do not close this window.",
+    "alreadyPurchased": "You have already purchased this piece — we have resent the download link to your email.",
     "disabledNote": "Online purchases are temporarily unavailable. Please try again later.",
     "errors": {
       "quote": "The current prices could not be loaded. Check your connection and try again.",

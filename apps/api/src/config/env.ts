@@ -154,6 +154,20 @@ export const envSchema = z.object({
   PAYPAL_CLIENT_ID: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
   PAYPAL_CLIENT_SECRET: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
 
+  /**
+   * Email (module `notify`, adapter Resend — Story 3.7). Tuỳ chọn: thiếu `RESEND_API_KEY` hoặc `EMAIL_FROM` thì bỏ qua việc
+   * gửi email (chỉ log cảnh báo). `SITE_URL` là URL công khai của web để dựng link tải; mặc định `CORS_WEB_ORIGIN`.
+   */
+  RESEND_API_KEY: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  EMAIL_FROM: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  SITE_URL: z.preprocess(
+    emptyAsUndefined,
+    z
+      .url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })
+      .transform((value) => value.replace(/\/+$/, ''))
+      .optional(),
+  ),
+
   ...storageEnvShape,
 })
   .refine(bucketsDiffer, bucketsDifferIssue)

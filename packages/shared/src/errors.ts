@@ -34,6 +34,8 @@ export const ErrorCode = {
   TOKEN_EXHAUSTED: 'TOKEN_EXHAUSTED',
   /** Link tải bị vô hiệu: đơn không còn PAID hoặc token bị thu hồi (410). */
   TOKEN_REVOKED: 'TOKEN_REVOKED',
+  /** Cùng email đã mua đủ các định dạng này và link tải còn hiệu lực: không tạo đơn, link được gửi lại qua email (409). */
+  ALREADY_PURCHASED: 'ALREADY_PURCHASED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -517,7 +517,7 @@ export class SheetsService {
     return this.get(id);
   }
 
-  /** Delete without Order; retain Sheet and its files when the Epic 3 Order hook is enabled. */
+  /** Xoá cứng Sheet chưa từng có Order; Sheet có Order thì chuyển ARCHIVED và giữ file. */
   async remove(id: string): Promise<Sheet | { deleted: true }> {
     return this.cache.track(id, () => this.removeRow(id));
   }
@@ -528,7 +528,7 @@ export class SheetsService {
         return await this.prisma.$transaction(async (tx) => {
           const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sheets WHERE id = ${id}::uuid FOR UPDATE`;
           if (!locked.length) throw notFound(SHEET_NOT_FOUND);
-          const hasHistoricalOrders = await this.hasOrderHistory(id);
+          const hasHistoricalOrders = await this.hasOrderHistory(id, tx);
           if (hasHistoricalOrders) {
             await tx.sheet.update({ where: { id }, data: { status: 'ARCHIVED' } });
             const archived = await tx.sheet.findUniqueOrThrow({ where: { id }, select: SELECT });
@@ -547,9 +547,9 @@ export class SheetsService {
     });
   }
 
-  /** Epic 3 replaces this pre-Epic-3 hook with an Order lookup. */
-  async hasOrderHistory(_sheetId: string): Promise<boolean> {
-    return false;
+  /** Sheet từng có Order (mọi trạng thái) thì không được xoá cứng (FK RESTRICT) mà chuyển sang ARCHIVED. */
+  async hasOrderHistory(sheetId: string, tx: Prisma.TransactionClient = this.prisma): Promise<boolean> {
+    return (await tx.order.findFirst({ where: { sheetId }, select: { id: true } })) !== null;
   }
 
   /**

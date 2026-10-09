@@ -22,6 +22,10 @@ export const ErrorCode = {
   UNSUPPORTED_FILE_TYPE: 'UNSUPPORTED_FILE_TYPE',
   /** File đúng định dạng nhưng không xử lý được (hỏng, quá nhiều trang…) (422). */
   FILE_PROCESSING_FAILED: 'FILE_PROCESSING_FAILED',
+  /** Giá client gửi lệch báo giá hiện tại (409, `details` = báo giá mới). */
+  PRICE_CHANGED: 'PRICE_CHANGED',
+  /** Thanh toán đang tắt (`payments_enabled=false`) (403). */
+  PAYMENTS_DISABLED: 'PAYMENTS_DISABLED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

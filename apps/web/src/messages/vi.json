@@ -217,6 +217,7 @@
     "payPrompt": "Nhập email hợp lệ và chọn ít nhất một file để tiếp tục với PayPal.",
     "loadingQuote": "Đang tải giá hiện tại",
     "processing": "Đang xử lý thanh toán. Vui lòng không đóng cửa sổ này.",
+    "alreadyPurchased": "Bạn đã mua bài này — chúng tôi đã gửi lại link tải vào email.",
     "disabledNote": "Chức năng mua hàng tạm thời chưa khả dụng. Vui lòng quay lại sau.",
     "errors": {
       "quote": "Không tải được giá hiện tại. Vui lòng kiểm tra kết nối và thử lại.",

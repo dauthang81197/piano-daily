@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { OrderItem, OrderStatus } from '@piano-daily/shared';
+import type { OrderItem, OrderLocale, OrderStatus } from '@piano-daily/shared';
 import type { Prisma } from '../../generated/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -9,6 +9,7 @@ export type NewOrder = {
   email: string;
   items: OrderItem[];
   amountCents: number;
+  locale?: OrderLocale;
 };
 
 /** Nơi DUY NHẤT ghi bảng `orders` (AD-1, AD-20). Đổi `status` chỉ qua `OrderService`. */
@@ -68,6 +69,30 @@ export class OrderRepository {
   async markReviewRequired(id: string): Promise<void> {
     await this.prisma.order.update({ where: { id }, data: { reviewRequired: true } });
   }
+
+  /** Ghi `email_sent_at` đúng một lần (UPDATE ... WHERE email_sent_at IS NULL); trả true nếu chính lệnh này ghi. */
+  async setEmailSentAt(id: string): Promise<boolean> {
+    const { count } = await this.prisma.order.updateMany({ where: { id, emailSentAt: null }, data: { emailSentAt: new Date() } });
+    return count === 1;
+  }
+
+  /** Các đơn PAID của cùng email (đã chữ thường) và Sheet, mới nhất trước; tối đa 20. */
+  async findPaidByEmailAndSheet(email: string, sheetId: string): Promise<PaidOrderRef[]> {
+    const rows = await this.prisma.order.findMany({
+      where: { email: email.toLowerCase(), sheetId, status: 'PAID' },
+      orderBy: [{ paidAt: 'desc' }, { id: 'desc' }],
+      take: 20,
+      select: { id: true, orderCode: true, locale: true, sheet: { select: { title: true } } },
+    });
+    return rows.map((row) => ({ id: row.id, orderCode: row.orderCode, locale: toLocale(row.locale), sheetTitle: row.sheet.title }));
+  }
+}
+
+export type PaidOrderRef = { id: string; orderCode: string; locale: OrderLocale; sheetTitle: string };
+
+/** Locale lưu trong DB (nullable); giá trị lạ hoặc thiếu coi như `vi`. */
+export function toLocale(value: string | null | undefined): OrderLocale {
+  return value === 'en' ? 'en' : 'vi';
 }
 
 export type PaymentDetails = { captureId: string | null; payerEmail: string | null; payerName: string | null };
@@ -80,6 +105,9 @@ const ORDER_FOR_CAPTURE = {
   amountCents: true,
   currency: true,
   items: true,
+  email: true,
+  locale: true,
+  sheet: { select: { title: true } },
 } as const;
 
 export type OrderForCapture = Prisma.OrderGetPayload<{ select: typeof ORDER_FOR_CAPTURE }>;

@@ -37,6 +37,10 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
       VIEW_SALT: ${VIEW_SALT:?Thiếu VIEW_SALT trong .env}
       WEB_INTERNAL_URL: http://web:4100
+      # Email link tải (Story 3.7): thiếu khoá Resend thì API bỏ qua việc gửi email (chỉ log cảnh báo).
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SITE_URL: https://${SITE_HOST}
       # Cloudflare R2: bucket tạo sẵn trước (không tự tạo), bucket public bật truy cập công khai (r2.dev hoặc custom domain).
       S3_ENDPOINT: ${S3_ENDPOINT:?Thiếu S3_ENDPOINT trong .env}
       S3_REGION: ${S3_REGION:-auto}

@@ -90,6 +90,10 @@ services:
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      # Email link tải (Story 3.7): thiếu khoá Resend thì bỏ qua việc gửi; SITE_URL trống thì dùng CORS_WEB_ORIGIN.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SITE_URL: ${SITE_URL:-}
       # API gọi POST /api/revalidate của web khi admin đổi nội dung (Story 2.3).
       WEB_INTERNAL_URL: http://web:4100
       # Object storage (module `media`): API gọi SeaweedFS qua mạng nội bộ; trình duyệt đọc bucket public qua localhost.

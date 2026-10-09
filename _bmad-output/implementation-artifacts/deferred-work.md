@@ -79,3 +79,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-6-modal-thanh-toan-tren-trang-chi-tiet.md`
   summary: Modal chưa có thao tác thử capture lại cho cùng `paypalOrderId`; người mua có thể đã trả tiền nhưng chưa có link tải khi capture lỗi, đường lấy lại duy nhất là liên hệ.
   evidence: `payment-modal.tsx` onApprove chỉ hiện thông điệp `captureUnknown`; email link tải ở Story 3.7. Nên thêm nút "xác nhận lại" gọi `capture-order` với cùng id hoặc lấy lại qua email/orderCode khi làm 3.7.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-7-email-link-tai-va-mua-lai-cung-email.md`
+  summary: Email link tải sau thanh toán không có thử lại/outbox; gửi lại qua `ALREADY_PURCHASED` có thể bị lạm dụng (lộ việc đã mua, gửi dồn cho người mua) và bộ đếm 3 lần/giờ chỉ nằm trong bộ nhớ tiến trình.
+  evidence: `order.service.ts` gửi bằng `void sendPurchaseEmail` một lần; endpoint create-order công khai chỉ throttle theo IP. Nên thêm job quét đơn PAID có `email_sent_at` null, và đưa bộ đếm sang DB khi chạy nhiều instance hoặc khi làm Story 4.2.

@@ -10,8 +10,8 @@ import {
   type Quote,
   quoteSchema,
 } from '@piano-daily/shared';
-import { LoaderCircle, X } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { CircleCheck, LoaderCircle, X } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { ApiError, capturePaypalOrder, createPaypalOrder, fetchQuote } from '@/lib/public-api';
@@ -76,6 +76,7 @@ export function PaymentModal({
   onClose: () => void;
 }) {
   const t = useTranslations('Payment');
+  const locale = useLocale();
   const router = useRouter();
   const ids = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -90,6 +91,7 @@ export function PaymentModal({
   const [email, setEmail] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
   const [errorKey, setErrorKey] = useState<ErrorKey | null>(null);
+  const [alreadyPurchased, setAlreadyPurchased] = useState(false); // thông báo trạng thái (không phải lỗi): link đã gửi lại
   const [busy, setBusy] = useState(false); // đã bấm PayPal: popup mở hoặc đang capture
   const [popupOpen, setPopupOpen] = useState(false);
 
@@ -169,6 +171,7 @@ export function PaymentModal({
 
   const toggleType = (type: PurchasableFileType) => {
     setErrorKey(null);
+    setAlreadyPurchased(false);
     setSelected((prev) => PURCHASABLE_FILE_TYPES.filter((x) => (x === type ? !prev.includes(x) : prev.includes(x))));
   };
 
@@ -181,6 +184,11 @@ export function PaymentModal({
 
   const fail = (err: unknown) => {
     reported.current = true;
+    if (err instanceof ApiError && err.code === 'ALREADY_PURCHASED') {
+      // Không phải lỗi: người mua đã có link tải còn hiệu lực và vừa được gửi lại qua email. Không điều hướng, không mở PayPal.
+      setAlreadyPurchased(true);
+      return;
+    }
     if (err instanceof ApiError && err.code === 'PRICE_CHANGED') {
       const parsed = quoteSchema.safeParse(err.details);
       if (parsed.success) applyQuote(parsed.data);
@@ -196,6 +204,7 @@ export function PaymentModal({
     sheetId,
     email: email.trim(),
     expectedTotalCents: total,
+    locale: locale === 'en' ? ('en' as const) : ('vi' as const),
     ...(bundle ? { bundle: true as const } : { fileTypes: PURCHASABLE_FILE_TYPES.filter((type) => selected.includes(type)) }),
   });
 
@@ -238,6 +247,13 @@ export function PaymentModal({
           <p role="status" className="flex items-center gap-2 text-body-md text-on-surface-variant">
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
             {t('loadingQuote')}
+          </p>
+        ) : null}
+
+        {alreadyPurchased ? (
+          <p role="status" className="flex items-start gap-3 rounded-md bg-surface-container p-4 text-body-md text-on-surface">
+            <CircleCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-primary" />
+            <span>{t('alreadyPurchased')}</span>
           </p>
         ) : null}
 
@@ -317,7 +333,10 @@ export function PaymentModal({
                 disabled={busy}
                 aria-invalid={emailInvalid ? true : undefined}
                 aria-describedby={`${ids}-email-hint`}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setAlreadyPurchased(false);
+                }}
                 onBlur={() => setEmailTouched(true)}
                 className="min-h-11 rounded-md border border-outline-variant bg-surface-container-lowest px-3 text-body-md"
               />
@@ -354,6 +373,7 @@ export function PaymentModal({
                         lock.current = true;
                         reported.current = false;
                         setErrorKey(null);
+                        setAlreadyPurchased(false);
                         setBusy(true);
                         setPopupOpen(true);
                         return actions.resolve();

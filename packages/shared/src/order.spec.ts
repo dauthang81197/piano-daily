@@ -26,6 +26,15 @@ describe('máy trạng thái Order', () => {
   });
 });
 
+describe('createOrderRequestSchema: locale (Story 3.7)', () => {
+  const body = { sheetId: 's', fileTypes: ['PDF'], email: 'a@b.co', expectedTotalCents: 1 };
+  it('locale tuỳ chọn, chỉ nhận vi hoặc en', () => {
+    expect(createOrderRequestSchema.safeParse(body).success).toBe(true);
+    expect(createOrderRequestSchema.safeParse({ ...body, locale: 'en' }).success).toBe(true);
+    expect(createOrderRequestSchema.safeParse({ ...body, locale: 'fr' }).success).toBe(false);
+  });
+});
+
 describe('createOrderRequestSchema', () => {
   const base = { sheetId: 'x', email: 'a@b.co', expectedTotalCents: 499 };
   it('nhận fileTypes hoặc bundle, không nhận cả hai hay không có', () => {

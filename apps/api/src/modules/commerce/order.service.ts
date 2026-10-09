@@ -1,5 +1,6 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   canTransition,
   type CaptureOrderRequest,
@@ -10,6 +11,7 @@ import {
   formatUsd,
   type FileType,
   type OrderItem,
+  type OrderLocale,
   type OrderStatus,
   orderEmailSchema,
   type PurchasableFileType,
@@ -20,16 +22,23 @@ import { notFound } from '../catalog/catalog.helpers';
 import { PricingService } from '../catalog/pricing.service';
 import { isPrismaError } from '../catalog/prisma-errors';
 import { PurchasableFilesSource } from '../catalog/purchasable-files-source.service';
+import type { Env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EMAIL_PORT, type EmailPort } from '../notify/email-port';
 import { SettingsService } from '../settings/settings.service';
-import { DownloadTokenRepository } from './download-token.repository';
-import { type OrderForCapture, OrderRepository } from './order.repository';
+import { buildDownloadEmail } from './download-email';
+import { DownloadTokenRepository, tokenStatus } from './download-token.repository';
+import { type OrderForCapture, OrderRepository, toLocale } from './order.repository';
 import { type CaptureResult, OrderAlreadyCapturedError, PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
 
 /** Bảng chữ cái base32 Crockford (không I, L, O, U). */
 const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const CODE_LENGTH = 6;
 const CODE_ATTEMPTS = 5;
+
+/** Gửi lại email link tải: tối đa 3 lần mỗi giờ cho mỗi email (bộ nhớ trong tiến trình, khoá là SHA-256 của email). */
+const RESEND_LIMIT = 3;
+const RESEND_WINDOW_MS = 60 * 60 * 1000;
 
 /** `PD-` + 6 ký tự base32 ngẫu nhiên (mật mã học, không thiên lệch vì 256 chia hết cho 32). */
 export function generateOrderCode(): string {
@@ -98,7 +107,12 @@ export class OrderService {
     private readonly tokens: DownloadTokenRepository,
     private readonly files: PurchasableFilesSource,
     private readonly prisma: PrismaService,
+    @Inject(EMAIL_PORT) private readonly email: EmailPort,
+    private readonly config: ConfigService<Env, true>,
   ) {}
+
+  /** Mốc thời gian các lần gửi lại theo khoá email băm. */
+  private readonly resendLog = new Map<string, number[]>();
 
   /**
    * Thứ tự kiểm tra: payments_enabled, email, Sheet/type mua được, giá. Giá luôn tính lại từ `PricingService.quote()`.
@@ -124,7 +138,36 @@ export class OrderService {
       throw new AppException(ErrorCode.PRICE_CHANGED, HttpStatus.CONFLICT, undefined, quote);
     }
 
-    const order = await this.insertPending({ sheetId: quote.sheetId, email: email.data, items, amountCents });
+    // Đã mua đủ các định dạng này và link còn hiệu lực: không tạo đơn thứ hai, gửi lại link tải qua email.
+    const purchase = await this.findCoveringPurchase(
+      email.data,
+      quote.sheetId,
+      items.map((item) => item.fileType),
+    );
+    if (purchase) {
+      this.consumeResendQuota(email.data);
+      const sent = await this.deliverDownloadEmail({
+        to: email.data,
+        locale: request.locale ?? purchase.locale,
+        orderCode: purchase.orderCode,
+        sheetTitle: purchase.sheetTitle,
+        token: purchase.token,
+      });
+      if (!sent) {
+        // Không được nói "đã gửi lại" khi email không đi: hoàn lượt gửi và báo lỗi tạm thời.
+        this.refundResendQuota(email.data);
+        throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      throw new AppException(ErrorCode.ALREADY_PURCHASED, HttpStatus.CONFLICT);
+    }
+
+    const order = await this.insertPending({
+      sheetId: quote.sheetId,
+      email: email.data,
+      items,
+      amountCents,
+      ...(request.locale ? { locale: request.locale } : {}),
+    });
 
     try {
       const { providerOrderId } = await this.provider.createOrder({
@@ -200,12 +243,89 @@ export class OrderService {
 
     if (granted) {
       if (order.status !== 'PENDING') this.logger.warn(`LATE_CAPTURE ${order.orderCode} (từ ${order.status})`);
+      // Sau commit và không chặn response; chỉ lần fulfil thắng mới tới đây nên mỗi đơn gửi đúng một email.
+      void this.sendPurchaseEmail(order, granted.token);
       return { orderCode: order.orderCode, ...granted };
     }
     // Thua cuộc đua: lệnh khác đã PAID và commit token trước.
     const current = await this.orders.findById(order.id);
     if (current?.status === 'PAID') return this.existingFulfilment(current);
     throw notFound('Không tìm thấy đơn hàng.');
+  }
+
+  /** Email sau khi PAID: thành công mới ghi `email_sent_at`. Không bao giờ ném lỗi. */
+  private async sendPurchaseEmail(order: OrderForCapture, token: string): Promise<void> {
+    const sent = await this.deliverDownloadEmail({
+      to: order.email,
+      locale: toLocale(order.locale),
+      orderCode: order.orderCode,
+      sheetTitle: order.sheet.title,
+      token,
+    });
+    if (!sent) return;
+    await this.orders
+      .setEmailSentAt(order.id)
+      .catch(() => this.logger.error(`Không ghi được email_sent_at cho đơn ${order.orderCode}.`));
+  }
+
+  /** Gửi email link tải qua `EmailPort`; lỗi chỉ log tên lỗi + mã đơn (không email, không token). Trả true nếu đã gửi. */
+  private async deliverDownloadEmail(input: {
+    to: string;
+    locale: OrderLocale;
+    orderCode: string;
+    sheetTitle: string;
+    token: string;
+  }): Promise<boolean> {
+    try {
+      const base = this.config.get('SITE_URL', { infer: true }) ?? this.config.get('CORS_WEB_ORIGIN', { infer: true });
+      const link = `${base.replace(/\/+$/, '')}/${input.locale}/downloads/${encodeURIComponent(input.token)}`;
+      const content = buildDownloadEmail({ locale: input.locale, orderCode: input.orderCode, sheetTitle: input.sheetTitle, link });
+      const result = await this.email.send({ to: input.to, ...content });
+      return result !== false;
+    } catch (err) {
+      this.logger.error(`Gửi email link tải thất bại (${input.orderCode}): ${err instanceof Error ? err.name : 'unknown'}`);
+      return false;
+    }
+  }
+
+  /**
+   * Đơn PAID cùng email + Sheet có token đang ACTIVE và file của token bao phủ mọi type yêu cầu (mới nhất trước).
+   * Token hết hạn/hết lượt/thu hồi hoặc thiếu type thì bỏ qua.
+   */
+  private async findCoveringPurchase(email: string, sheetId: string, types: readonly string[]) {
+    const paidOrders = await this.orders.findPaidByEmailAndSheet(email, sheetId);
+    for (const paid of paidOrders) {
+      const stored = await this.tokens.findByOrderId(paid.id);
+      if (!stored) continue;
+      const view = await this.tokens.findByToken(stored.token);
+      if (!view || tokenStatus(view) !== 'ACTIVE') continue;
+      const have = new Set<string>(view.files.map((file) => file.fileType));
+      if (types.every((type) => have.has(type))) return { ...paid, token: stored.token };
+    }
+    return null;
+  }
+
+  /** Ghi một lượt gửi lại cho email; vượt hạn mức thì 429 và KHÔNG gửi. */
+  private refundResendQuota(email: string): void {
+    const key = createHash('sha256').update(email).digest('hex');
+    const times = this.resendLog.get(key);
+    if (times?.length) times.pop();
+  }
+
+  private consumeResendQuota(email: string, now = Date.now()): void {
+    const key = createHash('sha256').update(email).digest('hex');
+    const recent = (this.resendLog.get(key) ?? []).filter((at) => now - at < RESEND_WINDOW_MS);
+    if (recent.length >= RESEND_LIMIT) {
+      this.resendLog.set(key, recent);
+      throw new AppException(ErrorCode.TOO_MANY_REQUESTS, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    recent.push(now);
+    this.resendLog.set(key, recent);
+    if (this.resendLog.size > 10_000) {
+      for (const [k, times] of this.resendLog) {
+        if (times.every((at) => now - at >= RESEND_WINDOW_MS)) this.resendLog.delete(k);
+      }
+    }
   }
 
   /** Cấp PAID + token trong một transaction; null nếu thua cuộc đua. Thiếu file đã mua thì huỷ, đánh dấu review và 503. */
@@ -281,6 +401,7 @@ export class OrderService {
     email: string;
     items: OrderItem[];
     amountCents: number;
+    locale?: OrderLocale;
   }): Promise<{ id: string; orderCode: string }> {
     for (let attempt = 1; ; attempt += 1) {
       try {

@@ -293,6 +293,8 @@ model Order {
   paidAt          DateTime?   @map("paid_at") @db.Timestamptz(6)
   refundedAt      DateTime?   @map("refunded_at") @db.Timestamptz(6)
   reviewRequired  Boolean     @default(false) @map("review_required")
+  /// `vi` | `en` (CHECK ở migration): ngôn ngữ email link tải (Story 3.7).
+  locale          String?     @default("vi")
   emailSentAt     DateTime?   @map("email_sent_at") @db.Timestamptz(6)
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)

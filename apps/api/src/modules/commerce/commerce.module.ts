@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CatalogModule } from '../catalog/catalog.module';
 import { MediaModule } from '../media/media.module';
+import { NotifyModule } from '../notify/notify.module';
 import { SettingsModule } from '../settings/settings.module';
 import { DownloadLogRepository } from './download-log.repository';
 import { DownloadTokenRepository } from './download-token.repository';
@@ -16,7 +17,7 @@ import { PaypalProvider } from './paypal.provider';
 
 /** Module chủ của bảng `download_logs`, `orders`, `download_tokens` và `download_token_files` (AD-1, AD-20); webhook ở story sau. */
 @Module({
-  imports: [CatalogModule, MediaModule, SettingsModule],
+  imports: [CatalogModule, MediaModule, NotifyModule, SettingsModule],
   controllers: [DownloadsController, PaidDownloadsController, PaymentsController],
   providers: [
     DownloadLogRepository,

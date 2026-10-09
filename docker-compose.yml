@@ -127,6 +127,8 @@ services:
         NEXT_PUBLIC_MEDIA_BASE_URL: ${NEXT_PUBLIC_MEDIA_BASE_URL:-http://localhost:8333/piano-daily-public}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:4100}
         NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
+        # Client ID công khai của PayPal (không phải secret); để trống thì modal thanh toán báo chưa cấu hình.
+        NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
     environment:
       API_INTERNAL_URL: http://api:4000
       # Chỉ server đọc; không bao giờ đặt tiền tố NEXT_PUBLIC_.

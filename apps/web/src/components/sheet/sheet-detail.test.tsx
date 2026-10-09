@@ -9,6 +9,7 @@ vi.mock('@/i18n/navigation', () => ({
       {children}
     </a>
   ),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 import { SheetDetail } from './sheet-detail';
@@ -118,10 +119,11 @@ describe('SheetDetail — nút tải (Story 3.2)', () => {
     expect(screen.queryByRole('region', { name: 'Download MIDI and MP3' })).toBeNull();
   });
 
-  it('Sheet không free: không có nút Download nào', () => {
+  it('Sheet không free: không có liên kết tải trực tiếp (nút mua mở modal, xem mô tả Story 3.6)', () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => undefined)));
     view(full);
     expect(screen.queryByRole('link', { name: /Download/ })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Downloads' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Download/ }).length).toBeGreaterThan(0);
   });
 
   it('route preview (showDownloads=false): không có nút dù Sheet free', () => {
@@ -142,6 +144,9 @@ describe('SheetDetail — nút tải (Story 3.2)', () => {
 });
 
 describe('SheetDetail', () => {
+  // Không có API base thì Sheet không free không dựng nút mua, nên không phát request nào ngoài ý muốn của từng test.
+  beforeEach(() => vi.stubEnv('NEXT_PUBLIC_API_URL', ''));
+
   it('đủ các khối theo thứ tự UX-DR22: breadcrumb → H1 → meta → ảnh → video → lyrics; sidebar riêng', () => {
     const { container } = view(full);
     const text = container.textContent ?? '';
@@ -248,8 +253,8 @@ describe('SheetDetail', () => {
     expect(screen.queryByText('Lyrics & Chords')).toBeNull();
   });
 
-  it('không có nút hay link Download/tải', () => {
-    const { container } = view(full);
+  it('route preview (showDownloads=false): không có nút hay link Download/tải', () => {
+    const { container } = render(withIntl(<SheetDetail sheet={full} showDownloads={false} />, 'en'));
     // Chỉ có nút của player (Play/Pause/đang tải), không có nút tải.
     expect(screen.queryAllByRole('button').every((b) => /play|pause|loading|chơi|phát|tạm dừng|đang tải/i.test(b.textContent ?? ''))).toBe(true);
     expect(screen.queryByRole('button', { name: /download|tải/i })).toBeNull();
@@ -294,5 +299,97 @@ describe('SheetDetail', () => {
     view(bare);
     expect(screen.queryByRole('heading', { name: 'Listen' })).toBeNull();
     expect(screen.queryByText(/Simulated playback/)).toBeNull();
+  });
+});
+
+describe('SheetDetail — nút mua (Story 3.6)', () => {
+  const quote = (over: Record<string, unknown> = {}) => ({
+    sheetId: 's1',
+    currency: 'USD',
+    free: false,
+    items: [
+      { fileType: 'PDF', priceCents: 299 },
+      { fileType: 'MIDI', priceCents: 199 },
+    ],
+    bundle: { priceCents: 399, fileTypes: ['PDF', 'MIDI'] },
+    paymentsEnabled: true,
+    ...over,
+  });
+  const stubFetch = (body: unknown, ok = true) => {
+    const fetchMock = vi.fn().mockImplementation(async () => ({ ok, status: ok ? 200 : 500, json: async () => body }));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  };
+
+  beforeEach(() => vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.example:4000/'));
+
+  it('lấy báo giá no-store khi mount; chỉ hiện type có giá (MP3 có file nhưng không có giá thì ẩn hẳn)', async () => {
+    const fetchMock = stubFetch(quote());
+    view(full);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /MP3/ })).toBeNull());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe('http://api.example:4000/sheets/s1/quote');
+    expect(fetchMock.mock.calls[0]![1]).toMatchObject({ cache: 'no-store', credentials: 'omit' });
+    const group = screen.getByRole('region', { name: 'Downloads' });
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Download PDF', 'Download MIDI']);
+    for (const b of within(group).getAllByRole('button')) {
+      expect(b.className).toContain('bg-secondary');
+      expect(b).not.toHaveAttribute('aria-disabled');
+    }
+    expect(screen.queryByRole('link', { name: /Download/ })).toBeNull();
+  });
+
+  it('paymentsEnabled=false: nút aria-disabled kèm chú thích, bấm không mở modal', async () => {
+    stubFetch(quote({ paymentsEnabled: false }));
+    view(full);
+    const group = screen.getByRole('region', { name: 'Downloads' });
+    const note = await within(group).findByText(/temporarily unavailable/);
+    const pdf = within(group).getByRole('button', { name: /PDF/ });
+    expect(pdf).toHaveAttribute('aria-disabled', 'true');
+    expect(pdf).toHaveAttribute('aria-describedby', note.id);
+    fireEvent.click(pdf);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('Sheet không free: có đủ ba lối vào mua (nhóm header, call-out MIDI/MP3, nút PDF ở sidebar)', async () => {
+    stubFetch(quote({ items: [{ fileType: 'PDF', priceCents: 299 }, { fileType: 'MIDI', priceCents: 199 }, { fileType: 'MP3', priceCents: 199 }], bundle: null }));
+    view(full);
+    await screen.findByRole('region', { name: 'Downloads' });
+    const audio = await screen.findByRole('region', { name: 'Download MIDI and MP3' });
+    expect(within(audio).getAllByRole('button').map((b) => b.textContent)).toEqual(['Download MIDI', 'Download MP3']);
+    expect(screen.getAllByRole('button', { name: /Download PDF/ }).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('báo giá không còn giá MIDI/MP3: call-out âm thanh biến mất', async () => {
+    stubFetch(quote({ items: [{ fileType: 'PDF', priceCents: 299 }], bundle: null }));
+    view(full);
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Download MIDI and MP3' })).toBeNull());
+  });
+
+  it('đóng modal (Esc) trả focus về nút Download đã bấm', async () => {
+    stubFetch(quote());
+    view(full);
+    const group = screen.getByRole('region', { name: 'Downloads' });
+    const pdf = await within(group).findByRole('button', { name: /PDF/ });
+    pdf.focus();
+    fireEvent.click(pdf);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(pdf).toHaveFocus());
+  });
+
+  it('báo giá lỗi: nút vẫn hiện (modal sẽ tự lấy lại báo giá)', async () => {
+    stubFetch({}, false);
+    view(full);
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    expect(within(screen.getByRole('region', { name: 'Downloads' })).getAllByRole('button')).toHaveLength(3);
+  });
+
+  it('Sheet free vẫn là liên kết tải trực tiếp, không gọi báo giá', () => {
+    const fetchMock = stubFetch(quote());
+    view({ ...full, isFree: true });
+    expect(screen.getAllByRole('link', { name: /Download PDF/ }).length).toBeGreaterThan(0);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

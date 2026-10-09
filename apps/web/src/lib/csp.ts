@@ -30,7 +30,8 @@ export function buildCsp(env: CspEnv = process.env): string {
     // Next nhúng script inline (không dùng nonce); giữ 'unsafe-inline' thay vì bật cacheComponents/nonce.
     'script-src': list("'self'", "'unsafe-inline'", isDev ? "'unsafe-eval'" : undefined, paypal, youtube),
     'style-src': "'self' 'unsafe-inline'",
-    'img-src': list("'self'", 'data:', media),
+    // Nút và logo PayPal (paypal.com, paypalobjects.com) cho modal thanh toán (Story 3.6).
+    'img-src': list("'self'", 'data:', media, paypal, 'https://www.paypalobjects.com'),
     'media-src': list("'self'", media),
     'font-src': "'self'",
     'connect-src': list("'self'", api, media, paypal),

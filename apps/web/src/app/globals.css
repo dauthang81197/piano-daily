@@ -21,3 +21,23 @@
     outline-offset: 2px;
   }
 }
+
+/* Modal thanh toán: chỉ fade nhẹ, không trượt hay nảy; tắt khi người dùng giảm chuyển động. */
+@keyframes payment-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.payment-fade {
+  animation: payment-fade 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-fade {
+    animation: none;
+  }
+}

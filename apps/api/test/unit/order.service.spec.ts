@@ -20,6 +20,7 @@ const QUOTE: Quote = {
     { fileType: 'MIDI', priceCents: 299 },
     { fileType: 'MP3', priceCents: 199 },
   ],
+  paymentsEnabled: true,
   bundle: { priceCents: 700, fileTypes: ['PDF', 'MIDI', 'MP3'] },
 };
 

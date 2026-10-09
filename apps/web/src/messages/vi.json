@@ -146,7 +146,8 @@
     "downloadGroup": "Tải về",
     "audioTitle": "Tải MIDI và MP3",
     "audioHint": "Dùng file MIDI để luyện tập trên phần mềm của bạn và file MP3 để nghe lại bản trình diễn.",
-    "pdfSidebarTitle": "Bản nhạc PDF"
+    "pdfSidebarTitle": "Bản nhạc PDF",
+    "purchaseDisabledNote": "Chức năng mua hàng tạm thời chưa khả dụng. Vui lòng quay lại sau."
   },
   "Player": {
     "title": "Nghe thử",
@@ -193,5 +194,44 @@
     "partMidi": "bản nghe thử MIDI",
     "partVideo": "video hướng dẫn",
     "partLyrics": "lời và hợp âm"
+  },
+  "Payment": {
+    "title": "Mua {format}",
+    "formats": {
+      "PDF": "PDF",
+      "MIDI": "MIDI",
+      "MP3": "MP3"
+    },
+    "dialogLabel": "Mua file của bài {title}",
+    "close": "Đóng",
+    "sheetHeading": "Bài",
+    "filesHeading": "File cần mua",
+    "bundleLabel": "Bundle: {formats}",
+    "bundleHint": "Tất cả định dạng hiện có với một mức giá.",
+    "bundleIncluded": "Đã nằm trong Bundle",
+    "price": "USD {price}",
+    "total": "Tổng cộng",
+    "emailLabel": "Địa chỉ email",
+    "emailHint": "Chúng tôi dùng địa chỉ này cho đơn mua của bạn. Không tạo tài khoản.",
+    "emailInvalid": "Vui lòng nhập email hợp lệ, ví dụ ten@example.com.",
+    "payPrompt": "Nhập email hợp lệ và chọn ít nhất một file để tiếp tục với PayPal.",
+    "loadingQuote": "Đang tải giá hiện tại",
+    "processing": "Đang xử lý thanh toán. Vui lòng không đóng cửa sổ này.",
+    "disabledNote": "Chức năng mua hàng tạm thời chưa khả dụng. Vui lòng quay lại sau.",
+    "errors": {
+      "quote": "Không tải được giá hiện tại. Vui lòng kiểm tra kết nối và thử lại.",
+      "retry": "Thử lại",
+      "noItems": "Hiện chưa có file nào của bài này để mua. Vui lòng quay lại sau.",
+      "paymentsDisabled": "Chức năng mua hàng tạm thời chưa khả dụng. Lựa chọn của bạn vẫn được giữ; vui lòng thử lại sau.",
+      "priceChanged": "Giá đã thay đổi kể từ khi bạn mở cửa sổ này. Giá mới được hiển thị bên dưới; vui lòng kiểm tra rồi thanh toán lại.",
+      "declined": "Khoản thanh toán bị từ chối. Vui lòng kiểm tra thông tin thẻ hoặc chọn phương thức khác trong PayPal, sau đó thử lại.",
+      "network": "Không kết nối được máy chủ. Vui lòng kiểm tra kết nối và thử lại; lựa chọn và email của bạn vẫn được giữ.",
+      "cancelled": "Cửa sổ PayPal đã đóng trước khi thanh toán hoàn tất. Bạn chưa bị trừ tiền. Vui lòng bấm nút PayPal để thử lại.",
+      "tooMany": "Bạn thao tác quá nhiều lần trong thời gian ngắn. Vui lòng đợi một phút rồi thử lại.",
+      "captureUnknown": "Thanh toán của bạn có thể đã được ghi nhận nhưng chúng tôi chưa xác nhận được. Vui lòng không thanh toán lại; hãy liên hệ với chúng tôi kèm email đã nhập để nhận link tải.",
+      "paypal": "Không hoàn tất được cửa sổ PayPal. Vui lòng bấm nút PayPal để thử lại.",
+      "config": "Trang web chưa được cấu hình thanh toán trực tuyến. Vui lòng liên hệ với chúng tôi để được hỗ trợ.",
+      "generic": "Không hoàn tất được thanh toán. Vui lòng thử lại; nếu vẫn lỗi, hãy liên hệ với chúng tôi kèm email bạn đã nhập."
+    }
   }
 }

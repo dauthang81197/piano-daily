@@ -76,3 +76,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent.md`
   summary: `sheet-file-gc.service` (catalog) xoá `download_token_files` bằng SQL thô, vi phạm quy tắc mỗi bảng một module chủ; chưa có integration test capture bundle nhiều type (tên file, thứ tự).
   evidence: sheet-file-gc.service.ts ~L77; `capture-order.spec.ts` chỉ dùng đơn một type PDF. Nên đưa việc xoá qua cổng của commerce và thêm test bundle khi chạm lại.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-6-modal-thanh-toan-tren-trang-chi-tiet.md`
+  summary: Modal chưa có thao tác thử capture lại cho cùng `paypalOrderId`; người mua có thể đã trả tiền nhưng chưa có link tải khi capture lỗi, đường lấy lại duy nhất là liên hệ.
+  evidence: `payment-modal.tsx` onApprove chỉ hiện thông điệp `captureUnknown`; email link tải ở Story 3.7. Nên thêm nút "xác nhận lại" gọi `capture-order` với cùng id hoặc lấy lại qua email/orderCode khi làm 3.7.

@@ -48,5 +48,7 @@ export const quoteSchema = z.object({
   free: z.boolean(),
   items: z.array(z.object({ fileType: purchasableTypeSchema, priceCents: priceCentsSchema })),
   bundle: z.object({ priceCents: priceCentsSchema, fileTypes: z.array(purchasableTypeSchema).min(2) }).nullable(),
+  /** `payments_enabled` (Story 3.6) để web tắt nút mua; phản hồi cũ không có trường này coi như bật. */
+  paymentsEnabled: z.boolean().default(true),
 });
 export type Quote = z.infer<typeof quoteSchema>;

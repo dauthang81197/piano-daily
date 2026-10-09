@@ -1,17 +1,15 @@
 import type { PublicSheetDetail } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { publicApiUrl } from '@/lib/public-env';
+import { downloadButtonClass } from './download-button-class';
+import { PurchaseButtons } from './purchase-buttons';
 
 type DownloadType = PublicSheetDetail['downloadTypes'][number];
 
 const PATH: Record<DownloadType, string> = { PDF: 'pdf', MIDI: 'midi', MP3: 'mp3' };
 
-/** `button-download` (UX-DR4): brass, dùng cho mọi nút tải; focus ring brass lấy từ `globals.css`. */
-export const downloadButtonClass =
-  'inline-flex min-h-11 items-center justify-center rounded-md bg-secondary px-6 py-2 text-body-md font-semibold text-on-secondary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
-
 /** Base URL API cho trình duyệt; thiếu cấu hình thì không có nút (không ném, như `ViewBeacon`). */
-function apiBase(): string | null {
+export function apiBase(): string | null {
   try {
     return publicApiUrl();
   } catch {
@@ -19,9 +17,9 @@ function apiBase(): string | null {
   }
 }
 
-/** Định dạng tải được của Sheet miễn phí, theo thứ tự PDF → MIDI → MP3; rỗng khi không free hoặc đang preview. */
+/** Định dạng có thật của Sheet theo thứ tự PDF → MIDI → MP3 (tải ngay nếu free, mua qua modal nếu không); rỗng khi đang preview. */
 export function availableDownloads(sheet: PublicSheetDetail, enabled: boolean): DownloadType[] {
-  return enabled && sheet.isFree ? sheet.downloadTypes : [];
+  return enabled ? sheet.downloadTypes : [];
 }
 
 /**
@@ -59,11 +57,25 @@ export function DownloadButtons({
   );
 }
 
-/** Khối call-out riêng cho MIDI/MP3 (UX-DR22). Không có định dạng nào trong hai loại này thì không hiện. */
-export function AudioDownloadCallout({ sheetId, title, types }: { sheetId: string; title: string; types: DownloadType[] }) {
+/**
+ * Khối call-out riêng cho MIDI/MP3 (UX-DR22). Không có định dạng nào trong hai loại này thì không hiện.
+ * `purchase` (Sheet không free, Story 3.6): nút mở modal thanh toán, cần `PurchaseProvider`.
+ */
+export function AudioDownloadCallout({
+  sheetId,
+  title,
+  types,
+  purchase = false,
+}: {
+  sheetId: string;
+  title: string;
+  types: DownloadType[];
+  purchase?: boolean;
+}) {
   const t = useTranslations('Sheet');
   const audio = types.filter((type) => type === 'MIDI' || type === 'MP3');
   if (audio.length === 0 || !apiBase()) return null;
+  if (purchase) return <PurchaseButtons variant="audio" title={title} types={audio} />;
   return (
     <section
       aria-labelledby="sheet-audio-downloads"

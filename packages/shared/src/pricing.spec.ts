@@ -70,4 +70,10 @@ describe('quoteSchema', () => {
     expect(quoteSchema.safeParse({ ...base, bundle: null }).success).toBe(true);
     expect(quoteSchema.safeParse({ ...base, bundle: { priceCents: 100, fileTypes: ['PDF'] } }).success).toBe(false);
   });
+
+  it('paymentsEnabled mặc định true cho phản hồi cũ, giữ nguyên false', () => {
+    const base = { sheetId: 's', currency: 'USD', free: false, items: [], bundle: null };
+    expect(quoteSchema.parse(base).paymentsEnabled).toBe(true);
+    expect(quoteSchema.parse({ ...base, paymentsEnabled: false }).paymentsEnabled).toBe(false);
+  });
 });

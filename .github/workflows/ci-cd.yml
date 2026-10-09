@@ -1,7 +1,7 @@
 # CI cho mọi PR và push vào develop; push vào develop còn build image, đẩy lên Docker Hub rồi deploy lên VPS qua SSH.
 # Cần cấu hình trong GitHub (Settings → Secrets and variables → Actions) — xem mục "CI/CD" trong README:
 #   Secrets:   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS
-#   Variables: SITE_HOST, MEDIA_BASE_URL
+#   Variables: SITE_HOST, MEDIA_BASE_URL, PAYPAL_CLIENT_ID
 name: ci-cd
 
 on:
@@ -92,6 +92,7 @@ jobs:
             NEXT_PUBLIC_SITE_URL=https://${{ vars.SITE_HOST }}
             NEXT_PUBLIC_MEDIA_BASE_URL=${{ vars.MEDIA_BASE_URL }}
             NEXT_PUBLIC_CONTACT_EMAIL=${{ vars.CONTACT_EMAIL }}
+            NEXT_PUBLIC_PAYPAL_CLIENT_ID=${{ vars.PAYPAL_CLIENT_ID }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,scope=${{ matrix.app }},mode=max
 

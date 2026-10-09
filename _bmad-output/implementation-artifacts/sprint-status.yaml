@@ -69,7 +69,7 @@ development_status:
   3-5-tai-file-da-mua-qua-token-va-trang-tai: review
   3-6-modal-thanh-toan-tren-trang-chi-tiet: review
   3-7-email-link-tai-va-mua-lai-cung-email: review
-  3-8-webhook-paypal: backlog
+  3-8-webhook-paypal: review
   3-9-tu-huy-don-pending-qua-han: backlog
   3-10-dat-gia-hang-loat: backlog
   epic-3-retrospective: optional

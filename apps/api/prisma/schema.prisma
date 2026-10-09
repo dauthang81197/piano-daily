@@ -347,3 +347,16 @@ model SiteSetting {
 
   @@map("site_settings")
 }
+
+/// Sự kiện webhook PayPal đã xác thực chữ ký (Story 3.8). `provider_event_id` UNIQUE chặn xử lý trùng.
+/// Chỉ module `commerce` ghi. `processed_at` null = chưa xử lý xong (PayPal gửi lại sẽ xử lý lại). Không log payload.
+model PaymentEvent {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  providerEventId String    @unique @map("provider_event_id")
+  type            String
+  payload         Json
+  processedAt     DateTime? @map("processed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("payment_events")
+}

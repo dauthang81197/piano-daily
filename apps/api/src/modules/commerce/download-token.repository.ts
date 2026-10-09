@@ -74,6 +74,11 @@ export class DownloadTokenRepository {
     });
   }
 
+  /** Thu hồi token của Order (đặt `revoked_at` nếu chưa có) trong transaction của caller. Order không có token thì không làm gì. */
+  async revokeByOrder(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
+    await tx.downloadToken.updateMany({ where: { orderId, revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
   /** Token hiện có của Order (kèm file lúc cấp); null nếu chưa có. */
   async findByOrderId(orderId: string, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<StoredToken | null> {
     const row = await client.downloadToken.findUnique({

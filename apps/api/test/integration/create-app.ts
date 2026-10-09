@@ -34,6 +34,8 @@ export async function createApp(
   extraImports: (Type | DynamicModule)[] = [],
   /** Thay provider của module bằng giá trị giả (vd. `PAYMENT_PROVIDER`): `extraImports` không ghi đè được provider có sẵn. */
   overrides: { token: unknown; value: unknown }[] = [],
+  /** Biến môi trường bổ sung (vd. `PAYPAL_WEBHOOK_ID`), đặt SAU các giá trị mặc định ở trên. */
+  env: Record<string, string> = {},
 ): Promise<INestApplication> {
   process.env.DATABASE_URL = databaseUrl;
   process.env.LOG_LEVEL = 'silent';
@@ -46,17 +48,19 @@ export async function createApp(
   process.env.PAYPAL_MODE = 'sandbox';
   delete process.env.PAYPAL_CLIENT_ID;
   delete process.env.PAYPAL_CLIENT_SECRET;
+  delete process.env.PAYPAL_WEBHOOK_ID;
   // Email: test không gửi thật; thay EMAIL_PORT bằng bản giả khi cần (overrides). Để trống thì adapter thật bỏ qua.
   delete process.env.RESEND_API_KEY;
   delete process.env.EMAIL_FROM;
   delete process.env.SITE_URL;
+  Object.assign(process.env, env);
   Object.assign(process.env, TEST_S3, { S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL });
   const { AppModule } = await import('../../src/app.module.js');
-  const { configureApp } = await import('../../src/bootstrap.js');
+  const { APP_OPTIONS, configureApp } = await import('../../src/bootstrap.js');
   let builder = Test.createTestingModule({ imports: [AppModule, ...extraImports] });
   for (const { token, value } of overrides) builder = builder.overrideProvider(token).useValue(value);
   const moduleRef = await builder.compile();
-  const app = moduleRef.createNestApplication({ bufferLogs: true });
+  const app = moduleRef.createNestApplication({ bufferLogs: true, ...APP_OPTIONS });
   configureApp(app);
   await app.init();
   return app;

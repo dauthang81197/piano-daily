@@ -12,13 +12,16 @@ import { OrderService } from './order.service';
 import { PaidDownloadsController } from './paid-downloads.controller';
 import { PaidDownloadsService } from './paid-downloads.service';
 import { PAYMENT_PROVIDER } from './payment-provider';
+import { PaymentEventRepository } from './payment-event.repository';
 import { PaymentsController } from './payments.controller';
 import { PaypalProvider } from './paypal.provider';
+import { WebhookService } from './webhook.service';
+import { WebhooksController } from './webhooks.controller';
 
-/** Module chủ của bảng `download_logs`, `orders`, `download_tokens` và `download_token_files` (AD-1, AD-20); webhook ở story sau. */
+/** Module chủ của bảng `download_logs`, `orders`, `download_tokens`, `download_token_files` và `payment_events` (AD-1, AD-20). */
 @Module({
   imports: [CatalogModule, MediaModule, NotifyModule, SettingsModule],
-  controllers: [DownloadsController, PaidDownloadsController, PaymentsController],
+  controllers: [DownloadsController, PaidDownloadsController, PaymentsController, WebhooksController],
   providers: [
     DownloadLogRepository,
     DownloadTokenRepository,
@@ -26,6 +29,8 @@ import { PaypalProvider } from './paypal.provider';
     OrderRepository,
     OrderService,
     PaidDownloadsService,
+    PaymentEventRepository,
+    WebhookService,
     { provide: PAYMENT_PROVIDER, useClass: PaypalProvider },
   ],
 })

@@ -7,7 +7,7 @@ type DownloadType = PublicSheetDetail['downloadTypes'][number];
 const PATH: Record<DownloadType, string> = { PDF: 'pdf', MIDI: 'midi', MP3: 'mp3' };
 
 /** `button-download` (UX-DR4): brass, dùng cho mọi nút tải; focus ring brass lấy từ `globals.css`. */
-const button =
+export const downloadButtonClass =
   'inline-flex min-h-11 items-center justify-center rounded-md bg-secondary px-6 py-2 text-body-md font-semibold text-on-secondary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /** Base URL API cho trình duyệt; thiếu cấu hình thì không có nút (không ném, như `ViewBeacon`). */
@@ -48,7 +48,7 @@ export function DownloadButtons({
         <li key={type}>
           <a
             href={`${base}/files/${encodeURIComponent(sheetId)}/${PATH[type]}/download`}
-            className={button}
+            className={downloadButtonClass}
             aria-label={t('downloadLabel', { format: t(`download.${type}`), title })}
           >
             {t(`download.${type}`)}

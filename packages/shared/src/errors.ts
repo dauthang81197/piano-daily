@@ -28,6 +28,12 @@ export const ErrorCode = {
   PAYMENTS_DISABLED: 'PAYMENTS_DISABLED',
   /** PayPal từ chối khoản thanh toán (402, `message` là lý do hiển thị được). */
   PAYMENT_DECLINED: 'PAYMENT_DECLINED',
+  /** Link tải đã quá hạn (410). */
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  /** Link tải đã dùng hết lượt (410). */
+  TOKEN_EXHAUSTED: 'TOKEN_EXHAUSTED',
+  /** Link tải bị vô hiệu: đơn không còn PAID hoặc token bị thu hồi (410). */
+  TOKEN_REVOKED: 'TOKEN_REVOKED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

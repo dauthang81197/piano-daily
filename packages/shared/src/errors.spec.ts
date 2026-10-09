@@ -20,3 +20,11 @@ describe('mã lỗi thanh toán (Story 3.3)', () => {
     expect(errorResponseSchema.safeParse({ error: { code: 'PAYMENT_DECLINED', message: 'x' } }).success).toBe(true);
   });
 });
+
+describe('mã lỗi link tải (Story 3.5)', () => {
+  it('có TOKEN_EXPIRED, TOKEN_EXHAUSTED và TOKEN_REVOKED', () => {
+    for (const code of ['TOKEN_EXPIRED', 'TOKEN_EXHAUSTED', 'TOKEN_REVOKED']) {
+      expect(errorResponseSchema.safeParse({ error: { code, message: 'x' } }).success, code).toBe(true);
+    }
+  });
+});

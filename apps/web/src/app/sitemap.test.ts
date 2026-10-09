@@ -42,6 +42,7 @@ describe('app/robots', () => {
     expect(rule.userAgent).toBe('*');
     expect(rule.allow).toBe('/');
     expect(rule.disallow).toEqual(expect.arrayContaining(['/api/', '/vi/preview/', '/en/preview/']));
+    expect(rule.disallow).toEqual(expect.arrayContaining(['/vi/downloads/', '/en/downloads/']));
   });
 
   it('trỏ tới sitemap tuyệt đối', () => {

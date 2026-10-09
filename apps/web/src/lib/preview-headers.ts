@@ -10,3 +10,7 @@ export const PREVIEW_HEADERS: { key: string; value: string }[] = [
   { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
   { key: 'Referrer-Policy', value: 'no-referrer' },
 ];
+
+/** Đường dẫn của trang tải file đã mua (Story 3.5): token nằm trong URL nên cũng không cache/index/gửi Referer. */
+export const DOWNLOADS_SOURCE = '/:locale/downloads/:path*';
+export const DOWNLOADS_HEADERS = PREVIEW_HEADERS;

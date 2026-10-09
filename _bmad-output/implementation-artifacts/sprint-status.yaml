@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-28-2026 10:17
-last_updated: 10-09-2026 14:00
+last_updated: 10-09-2026 15:00
 project: Piano Daily
 project_key: NOKEY
 tracking_system: file-system
@@ -66,7 +66,7 @@ development_status:
   3-2-tai-ngay-sheet-mien-phi: review
   3-3-tao-don-hang-paypal-phia-server: review
   3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent: review
-  3-5-tai-file-da-mua-qua-token-va-trang-tai: backlog
+  3-5-tai-file-da-mua-qua-token-va-trang-tai: review
   3-6-modal-thanh-toan-tren-trang-chi-tiet: backlog
   3-7-email-link-tai-va-mua-lai-cung-email: backlog
   3-8-webhook-paypal: backlog

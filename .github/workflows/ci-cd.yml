@@ -91,6 +91,7 @@ jobs:
             NEXT_PUBLIC_API_URL=https://${{ vars.SITE_HOST }}:9443
             NEXT_PUBLIC_SITE_URL=https://${{ vars.SITE_HOST }}
             NEXT_PUBLIC_MEDIA_BASE_URL=${{ vars.MEDIA_BASE_URL }}
+            NEXT_PUBLIC_CONTACT_EMAIL=${{ vars.CONTACT_EMAIL }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,scope=${{ matrix.app }},mode=max
 

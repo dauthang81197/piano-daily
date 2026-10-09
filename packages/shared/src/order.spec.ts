@@ -4,6 +4,7 @@ import {
   captureOrderRequestSchema,
   captureOrderResponseSchema,
   createOrderRequestSchema,
+  downloadStatusResponseSchema,
   ORDER_CODE_PATTERN,
   OrderStatus,
   orderEmailSchema,
@@ -64,5 +65,20 @@ describe('captureOrderRequestSchema / captureOrderResponseSchema', () => {
     const ok = { orderCode: 'PD-7K3M9Q', token: 't', files: [{ fileType: 'PDF', name: 'a.pdf' }] };
     expect(captureOrderResponseSchema.safeParse(ok).success).toBe(true);
     expect(captureOrderResponseSchema.safeParse({ ...ok, files: [{ fileType: 'THUMBNAIL', name: 'a' }] }).success).toBe(false);
+  });
+});
+
+describe('downloadStatusResponseSchema (Story 3.5)', () => {
+  it('chấp nhận response hợp lệ và từ chối status lạ', () => {
+    const ok = {
+      sheetTitle: 'Bài',
+      files: [{ fileType: 'PDF', name: 'bai.pdf' }],
+      remainingDownloads: 3,
+      expiresAt: '2026-10-16T00:00:00.000Z',
+      status: 'ACTIVE',
+    };
+    expect(downloadStatusResponseSchema.safeParse(ok).success).toBe(true);
+    expect(downloadStatusResponseSchema.safeParse({ ...ok, status: 'X' }).success).toBe(false);
+    expect(downloadStatusResponseSchema.safeParse({ ...ok, remainingDownloads: -1 }).success).toBe(false);
   });
 });

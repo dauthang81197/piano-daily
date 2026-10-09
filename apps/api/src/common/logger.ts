@@ -23,6 +23,11 @@ export function genRequestId(req: IncomingMessage, res: ServerResponse): string 
  * Cấu hình pino JSON: mỗi dòng log của request có `requestId`.
  * Không log header nhạy cảm (authorization, cookie), không log IP thô.
  */
+/** Token tải là bearer credential nằm trong đường dẫn `/downloads/:token`: che đi trước khi log. */
+export function redactTokenInUrl(url: string): string {
+  return url.replace(/^(\/downloads\/)[^/?#]+/, '$1[REDACTED]');
+}
+
 export function buildLoggerParams(env: Pick<Env, 'LOG_LEVEL'>): Params {
   return {
     pinoHttp: {
@@ -49,7 +54,7 @@ export function buildLoggerParams(env: Pick<Env, 'LOG_LEVEL'>): Params {
         // Bỏ remoteAddress/remotePort: không log IP thô.
         req: (req: { method: string; url: string; headers: Record<string, unknown> }) => ({
           method: req.method,
-          url: req.url,
+          url: redactTokenInUrl(req.url),
           headers: req.headers,
         }),
         res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),

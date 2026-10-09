@@ -169,6 +169,18 @@
     "banner": "Bản xem trước — chưa công khai. Bất kỳ ai có liên kết này đều xem được cho tới khi nó hết hạn sau 10 phút; đừng chia sẻ.",
     "loading": "Đang tải bản xem trước"
   },
+  "Downloads": {
+    "title": "File đã mua",
+    "loading": "Đang tải trang tải file",
+    "success": "Thanh toán thành công. File của bạn đã sẵn sàng.",
+    "filesHeading": "File của bạn",
+    "validity": "Link tải còn hiệu lực {days, plural, other {# ngày}}, {downloads, plural, other {# lượt}}.",
+    "saveHint": "Hãy lưu lại địa chỉ trang này để tải lại trong thời hạn. Mỗi lần bấm tải sẽ tính một lượt.",
+    "invalidTitle": "Link tải đã hết hiệu lực",
+    "invalidBody": "Link này đã hết hạn, hết lượt tải hoặc không còn sử dụng được.",
+    "contactWithEmail": "Nếu cần hỗ trợ, vui lòng liên hệ <mail>{email}</mail> và cho biết email đã dùng khi mua.",
+    "contactFallback": "Nếu cần hỗ trợ, vui lòng liên hệ qua email bạn đã dùng khi mua hàng."
+  },
   "Seo": {
     "homeDescription": "Thư viện sheet piano sắp xếp theo trình độ: xem ảnh từng trang, nghe thử MIDI và xem video hướng dẫn.",
     "levelDescription": "{count} bài sheet piano trình độ {level}: xem ảnh từng trang, nghe thử MIDI và xem video hướng dẫn.",

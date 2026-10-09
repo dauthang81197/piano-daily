@@ -30,6 +30,9 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   PRICE_CHANGED: 'Giá đã thay đổi. Vui lòng xem lại giá mới rồi thử lại.',
   PAYMENTS_DISABLED: 'Thanh toán tạm thời đang tắt. Vui lòng quay lại sau.',
   PAYMENT_DECLINED: 'Thanh toán bị từ chối. Vui lòng kiểm tra phương thức thanh toán hoặc thử phương thức khác.',
+  TOKEN_EXPIRED: 'Link tải đã hết hạn.',
+  TOKEN_EXHAUSTED: 'Link tải đã hết lượt tải.',
+  TOKEN_REVOKED: 'Link tải đã bị vô hiệu.',
 };
 
 /**

@@ -169,6 +169,18 @@
     "banner": "Preview — not public. Anyone with this link can view it until it expires after 10 minutes; do not share it.",
     "loading": "Loading preview"
   },
+  "Downloads": {
+    "title": "Your purchased files",
+    "loading": "Loading your downloads",
+    "success": "Payment successful. Your files are ready.",
+    "filesHeading": "Your files",
+    "validity": "This download link is valid for {days, plural, one {# more day} other {# more days}} and {downloads, plural, one {# download} other {# downloads}}.",
+    "saveHint": "Please keep this page address so you can download again before it expires. Each download counts as one use.",
+    "invalidTitle": "This download link is no longer valid",
+    "invalidBody": "The link has expired, has no downloads left, or can no longer be used.",
+    "contactWithEmail": "If you need help, please contact <mail>{email}</mail> and mention the email address you used to buy.",
+    "contactFallback": "If you need help, please contact us using the email address you used when you bought."
+  },
   "Seo": {
     "homeDescription": "A piano sheet music library organised by skill level: browse every page, preview the MIDI and watch the tutorial video.",
     "levelDescription": "{count, plural, one {# piano sheet} other {# piano sheets}} for {level} players: browse every page, preview the MIDI and watch the tutorial video.",

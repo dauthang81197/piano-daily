@@ -2,7 +2,7 @@
 title: 'Story 3.2 — Tải ngay Sheet miễn phí'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '01af386c34aee27281bab6e8f8706ca95e69f0dc'
@@ -89,6 +89,18 @@ Review tự thực hiện trong phiên (không dùng subagent vì chưa được
 - **low (rejected) — Rate limit tính cả request 404:** hành vi chung của `ThrottlerGuard`, không đáng thêm nhánh.
 - **medium | defer — Khe hở nhỏ giữa kiểm tra quyền và ghi log (AD-20 nói "cùng transaction"):** `resolve` và `recordFree` là hai câu riêng; Sheet bị gỡ ở giữa vẫn nhận URL tối đa 5 phút. Không liên quan tiền; ghi vào `deferred-work.md`.
 - **low (rejected) — `download_logs` chưa có job dọn/retention:** spec không yêu cầu; dữ liệu là nguồn số liệu của dashboard (Epic 4).
+
+Review vòng 2 (3 reviewer độc lập: Blind Hunter, Edge Case Hunter, Verification Gap):
+
+- **low | patch (đã sửa) — Route tải không có `X-Robots-Tag` dù `robots.ts` nói "tự đặt noindex":** thêm header `noindex, nofollow` ở controller, test khẳng định.
+- **low | patch (đã sửa) — Không test "bản hiện hành mới nhất thắng" của `resolve()`:** thêm integration test hai file PDF hiện hành khác `createdAt`.
+- **false — Slug dài làm `presignPrivateUrl` ném lỗi, để lại log mồ côi:** slug do `slugify` tạo, tối đa `SLUG_MAX_LENGTH`=80 ký tự ASCII; tên file ≤ 84 < 200; `storageKey` luôn `private/`.
+- **false — Slug toàn ký tự không-ASCII thành `---`:** slug luôn ASCII từ `slugify`.
+- **false — UA có NUL/surrogate gây lỗi insert:** header HTTP của Node không chứa NUL.
+- **false — Header `CF-Connecting-IP` giả mạo qua rate limit:** quy ước chung AD-18 của `getClientIp`, dùng nguyên cho mọi endpoint; không do story này.
+- **false — Cache chi tiết Sheet không bị làm mới khi đổi `is_free`/file:** đường ghi nằm ở `sheets.service` qua `CacheInvalidator` (Story 3.1), schema còn `default` cho cache cũ.
+- **low (rejected) — Comment `sha256(ip + VIEW_SALT)` lệch dấu phân tách `\u0000`; PDF link hiển thị hai lần; `showDownloads` mặc định true; thiếu schema `freeDownloadParamSchema` (đã dùng `removeFileTypeSchema` tương đương); log không dedupe/bot; IP 'unknown' chung bucket; FK `ON DELETE CASCADE`; không index `created_at`/retention:** chỉ là tinh chỉnh, không có tác hại cụ thể hoặc phải thêm nhánh/bề mặt mới.
+- **carried — Khe hở resolve→log và log trước presign:** đã ghi ở vòng trước (defer).
 
 ## Design Notes
 

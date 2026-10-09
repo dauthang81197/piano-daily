@@ -18,6 +18,7 @@ import {
   slugParamSchema,
 } from '@piano-daily/shared';
 import { getClientIp } from '../../common/http/client-ip';
+import { SettingsService } from '../settings/settings.service';
 import { PreviewTokenService } from '../identity/preview-token.service';
 import { Public } from '../identity/public.decorator';
 import { UuidParamPipe } from './catalog.helpers';
@@ -34,6 +35,7 @@ export class PublicSheetsController {
     private readonly views: SheetViewsService,
     private readonly previewTokens: PreviewTokenService,
     private readonly pricing: PricingService,
+    private readonly settings: SettingsService,
   ) {}
 
   @Get('sheets')
@@ -97,8 +99,9 @@ export class PublicSheetsController {
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Header('Cache-Control', 'no-store')
   @Get('sheets/:id/quote')
-  quote(@Param('id', UuidParamPipe) id: string): Promise<Quote> {
-    return this.pricing.quote(id);
+  async quote(@Param('id', UuidParamPipe) id: string): Promise<Quote> {
+    const quote = await this.pricing.quote(id); // 404 trước khi đọc cài đặt
+    return { ...quote, paymentsEnabled: await this.settings.paymentsEnabled() };
   }
 
   @Get('composers/:slug')

@@ -189,7 +189,24 @@ describe('Giá Sheet và báo giá (Story 3.1, Postgres thật)', () => {
           { fileType: 'MP3', priceCents: 199 },
         ],
         bundle: { priceCents: 499, fileTypes: ['PDF', 'MIDI', 'MP3'] },
+        paymentsEnabled: true,
       });
+    });
+
+    it('paymentsEnabled theo payments_enabled trong site_settings (Story 3.6)', async () => {
+      const sheet = await createSheet({ pricePdfCents: 299 });
+      await addProcessedPdf(sheet.id);
+      await publishDirect(sheet.id);
+      const setPayments = (value: string) => prisma.siteSetting.update({ where: { key: 'payments_enabled' }, data: { value } });
+      try {
+        await setPayments('false');
+        const res = await quote(sheet.id).expect(200);
+        expect(res.headers['cache-control']).toBe('no-store');
+        expect(quoteSchema.parse(res.body).paymentsEnabled).toBe(false);
+      } finally {
+        await setPayments('true');
+      }
+      expect(quoteSchema.parse((await quote(sheet.id).expect(200)).body).paymentsEnabled).toBe(true);
     });
 
     it('giá luôn mới nhất, file đã bị thay thế không tính, thiếu MP3 thì bundle gồm PDF+MIDI', async () => {

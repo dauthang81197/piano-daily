@@ -4,7 +4,9 @@ import { LEVEL_BADGE, badge } from '@/components/catalog/sheet-card';
 import { Link } from '@/i18n/navigation';
 import { genreHref, sheetHref } from '@/lib/query';
 import { Breadcrumb } from './breadcrumb';
-import { AudioDownloadCallout, availableDownloads, DownloadButtons } from './download-buttons';
+import { PurchaseProvider } from '@/components/payment/purchase-provider';
+import { apiBase, AudioDownloadCallout, availableDownloads, DownloadButtons } from './download-buttons';
+import { PurchaseButtons } from './purchase-buttons';
 import { Lyrics } from './lyrics';
 import { PlayerSlot } from './player-slot';
 import { YoutubeEmbed } from './youtube-embed';
@@ -45,8 +47,11 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
   const levelSlug = sheet.level.toLowerCase();
   const downloads = availableDownloads(sheet, showDownloads);
   const hasPdf = downloads.includes('PDF');
+  // Sheet không free: nút mở modal thanh toán (Story 3.6); cần API base cho báo giá/tạo đơn.
+  const purchase = !sheet.isFree && downloads.length > 0 && apiBase() !== null;
+  const showPdf = hasPdf && (purchase || sheet.isFree);
 
-  return (
+  const content = (
     <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
       <Breadcrumb
         label={t('breadcrumbLabel')}
@@ -122,7 +127,9 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
               </ul>
             ) : null}
 
-            {downloads.length > 0 ? (
+            {purchase ? (
+              <PurchaseButtons variant="group" title={sheet.title} types={downloads} />
+            ) : sheet.isFree && downloads.length > 0 ? (
               <section aria-label={t('downloadGroup')}>
                 <DownloadButtons sheetId={sheet.id} title={sheet.title} types={downloads} />
               </section>
@@ -151,15 +158,17 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
             </section>
           ) : null}
 
-          <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={downloads} />
+          <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={downloads} purchase={purchase} />
 
           <YoutubeEmbed url={sheet.youtubeUrl} title={sheet.title} />
           <Lyrics markdown={sheet.lyricsChords} />
         </article>
 
-        {hasPdf || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
+        {showPdf || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
           <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter">
-            {hasPdf ? (
+            {showPdf && purchase ? (
+              <PurchaseButtons variant="pdf" title={sheet.title} types={['PDF']} />
+            ) : showPdf ? (
               <section aria-label={t('pdfSidebarTitle')} className="flex flex-col gap-3">
                 <h2 className="font-display text-headline-sm text-on-surface">{t('pdfSidebarTitle')}</h2>
                 <DownloadButtons sheetId={sheet.id} title={sheet.title} types={['PDF']} />
@@ -171,5 +180,13 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
         ) : null}
       </div>
     </main>
+  );
+
+  return purchase ? (
+    <PurchaseProvider sheetId={sheet.id} title={sheet.title}>
+      {content}
+    </PurchaseProvider>
+  ) : (
+    content
   );
 }

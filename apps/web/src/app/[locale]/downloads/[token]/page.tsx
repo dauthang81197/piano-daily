@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { downloadButtonClass } from '@/components/sheet/download-buttons';
+import { downloadButtonClass } from '@/components/sheet/download-button-class';
 import { routing } from '@/i18n/routing';
 import { fetchDownloadStatus } from '@/lib/catalog';
 import { publicApiUrl } from '@/lib/public-env';

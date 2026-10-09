@@ -30,6 +30,13 @@ describe('buildCsp', () => {
     expect(directive(csp, 'frame-src')).toContain('https://www.youtube-nocookie.com');
   });
 
+  it('img-src cho phép ảnh PayPal (Story 3.6)', () => {
+    const img = directive(buildCsp(env), 'img-src');
+    expect(img).toContain('https://www.paypal.com');
+    expect(img).toContain('https://*.paypal.com');
+    expect(img).toContain('https://www.paypalobjects.com');
+  });
+
   it('thiếu biến môi trường: bỏ qua origin, không có "undefined"; production không unsafe-eval', () => {
     const csp = buildCsp({ NODE_ENV: 'production' });
     expect(csp).not.toContain('undefined');

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "10.6.0",
     "@piano-daily/shared": "workspace:*",
     "@piano-daily/tokens": "workspace:*",
     "lucide-react": "1.48.0",

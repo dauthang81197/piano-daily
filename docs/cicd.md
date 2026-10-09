@@ -24,7 +24,7 @@ Cập nhật: 2026-10-08. Nhánh: `chore/ci-cd-docker-hub-deploy`. Hướng dẫ
 3. **Mở cổng** 80, 443, 8443, 9443 trên firewall của nhà cung cấp VPS.
 4. **GitHub:**
    - Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` (kết quả `ssh-keyscan 144.91.120.200`).
-   - Variables: `SITE_HOST=144-91-120-200.sslip.io`, `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`).
+   - Variables: `SITE_HOST=144-91-120-200.sslip.io`, `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`), `PAYPAL_CLIENT_ID` (client ID công khai của PayPal, truyền vào web thành `NEXT_PUBLIC_PAYPAL_CLIENT_ID`; trùng app với `PAYPAL_CLIENT_ID` của API, không phải secret).
    - Environment `production` (có thể bật required reviewers).
 5. **Merge vào `develop`** để workflow chạy lần đầu, rồi kiểm tra `https://144-91-120-200.sslip.io`, `:8443` (admin), `:9443/health` (API).
 6. **Tạo admin đầu tiên trên production:** chưa làm được. Image API production không có `tsx` nên không chạy được `prisma db seed`. Cần thêm một cách riêng (ví dụ script biên dịch sẵn hoặc lệnh một lần trong container) trước khi đăng nhập admin.

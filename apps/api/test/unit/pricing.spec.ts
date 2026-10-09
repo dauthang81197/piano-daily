@@ -36,7 +36,7 @@ describe('computeQuote (AD-17)', () => {
 
   it('Sheet free: free, không mục, không bundle, bỏ qua giá riêng', () => {
     const q = computeQuote('s', { ...PRICES, isFree: true }, ALL);
-    expect(q).toEqual({ sheetId: 's', currency: 'USD', free: true, items: [], bundle: null });
+    expect(q).toEqual({ sheetId: 's', currency: 'USD', free: true, items: [], bundle: null, paymentsEnabled: true });
   });
 
   it('giá 0 hoặc null: type bị loại', () => {

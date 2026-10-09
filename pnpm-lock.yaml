@@ -402,6 +402,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@paypal/react-paypal-js':
+        specifier: 10.6.0
+        version: 10.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@piano-daily/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1876,9 +1879,21 @@ packages:
     resolution: {integrity: sha512-7FNeNl8NCE7aINx7WXiKQrPYZWC/hvrTsmk6zmxbI7LTXE7hVek/n8AfVgpe2y82zl3w0HvCHN0bVKMBoJcC0w==}
     engines: {node: '>= 10.0.0'}
 
+  '@paypal/paypal-js@11.2.1':
+    resolution: {integrity: sha512-Oi9JAxXOZrTpPWvJtlf98r76AvjIsn5kud7ZgqaqCL0JUOS3rqNzCbPmmWt9eg9Gw0qMf3KpVX+sEusQGe09pw==}
+
   '@paypal/paypal-server-sdk@2.5.0':
     resolution: {integrity: sha512-smJXZx7Euj6f886BszgMyy8dhWWVCI0++QDPn+I5ugcYwNmhzR+vvWr5CuW1Z4+KPh44hSOzhlXnNEjWnugEtg==}
     engines: {node: '>=14.17.0'}
+
+  '@paypal/react-paypal-js@10.6.0':
+    resolution: {integrity: sha512-oBf/5EsmHTvNho8U25z/SJkU82eGoWEfogVHBd7K0Bf91hOPuM9brx3bwbP87j+45/M/S91SyVTavEKpBKxWVA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17 || ^18 || ^19
+      react-dom: ^16.8.0 || ^17 || ^18 || ^19
+
+  '@paypal/sdk-constants@1.0.158':
+    resolution: {integrity: sha512-OrX2kN4gsBl6fG1GS1ewsNk7TTqYmdtUMVaJ+wAzPhsv9M7dfni95WuJdt4pMALOo5ioZeJ05a16BUSca5IC+Q==}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -3694,6 +3709,9 @@ packages:
     resolution: {integrity: sha512-Qgpiaws3Sm30Av8Eah6sjMCZZwjlBu+E68rhpCWBshY1lb09HtLwj5GviX0OyQIn+ulUS0iX0AxN5n3tLZzz1w==}
     engines: {node: '>=18.0.0'}
 
+  hi-base32@0.5.1:
+    resolution: {integrity: sha512-EmBBpvdYh/4XxsnUybsPag6VikPYnN30td+vQk+GI3qpahVEG9+gTkG0aXVxTjBqQ5T6ijbWIu77O+C5WFWsnA==}
+
   hono@4.13.9:
     resolution: {integrity: sha512-7dMkQmZoC4E6F7AtaQSPhlWAdnBti+j7rreMZl8QB4jFiEhP9TWbGWUMi8WYzBCgmgulxuvLQupKqo+Co6Omyg==}
     engines: {node: '>=16.9.0'}
@@ -4814,6 +4832,9 @@ packages:
 
   process-warning@5.1.0:
     resolution: {integrity: sha512-jQSaVHsPgtyw60e1rQ/A+/ArPEj/S8pS/vFnyGa/gYFXrKk/6RuDkoqVDQ5NI5MmS01698ltlAk0NoDBNLujRw==}
+
+  promise-polyfill@8.3.0:
+    resolution: {integrity: sha512-H5oELycFml5yto/atYqmjyigJoAo3+OXwolYiH7OfQuYlAqhxNvTfiNMbV9hsC6Yp83yE5r2KTVmtrG6R9i6Pg==}
 
   prompts@2.4.2:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
@@ -6962,6 +6983,10 @@ snapshots:
       '@parcel/watcher-win32-arm64': 2.6.0
       '@parcel/watcher-win32-x64': 2.6.0
 
+  '@paypal/paypal-js@11.2.1':
+    dependencies:
+      promise-polyfill: 8.3.0
+
   '@paypal/paypal-server-sdk@2.5.0(debug@4.4.3)':
     dependencies:
       '@apimatic/authentication-adapters': 0.5.14
@@ -6973,6 +6998,18 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - supports-color
+
+  '@paypal/react-paypal-js@10.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@paypal/paypal-js': 11.2.1
+      '@paypal/sdk-constants': 1.0.158
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      server-only: 0.0.1
+
+  '@paypal/sdk-constants@1.0.158':
+    dependencies:
+      hi-base32: 0.5.1
 
   '@pinojs/redact@0.4.0': {}
 
@@ -8766,6 +8803,8 @@ snapshots:
 
   helmet@8.3.0: {}
 
+  hi-base32@0.5.1: {}
+
   hono@4.13.9: {}
 
   hookified@1.15.1: {}
@@ -9998,6 +10037,8 @@ snapshots:
       - react-dom
 
   process-warning@5.1.0: {}
+
+  promise-polyfill@8.3.0: {}
 
   prompts@2.4.2:
     dependencies:

@@ -146,7 +146,8 @@
     "downloadGroup": "Downloads",
     "audioTitle": "Download MIDI and MP3",
     "audioHint": "Use the MIDI file to practise in your own software and the MP3 file to listen to the performance again.",
-    "pdfSidebarTitle": "PDF sheet music"
+    "pdfSidebarTitle": "PDF sheet music",
+    "purchaseDisabledNote": "Online purchases are temporarily unavailable. Please try again later."
   },
   "Player": {
     "title": "Listen",
@@ -193,5 +194,44 @@
     "partMidi": "a MIDI preview",
     "partVideo": "a tutorial video",
     "partLyrics": "lyrics and chords"
+  },
+  "Payment": {
+    "title": "Purchase {format}",
+    "formats": {
+      "PDF": "PDF",
+      "MIDI": "MIDI",
+      "MP3": "MP3"
+    },
+    "dialogLabel": "Purchase from {title}",
+    "close": "Close",
+    "sheetHeading": "Sheet",
+    "filesHeading": "Files to purchase",
+    "bundleLabel": "Bundle: {formats}",
+    "bundleHint": "All available formats at one price.",
+    "bundleIncluded": "Included in the bundle",
+    "price": "USD {price}",
+    "total": "Total",
+    "emailLabel": "Email address",
+    "emailHint": "We will use this address for your purchase. No account is created.",
+    "emailInvalid": "Please enter a valid email address, for example name@example.com.",
+    "payPrompt": "Enter a valid email address and select at least one file to continue to PayPal.",
+    "loadingQuote": "Loading current prices",
+    "processing": "Processing your payment. Please do not close this window.",
+    "disabledNote": "Online purchases are temporarily unavailable. Please try again later.",
+    "errors": {
+      "quote": "The current prices could not be loaded. Check your connection and try again.",
+      "retry": "Try again",
+      "noItems": "No files are available to purchase for this sheet right now. Please check back later.",
+      "paymentsDisabled": "Online purchases are temporarily unavailable. Your selection has been kept; please try again later.",
+      "priceChanged": "The price has changed since you opened this window. The new price is shown below; please review it and pay again.",
+      "declined": "Your payment was declined. Please check your card details or choose another payment method in PayPal, then try again.",
+      "network": "The server could not be reached. Check your connection and try again; your selection and email have been kept.",
+      "cancelled": "The PayPal window was closed before the payment was completed. You have not been charged. Press the PayPal button to try again.",
+      "tooMany": "Too many attempts in a short time. Please wait a minute and try again.",
+      "captureUnknown": "Your payment may already have been received, but we could not confirm it. Please do not pay again; contact us with the email you entered and we will send your download link.",
+      "paypal": "The PayPal window could not be completed. Please press the PayPal button to try again.",
+      "config": "Online payment is not configured on this site. Please contact us for help.",
+      "generic": "The payment could not be completed. Please try again; if the problem continues, contact us with the email you entered."
+    }
   }
 }

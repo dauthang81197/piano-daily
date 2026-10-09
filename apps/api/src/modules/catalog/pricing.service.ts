@@ -27,10 +27,10 @@ const PRICE_OF: Record<PurchasableFileType, keyof PriceColumns> = {
 
 /**
  * Tính báo giá thuần từ cột giá và các loại file hiện hành (AD-17): type mua được = có file và giá > 0;
- * BUNDLE cần ít nhất 2 type mua được, giá bundle > 0 và gồm mọi type mua được. Sheet free không có mục nào.
+ * `paymentsEnabled` ở đây chỉ là giá trị mặc định; endpoint công khai ghi đè bằng `SettingsService`. BUNDLE cần ít nhất 2 type mua được, giá bundle > 0 và gồm mọi type mua được. Sheet free không có mục nào.
  */
 export function computeQuote(sheetId: string, prices: PriceColumns, currentTypes: ReadonlySet<string>): Quote {
-  if (prices.isFree) return { sheetId, currency: 'USD', free: true, items: [], bundle: null };
+  if (prices.isFree) return { sheetId, currency: 'USD', free: true, items: [], bundle: null, paymentsEnabled: true };
   const items = PURCHASABLE_FILE_TYPES.flatMap((fileType) => {
     const priceCents = prices[PRICE_OF[fileType]] as number | null;
     return currentTypes.has(fileType) && priceCents !== null && priceCents > 0 ? [{ fileType, priceCents }] : [];
@@ -40,7 +40,7 @@ export function computeQuote(sheetId: string, prices: PriceColumns, currentTypes
     items.length >= 2 && bundleCents !== null && bundleCents > 0
       ? { priceCents: bundleCents, fileTypes: items.map((i) => i.fileType) }
       : null;
-  return { sheetId, currency: 'USD', free: false, items, bundle };
+  return { sheetId, currency: 'USD', free: false, items, bundle, paymentsEnabled: true };
 }
 
 /** Sheet có bán/tải được không: free, hoặc có ít nhất một type mua được. */

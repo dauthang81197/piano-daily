@@ -37,6 +37,11 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
       VIEW_SALT: ${VIEW_SALT:?Thiếu VIEW_SALT trong .env}
       WEB_INTERNAL_URL: http://web:4100
+      # PayPal (Story 3.3, 3.8): thiếu client id/secret thì tạo đơn trả 503; thiếu webhook id thì POST /webhooks/paypal trả 503.
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
       # Email link tải (Story 3.7): thiếu khoá Resend thì API bỏ qua việc gửi email (chỉ log cảnh báo).
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}

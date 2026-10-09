@@ -12,9 +12,6 @@ import {
   PaymentProviderNotSupportedError,
 } from './payment-provider';
 
-/** Mã lỗi 422 của PayPal khi thanh toán bị từ chối (người mua có thể thử phương thức khác).
-const DECLINE_ISSUES = new Set(['INSTRUMENT_DECLINED', 'TRANSACTION_REFUSED', 'PAYER_CANNOT_PAY', 'PAYER_ACCOUNT_RESTRICTED']);
-
 /** Mã lỗi 422 của PayPal khi thanh toán bị từ chối (người mua có thể thử phương thức khác). */
 const DECLINE_ISSUES = new Set(['INSTRUMENT_DECLINED', 'TRANSACTION_REFUSED', 'PAYER_CANNOT_PAY', 'PAYER_ACCOUNT_RESTRICTED']);
 
@@ -28,7 +25,7 @@ export class PaypalNotConfiguredError extends Error {
 
 /**
  * Adapter PayPal: nơi DUY NHẤT import `@paypal/paypal-server-sdk` (AD-1). `PAYPAL_MODE` chọn sandbox/live.
- * Đã cài `createOrder`, `getOrder`, `capture`; `refund`/`verifyWebhook` thuộc Story 3.8+.
+ * Đã cài `createOrder`, `getOrder`, `capture`; `verifyWebhook` (Story 3.8); `refund` chủ động thuộc Story 4.x.
  */
 @Injectable()
 export class PaypalProvider implements PaymentProvider {
@@ -100,8 +97,47 @@ export class PaypalProvider implements PaymentProvider {
     return Promise.reject(new PaymentProviderNotSupportedError('refund'));
   }
 
-  verifyWebhook(): Promise<never> {
-    return Promise.reject(new PaymentProviderNotSupportedError('verifyWebhook'));
+  /**
+   * Xác thực chữ ký webhook bằng REST `verify-webhook-signature` (SDK không có API này). `rawBody` được nhúng nguyên
+   * bytes vào `webhook_event` (không parse/stringify lại) vì chữ ký tính trên đúng body gốc. Chỉ `SUCCESS` là true;
+   * lỗi mạng/HTTP/thiếu cấu hình ném ra (caller đổi thành 503 để PayPal gửi lại).
+   */
+  async verifyWebhook(headers: Record<string, string | undefined>, rawBody: string): Promise<boolean> {
+    const clientId = this.config.get('PAYPAL_CLIENT_ID', { infer: true });
+    const clientSecret = this.config.get('PAYPAL_CLIENT_SECRET', { infer: true });
+    const webhookId = this.config.get('PAYPAL_WEBHOOK_ID', { infer: true });
+    if (!clientId || !clientSecret || !webhookId) throw new PaypalNotConfiguredError();
+    const host = this.config.get('PAYPAL_MODE', { infer: true }) === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+
+    const tokenRes = await fetch(`${host}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!tokenRes.ok) throw new Error(`PayPal OAuth HTTP ${tokenRes.status}`);
+    const accessToken = ((await tokenRes.json()) as { access_token?: unknown }).access_token;
+    if (typeof accessToken !== 'string' || !accessToken) throw new Error('PayPal OAuth không trả access_token.');
+
+    const body =
+      `{"auth_algo":${JSON.stringify(headers['paypal-auth-algo'] ?? '')},` +
+      `"cert_url":${JSON.stringify(headers['paypal-cert-url'] ?? '')},` +
+      `"transmission_id":${JSON.stringify(headers['paypal-transmission-id'] ?? '')},` +
+      `"transmission_sig":${JSON.stringify(headers['paypal-transmission-sig'] ?? '')},` +
+      `"transmission_time":${JSON.stringify(headers['paypal-transmission-time'] ?? '')},` +
+      `"webhook_id":${JSON.stringify(webhookId)},` +
+      `"webhook_event":${rawBody}}`;
+    const res = await fetch(`${host}/v1/notifications/verify-webhook-signature`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`PayPal verify-webhook-signature HTTP ${res.status}`);
+    return ((await res.json()) as { verification_status?: unknown }).verification_status === 'SUCCESS';
   }
 }
 

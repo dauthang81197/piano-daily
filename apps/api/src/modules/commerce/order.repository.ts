@@ -44,6 +44,19 @@ export class OrderRepository {
     return this.prisma.order.findUnique({ where: { paypalOrderId }, select: ORDER_FOR_CAPTURE });
   }
 
+  async findByOrderCode(orderCode: string): Promise<OrderForCapture | null> {
+    return this.prisma.order.findUnique({ where: { orderCode }, select: ORDER_FOR_CAPTURE });
+  }
+
+  /** UPDATE có điều kiện PAID -> REFUNDED trong transaction của caller; trả true nếu chính lệnh này đổi trạng thái. */
+  async markRefunded(tx: Prisma.TransactionClient, id: string): Promise<boolean> {
+    const { count } = await tx.order.updateMany({
+      where: { id, status: 'PAID' },
+      data: { status: 'REFUNDED', refundedAt: new Date() },
+    });
+    return count === 1;
+  }
+
   async findById(id: string, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<OrderForCapture | null> {
     return client.order.findUnique({ where: { id }, select: ORDER_FOR_CAPTURE });
   }

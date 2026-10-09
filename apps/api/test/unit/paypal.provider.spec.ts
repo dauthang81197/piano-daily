@@ -1,5 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../src/config/env';
 import { OrderAlreadyCapturedError, PaymentProviderNotSupportedError } from '../../src/modules/commerce/payment-provider';
 import { PaypalNotConfiguredError, PaypalProvider } from '../../src/modules/commerce/paypal.provider';
@@ -122,9 +122,73 @@ describe('PaypalProvider', () => {
     expect(getOrder).toHaveBeenCalledWith({ id: 'PP-1' });
   });
 
-  it('refund/verifyWebhook chưa hỗ trợ', async () => {
+  it('refund chưa hỗ trợ', async () => {
     const provider = new PaypalProvider(config({}));
     await expect(provider.refund()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
-    await expect(provider.verifyWebhook()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
+  });
+
+  describe('verifyWebhook', () => {
+    const HEADERS = {
+      'paypal-auth-algo': 'SHA256withRSA',
+      'paypal-cert-url': 'https://api.sandbox.paypal.com/cert',
+      'paypal-transmission-id': 'tx-1',
+      'paypal-transmission-sig': 'sig==',
+      'paypal-transmission-time': '2026-10-09T00:00:00Z',
+    };
+    const RAW = '{"id":"WH-1",  "resource":{"amount":{"value":"4.99"}}}';
+    const cfg = (extra: Partial<Record<keyof Env, string>> = {}) =>
+      config({ PAYPAL_MODE: 'sandbox', PAYPAL_CLIENT_ID: 'cid', PAYPAL_CLIENT_SECRET: 'sec', PAYPAL_WEBHOOK_ID: 'WID', ...extra });
+    const json = (body: unknown, ok = true, status = 200) => ({ ok, status, json: () => Promise.resolve(body) }) as Response;
+    let fetchMock: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('SUCCESS: lấy OAuth token rồi gửi raw body nguyên bytes trong webhook_event', async () => {
+      fetchMock
+        .mockResolvedValueOnce(json({ access_token: 'AT' }))
+        .mockResolvedValueOnce(json({ verification_status: 'SUCCESS' }));
+      await expect(new PaypalProvider(cfg()).verifyWebhook(HEADERS, RAW)).resolves.toBe(true);
+      const [oauthUrl, oauthInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(oauthUrl).toBe('https://api-m.sandbox.paypal.com/v1/oauth2/token');
+      expect((oauthInit.headers as Record<string, string>).Authorization).toBe(`Basic ${Buffer.from('cid:sec').toString('base64')}`);
+      const [verifyUrl, verifyInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+      expect(verifyUrl).toBe('https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature');
+      expect((verifyInit.headers as Record<string, string>).Authorization).toBe('Bearer AT');
+      const body = verifyInit.body as string;
+      expect(body).toContain(`"webhook_event":${RAW}`);
+      expect(JSON.parse(body)).toMatchObject({
+        auth_algo: 'SHA256withRSA',
+        cert_url: HEADERS['paypal-cert-url'],
+        transmission_id: 'tx-1',
+        transmission_sig: 'sig==',
+        transmission_time: HEADERS['paypal-transmission-time'],
+        webhook_id: 'WID',
+      });
+    });
+
+    it('live dùng host production; FAILURE trả false', async () => {
+      fetchMock
+        .mockResolvedValueOnce(json({ access_token: 'AT' }))
+        .mockResolvedValueOnce(json({ verification_status: 'FAILURE' }));
+      await expect(new PaypalProvider(cfg({ PAYPAL_MODE: 'live' })).verifyWebhook(HEADERS, RAW)).resolves.toBe(false);
+      expect(fetchMock.mock.calls[0][0]).toBe('https://api-m.paypal.com/v1/oauth2/token');
+    });
+
+    it('lỗi HTTP/mạng/thiếu cấu hình thì ném (không trả false)', async () => {
+      fetchMock.mockResolvedValueOnce(json({}, false, 401));
+      await expect(new PaypalProvider(cfg()).verifyWebhook(HEADERS, RAW)).rejects.toThrow();
+      fetchMock.mockResolvedValueOnce(json({ access_token: 'AT' })).mockResolvedValueOnce(json({}, false, 500));
+      await expect(new PaypalProvider(cfg()).verifyWebhook(HEADERS, RAW)).rejects.toThrow();
+      fetchMock.mockRejectedValueOnce(new Error('network'));
+      await expect(new PaypalProvider(cfg()).verifyWebhook(HEADERS, RAW)).rejects.toThrow('network');
+      await expect(new PaypalProvider(cfg({ PAYPAL_WEBHOOK_ID: '' })).verifyWebhook(HEADERS, RAW)).rejects.toBeInstanceOf(
+        PaypalNotConfiguredError,
+      );
+    });
   });
 });

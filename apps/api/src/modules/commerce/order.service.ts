@@ -253,6 +253,25 @@ export class OrderService {
     throw notFound('Không tìm thấy đơn hàng.');
   }
 
+  /**
+   * Hoàn tiền (webhook `PAYMENT.CAPTURE.REFUNDED`): một transaction PAID -> REFUNDED + `refunded_at` và thu hồi token.
+   * Order không phải PAID thì không làm gì. Trả true nếu chính lệnh này hoàn tiền.
+   */
+  async refund(orderId: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await this.orders.markRefunded(tx, orderId);
+      if (changed) await this.tokens.revokeByOrder(tx, orderId);
+      return changed;
+    });
+  }
+
+  /** Webhook `PAYMENT.CAPTURE.DENIED`: chỉ Order PENDING sang FAILED (UPDATE có điều kiện); trạng thái khác giữ nguyên. */
+  async failIfPending(orderId: string): Promise<boolean> {
+    const from = await this.orders.findStatus(orderId);
+    if (from !== 'PENDING') return false;
+    return this.orders.updateStatus(orderId, 'PENDING', 'FAILED');
+  }
+
   /** Email sau khi PAID: thành công mới ghi `email_sent_at`. Không bao giờ ném lỗi. */
   private async sendPurchaseEmail(order: OrderForCapture, token: string): Promise<void> {
     const sent = await this.deliverDownloadEmail({

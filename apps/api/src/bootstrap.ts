@@ -7,6 +7,9 @@ import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import type { Env } from './config/env';
 
+/** Tuỳ chọn tạo app dùng chung cho main.ts và integration test; `rawBody` cần cho xác thực chữ ký webhook PayPal. */
+export const APP_OPTIONS = { rawBody: true } as const;
+
 /** Cấu hình dùng chung cho main.ts và integration test. */
 export function configureApp(app: INestApplication): void {
   app.useLogger(app.get(Logger));

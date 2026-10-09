@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { config as loadDotenv } from 'dotenv';
-import { configureApp } from './bootstrap';
+import { APP_OPTIONS, configureApp } from './bootstrap';
 import { ENV_FILE_PATHS, EnvValidationError, validateEnv, type Env } from './config/env';
 
 /** Ghi một dòng log JSON theo định dạng pino (level 60 = fatal) khi logger của Nest chưa có. */
@@ -22,7 +22,7 @@ async function bootstrap(): Promise<void> {
   }
 
   const { AppModule } = await import('./app.module.js');
-  const app = await NestFactory.create(AppModule, { bufferLogs: true, abortOnError: false });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, abortOnError: false, ...APP_OPTIONS });
   configureApp(app);
   const port = app.get(ConfigService<Env, true>).get('PORT', { infer: true });
   await app.listen(port, '0.0.0.0');

@@ -82,3 +82,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-7-email-link-tai-va-mua-lai-cung-email.md`
   summary: Email link tải sau thanh toán không có thử lại/outbox; gửi lại qua `ALREADY_PURCHASED` có thể bị lạm dụng (lộ việc đã mua, gửi dồn cho người mua) và bộ đếm 3 lần/giờ chỉ nằm trong bộ nhớ tiến trình.
   evidence: `order.service.ts` gửi bằng `void sendPurchaseEmail` một lần; endpoint create-order công khai chỉ throttle theo IP. Nên thêm job quét đơn PAID có `email_sent_at` null, và đưa bộ đếm sang DB khi chạy nhiều instance hoặc khi làm Story 4.2.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-8-webhook-paypal.md`
+  summary: Webhook PayPal gọi OAuth + verify cho mỗi request (kể cả request chữ ký giả), không cache access token, không giới hạn tốc độ route công khai.
+  evidence: `PaypalProvider.verifyWebhook` lấy token mới mỗi lần và `WebhooksController` không có ThrottlerGuard; người lạ có thể tạo lưu lượng ra PayPal. Cần cache token theo `expires_in` và/hoặc giới hạn theo IP phía Cloudflare.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-8-webhook-paypal.md`
+  summary: `payment_events.payload` giữ nguyên JSON event vô thời hạn (có thể chứa tên/email người trả), chưa có job dọn.
+  evidence: bảng chỉ có insert và `markProcessed`; cần chính sách giữ (vd. xoá payload sau 90 ngày) khi làm vận hành.

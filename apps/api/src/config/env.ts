@@ -153,6 +153,8 @@ export const envSchema = z.object({
   PAYPAL_MODE: z.preprocess(emptyAsUndefined, z.enum(['sandbox', 'live']).default('sandbox')),
   PAYPAL_CLIENT_ID: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
   PAYPAL_CLIENT_SECRET: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  /** Webhook ID của PayPal (Story 3.8); thiếu thì `POST /webhooks/paypal` trả 503. Không bao giờ ghi vào log. */
+  PAYPAL_WEBHOOK_ID: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
 
   /**
    * Email (module `notify`, adapter Resend — Story 3.7). Tuỳ chọn: thiếu `RESEND_API_KEY` hoặc `EMAIL_FROM` thì bỏ qua việc

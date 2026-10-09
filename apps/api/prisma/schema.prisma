@@ -220,9 +220,10 @@ model SheetFile {
   supersededAt    DateTime? @map("superseded_at") @db.Timestamptz(6)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  sheet        Sheet       @relation(fields: [sheetId], references: [id], onDelete: Cascade)
-  sourceFile   SheetFile?  @relation("SheetFileSource", fields: [sourceFileId], references: [id], onDelete: Cascade)
-  derivedFiles SheetFile[] @relation("SheetFileSource")
+  sheet        Sheet               @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  sourceFile   SheetFile?          @relation("SheetFileSource", fields: [sourceFileId], references: [id], onDelete: Cascade)
+  derivedFiles SheetFile[]         @relation("SheetFileSource")
+  tokenFiles   DownloadTokenFile[]
 
   @@index([sheetId])
   @@index([sourceFileId])
@@ -255,7 +256,8 @@ model DownloadLog {
   ua        String?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  sheet Sheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  sheet Sheet          @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  token DownloadToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
 
   @@index([sheetId, createdAt])
   @@map("download_logs")
@@ -295,10 +297,43 @@ model Order {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sheet Sheet @relation(fields: [sheetId], references: [id], onDelete: Restrict)
+  sheet Sheet          @relation(fields: [sheetId], references: [id], onDelete: Restrict)
+  token DownloadToken?
 
   @@index([sheetId])
   @@map("orders")
+}
+
+/// Quyền tải của một Order đã PAID (Story 3.4, AD-20): đúng một token cho mỗi Order (`order_id` UNIQUE).
+/// Chỉ module `commerce` ghi. `token` là chuỗi ngẫu nhiên mật mã học; không bao giờ ghi vào log.
+model DownloadToken {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  orderId       String    @unique @map("order_id") @db.Uuid
+  token         String    @unique
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  maxDownloads  Int       @map("max_downloads")
+  usedDownloads Int       @default(0) @map("used_downloads")
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  files        DownloadTokenFile[]
+  downloadLogs DownloadLog[]
+
+  @@map("download_tokens")
+}
+
+/// Danh sách `sheet_files` hiện hành tại lúc cấp token. FK RESTRICT: GC không xoá file còn được token tham chiếu.
+model DownloadTokenFile {
+  tokenId     String @map("token_id") @db.Uuid
+  sheetFileId String @map("sheet_file_id") @db.Uuid
+
+  token DownloadToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  file  SheetFile     @relation(fields: [sheetFileId], references: [id], onDelete: Restrict)
+
+  @@id([tokenId, sheetFileId])
+  @@index([sheetFileId])
+  @@map("download_token_files")
 }
 
 /// Cấu hình key-value của site (Story 3.3). Chỉ module `settings` đọc/ghi. Khoá seed trong migration:

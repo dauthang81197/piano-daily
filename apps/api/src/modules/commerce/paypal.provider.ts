@@ -1,13 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CheckoutPaymentIntent, Client, Environment, OrdersController } from '@paypal/paypal-server-sdk';
+import { CheckoutPaymentIntent, Client, Environment, type Order, OrdersController } from '@paypal/paypal-server-sdk';
 import { formatUsd } from '@piano-daily/shared';
 import type { Env } from '../../config/env';
 import {
+  type CaptureResult,
+  type CaptureStatus,
   type CreateProviderOrderInput,
+  OrderAlreadyCapturedError,
   type PaymentProvider,
   PaymentProviderNotSupportedError,
 } from './payment-provider';
+
+/** Mã lỗi 422 của PayPal khi thanh toán bị từ chối (người mua có thể thử phương thức khác).
+const DECLINE_ISSUES = new Set(['INSTRUMENT_DECLINED', 'TRANSACTION_REFUSED', 'PAYER_CANNOT_PAY', 'PAYER_ACCOUNT_RESTRICTED']);
+
+/** Mã lỗi 422 của PayPal khi thanh toán bị từ chối (người mua có thể thử phương thức khác). */
+const DECLINE_ISSUES = new Set(['INSTRUMENT_DECLINED', 'TRANSACTION_REFUSED', 'PAYER_CANNOT_PAY', 'PAYER_ACCOUNT_RESTRICTED']);
 
 /** Thiếu cấu hình PayPal: tạo đơn không thể thực hiện (caller đổi thành 503). */
 export class PaypalNotConfiguredError extends Error {
@@ -19,7 +28,7 @@ export class PaypalNotConfiguredError extends Error {
 
 /**
  * Adapter PayPal: nơi DUY NHẤT import `@paypal/paypal-server-sdk` (AD-1). `PAYPAL_MODE` chọn sandbox/live.
- * Story 3.3 chỉ cài `createOrder`; các hàm còn lại thuộc Story 3.4+.
+ * Đã cài `createOrder`, `getOrder`, `capture`; `refund`/`verifyWebhook` thuộc Story 3.8+.
  */
 @Injectable()
 export class PaypalProvider implements PaymentProvider {
@@ -63,12 +72,28 @@ export class PaypalProvider implements PaymentProvider {
     return { providerOrderId: result.id };
   }
 
-  getOrder(): Promise<never> {
-    return Promise.reject(new PaymentProviderNotSupportedError('getOrder'));
+  async getOrder(providerOrderId: string): Promise<CaptureResult> {
+    const { result } = await this.controller().getOrder({ id: providerOrderId });
+    return toCaptureResult(result);
   }
 
-  capture(): Promise<never> {
-    return Promise.reject(new PaymentProviderNotSupportedError('capture'));
+  async capture(providerOrderId: string, _requestId: string): Promise<CaptureResult> {
+    try {
+      const { result } = await this.controller().captureOrder({
+        id: providerOrderId,
+        // Không gửi PayPal-Request-Id: cùng id sẽ phát lại kết quả bị từ chối cũ khi người mua đổi phương thức thanh toán.
+        // Capture lại một đơn đã capture được PayPal báo ORDER_ALREADY_CAPTURED nên vẫn idempotent.
+        prefer: 'return=representation',
+      });
+      return toCaptureResult(result);
+    } catch (err) {
+      const issues = apiErrorIssues(err);
+      if (issues?.includes('ORDER_ALREADY_CAPTURED')) throw new OrderAlreadyCapturedError();
+      if (issues?.some((issue) => DECLINE_ISSUES.has(issue))) {
+        return { status: 'DECLINED', captureId: null, amount: null, currency: null, payer: { email: null, name: null } };
+      }
+      throw err;
+    }
   }
 
   refund(): Promise<never> {
@@ -78,4 +103,34 @@ export class PaypalProvider implements PaymentProvider {
   verifyWebhook(): Promise<never> {
     return Promise.reject(new PaymentProviderNotSupportedError('verifyWebhook'));
   }
+}
+
+/** Các `issue` trong body lỗi 422 của PayPal (SDK ném `ApiError` mang `statusCode` và `result`); null nếu không phải 422. */
+function apiErrorIssues(err: unknown): string[] | null {
+  if (typeof err !== 'object' || err === null) return null;
+  const { statusCode, result } = err as { statusCode?: unknown; result?: unknown };
+  if (statusCode !== 422) return null;
+  const details = (result as { details?: unknown } | null | undefined)?.details;
+  if (!Array.isArray(details)) return [];
+  return details.flatMap((d: unknown) => {
+    const issue = (d as { issue?: unknown } | null)?.issue;
+    return typeof issue === 'string' ? [issue] : [];
+  });
+}
+
+function normaliseStatus(status: string | undefined): CaptureStatus {
+  return status === 'COMPLETED' || status === 'DECLINED' || status === 'FAILED' ? status : 'PENDING';
+}
+
+/** Chuẩn hoá đơn PayPal thành `CaptureResult`: dùng capture đầu tiên của purchase unit đầu tiên. */
+function toCaptureResult(order: Order): CaptureResult {
+  const capture = order.purchaseUnits?.[0]?.payments?.captures?.[0];
+  const name = [order.payer?.name?.givenName, order.payer?.name?.surname].filter(Boolean).join(' ');
+  return {
+    status: capture ? normaliseStatus(capture.status) : 'PENDING',
+    captureId: capture?.id ?? null,
+    amount: capture?.amount?.value ?? null,
+    currency: capture?.amount?.currencyCode ?? null,
+    payer: { email: order.payer?.emailAddress ?? null, name: name || null },
+  };
 }

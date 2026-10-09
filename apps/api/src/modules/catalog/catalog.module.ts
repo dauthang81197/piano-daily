@@ -5,6 +5,7 @@ import { CacheInvalidator } from './cache-invalidator';
 import { ComposersController } from './composers.controller';
 import { ComposersService } from './composers.service';
 import { FreeDownloadSource } from './free-download-source.service';
+import { PurchasableFilesSource } from './purchasable-files-source.service';
 import { GenresController } from './genres.controller';
 import { GenresService } from './genres.service';
 import { PricingService } from './pricing.service';
@@ -25,7 +26,7 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 @Module({
   imports: [MediaModule, IdentityModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
-  providers: [CacheInvalidator, PricingService, FreeDownloadSource, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
-  exports: [FreeDownloadSource, PricingService],
+  providers: [CacheInvalidator, PricingService, FreeDownloadSource, PurchasableFilesSource, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
+  exports: [FreeDownloadSource, PricingService, PurchasableFilesSource],
 })
 export class CatalogModule {}

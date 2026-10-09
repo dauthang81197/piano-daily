@@ -2,9 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   canTransition,
+  type CaptureOrderRequest,
+  type CaptureOrderResponse,
   type CreateOrderRequest,
   type CreateOrderResponse,
   ErrorCode,
+  formatUsd,
+  type FileType,
   type OrderItem,
   type OrderStatus,
   orderEmailSchema,
@@ -15,9 +19,12 @@ import { AppException } from '../../common/http-exception.filter';
 import { notFound } from '../catalog/catalog.helpers';
 import { PricingService } from '../catalog/pricing.service';
 import { isPrismaError } from '../catalog/prisma-errors';
+import { PurchasableFilesSource } from '../catalog/purchasable-files-source.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
-import { OrderRepository } from './order.repository';
-import { PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
+import { DownloadTokenRepository } from './download-token.repository';
+import { type OrderForCapture, OrderRepository } from './order.repository';
+import { type CaptureResult, OrderAlreadyCapturedError, PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
 
 /** Bảng chữ cái base32 Crockford (không I, L, O, U). */
 const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -28,6 +35,14 @@ const CODE_ATTEMPTS = 5;
 export function generateOrderCode(): string {
   const bytes = randomBytes(CODE_LENGTH);
   return `PD-${Array.from(bytes, (b) => CODE_ALPHABET[b % 32]).join('')}`;
+}
+
+/** Đơn đã trả tiền nhưng file hiện hành không còn đủ (lỗi nội bộ, huỷ transaction). */
+class MissingPurchasedFileError extends Error {
+  constructor() {
+    super('Thiếu file hiện hành cho đơn đã thanh toán.');
+    this.name = 'MissingPurchasedFileError';
+  }
 }
 
 /** Chuyển trạng thái không nằm trong máy trạng thái (lỗi lập trình, không phải lỗi client). */
@@ -69,7 +84,7 @@ function resolveItems(request: CreateOrderRequest, quote: Quote): OrderItem[] | 
 
 /**
  * Vòng đời Order (AD-20). Chỉ lớp này được đổi `Order.status` (qua `transition`) và chỉ theo máy trạng thái ở shared.
- * Story 3.3: tạo đơn PENDING + đơn PayPal. Capture/fulfil thuộc Story 3.4.
+ * Story 3.3: tạo đơn PENDING + đơn PayPal. Story 3.4: capture và `fulfil()` (PAID + DownloadToken, idempotent).
  */
 @Injectable()
 export class OrderService {
@@ -80,6 +95,9 @@ export class OrderService {
     private readonly pricing: PricingService,
     private readonly settings: SettingsService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly tokens: DownloadTokenRepository,
+    private readonly files: PurchasableFilesSource,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -123,6 +141,128 @@ export class OrderService {
       await this.transition(order.id, 'FAILED').catch(() =>
         this.logger.error(`Không đánh dấu FAILED được cho đơn ${order.orderCode}; đơn còn PENDING.`),
       );
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Capture đơn PayPal rồi `fulfil()`. Không tin client về số tiền: mọi so khớp dùng Order trong DB.
+   * Đơn đã PAID trả lại token cũ mà không gọi PayPal. `paypalOrderId` lạ: 404 trước khi gọi PayPal.
+   */
+  async captureOrder(request: CaptureOrderRequest): Promise<CaptureOrderResponse> {
+    const order = await this.orders.findByPaypalOrderId(request.paypalOrderId);
+    if (!order || order.status === 'REFUNDED') throw notFound('Không tìm thấy đơn hàng.');
+    if (order.status === 'PAID') return this.existingFulfilment(order);
+
+    const capture = await this.callProvider(request.paypalOrderId, order.orderCode);
+
+    if (capture.status === 'DECLINED' || capture.status === 'FAILED') {
+      // Chỉ PENDING mới sang FAILED được; CANCELLED/FAILED giữ nguyên.
+      if (order.status === 'PENDING') {
+        await this.transition(order.id, 'FAILED').catch(() =>
+          this.logger.error(`Không đánh dấu FAILED được cho đơn ${order.orderCode}.`),
+        );
+      }
+      throw new AppException(ErrorCode.PAYMENT_DECLINED, HttpStatus.PAYMENT_REQUIRED);
+    }
+    if (capture.status !== 'COMPLETED') {
+      this.logger.error(`Capture chưa hoàn tất (${order.orderCode}): ${capture.status}`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    return this.fulfil(order.id, capture);
+  }
+
+  /**
+   * Chuyển Order sang PAID và cấp đúng một DownloadToken trong CÙNG transaction, idempotent:
+   * UPDATE có điều kiện chỉ thắng một lần; lần còn lại (đồng thời hoặc gọi lại) đọc lại token đã cấp.
+   * Chỉ PAID khi capture `COMPLETED` và amount/currency khớp Order; lệch thì `review_required` và 503 chung.
+   */
+  async fulfil(orderId: string, capture: CaptureResult): Promise<CaptureOrderResponse> {
+    const order = await this.orders.findById(orderId);
+    if (!order || order.status === 'REFUNDED') throw notFound('Không tìm thấy đơn hàng.');
+    if (order.status === 'PAID') return this.existingFulfilment(order);
+
+    if (capture.status !== 'COMPLETED') {
+      this.logger.error(`fulfil bị từ chối vì capture chưa COMPLETED (${order.orderCode}).`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    if (capture.amount !== formatUsd(order.amountCents) || capture.currency !== order.currency) {
+      await this.orders.markReviewRequired(order.id);
+      // Không log số tiền hay chi tiết PayPal, chỉ mã đơn.
+      this.logger.error(`Capture lệch amount/currency, cần xem xét thủ công (${order.orderCode}).`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    const [days, maxDownloads] = await Promise.all([this.settings.tokenDefaultDays(), this.settings.tokenDefaultMaxDownloads()]);
+    const types: FileType[] = (order.items as OrderItem[]).map((item) => item.fileType);
+
+    const granted = await this.grantInTransaction(order, capture, types, days, maxDownloads);
+
+    if (granted) {
+      if (order.status !== 'PENDING') this.logger.warn(`LATE_CAPTURE ${order.orderCode} (từ ${order.status})`);
+      return { orderCode: order.orderCode, ...granted };
+    }
+    // Thua cuộc đua: lệnh khác đã PAID và commit token trước.
+    const current = await this.orders.findById(order.id);
+    if (current?.status === 'PAID') return this.existingFulfilment(current);
+    throw notFound('Không tìm thấy đơn hàng.');
+  }
+
+  /** Cấp PAID + token trong một transaction; null nếu thua cuộc đua. Thiếu file đã mua thì huỷ, đánh dấu review và 503. */
+  private async grantInTransaction(
+    order: OrderForCapture,
+    capture: CaptureResult,
+    types: FileType[],
+    days: number,
+    maxDownloads: number,
+  ) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const changed = await this.orders.markPaid(tx, order.id, {
+          captureId: capture.captureId,
+          payerEmail: capture.payer.email,
+          payerName: capture.payer.name,
+        });
+        if (!changed) return null;
+        const current = await this.files.currentFiles(tx, order.sheetId, types);
+        // Thiếu file hiện hành so với những gì đã mua: huỷ transaction (không PAID) để xem xét thủ công, không cấp token rỗng.
+        if (current.length < new Set(types).size) throw new MissingPurchasedFileError();
+        await this.tokens.create(tx, {
+          orderId: order.id,
+          expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+          maxDownloads,
+          fileIds: current.map((file) => file.id),
+        });
+        return this.tokens.findByOrderId(order.id, tx);
+      });
+    } catch (err) {
+      if (!(err instanceof MissingPurchasedFileError)) throw err;
+      await this.orders.markReviewRequired(order.id);
+      this.logger.error(`Thiếu file hiện hành cho đơn đã thanh toán, cần xem xét thủ công (${order.orderCode}).`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  private async existingFulfilment(order: OrderForCapture): Promise<CaptureOrderResponse> {
+    const stored = await this.tokens.findByOrderId(order.id);
+    if (!stored) {
+      this.logger.error(`Đơn ${order.orderCode} đã PAID nhưng chưa có DownloadToken.`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    return { orderCode: order.orderCode, ...stored };
+  }
+
+  /** Gọi capture; `ORDER_ALREADY_CAPTURED` thì đọc lại đơn bằng getOrder. Lỗi khác là 503 chung (Order giữ nguyên để thử lại). */
+  private async callProvider(paypalOrderId: string, orderCode: string): Promise<CaptureResult> {
+    try {
+      try {
+        return await this.provider.capture(paypalOrderId, orderCode);
+      } catch (err) {
+        if (!(err instanceof OrderAlreadyCapturedError)) throw err;
+        return await this.provider.getOrder(paypalOrderId);
+      }
+    } catch (err) {
+      this.logger.error(`Capture PayPal thất bại (${orderCode}): ${err instanceof Error ? err.name : 'unknown'}`);
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }

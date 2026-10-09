@@ -29,6 +29,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   FILE_PROCESSING_FAILED: 'Không xử lý được file. Hãy kiểm tra file rồi thử lại.',
   PRICE_CHANGED: 'Giá đã thay đổi. Vui lòng xem lại giá mới rồi thử lại.',
   PAYMENTS_DISABLED: 'Thanh toán tạm thời đang tắt. Vui lòng quay lại sau.',
+  PAYMENT_DECLINED: 'Thanh toán bị từ chối. Vui lòng kiểm tra phương thức thanh toán hoặc thử phương thức khác.',
 };
 
 /**

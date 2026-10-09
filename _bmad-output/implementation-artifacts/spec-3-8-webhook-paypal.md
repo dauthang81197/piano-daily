@@ -84,7 +84,7 @@ context:
 - **false — `rawBody.toString('utf8')` làm lệch bytes:** body PayPal là JSON UTF-8 hợp lệ nên giải mã không mất mát.
 - **false — `failIfPending` lách `canTransition`:** PENDING→FAILED nằm trong bảng; UPDATE có điều kiện `status = PENDING`.
 - **rejected (theo spec) — Hoàn một phần coi như REFUNDED, amount lệch trả 503 mãi, DENIED rồi COMPLETED chạy LATE_CAPTURE:** đã chốt trong spec/Story 3.4.
-- **low (rejected) — Trùng lặp song song (fulfil/refund đã là UPDATE có điều kiện), 404 hiếm khi race REFUNDED, `record()`/`markProcessed` ném 500 thay 503 (PayPal đều gửi lại), ` ` trong payload, parse JSON hai lần, `findByOrderCode` không nhận tx, body không JSON gây 503 thay 400, `rawBody` toàn app, đối chiếu capture id/số tiền hoàn một phần, test thiếu cho `custom_id` fallback:** không có tác hại cụ thể ở quy mô hiện tại hoặc cần thêm nhánh/bề mặt mới.
+- **low (rejected) — Trùng lặp song song (fulfil/refund đã là UPDATE có điều kiện), 404 hiếm khi race REFUNDED, `record()`/`markProcessed` ném 500 thay 503 (PayPal đều gửi lại), `\u0000` trong payload, parse JSON hai lần, `findByOrderCode` không nhận tx, body không JSON gây 503 thay 400, `rawBody` toàn app, đối chiếu capture id/số tiền hoàn một phần, test thiếu cho `custom_id` fallback:** không có tác hại cụ thể ở quy mô hiện tại hoặc cần thêm nhánh/bề mặt mới.
 
 ## Verification
 

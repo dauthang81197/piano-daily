@@ -204,7 +204,7 @@ describe('Webhook PayPal (Story 3.8, Postgres thật, provider và email giả)'
     expect(row.status).toBe('REFUNDED');
     expect(row.refundedAt).not.toBeNull();
     expect((await prisma.downloadToken.findUniqueOrThrow({ where: { orderId: order.id } })).revokedAt).not.toBeNull();
-    const res = await request(app.getHttpServer()).get(`/downloads/${token.token}/PDF`).set('CF-Connecting-IP', '198.51.100.9').expect(410);
+    const res = await request(app.getHttpServer()).get(`/downloads/${token.token}/pdf`).set('CF-Connecting-IP', '198.51.100.9').expect(410);
     expect(errorResponseSchema.parse(res.body).error.code).toBe('TOKEN_REVOKED');
   });
 

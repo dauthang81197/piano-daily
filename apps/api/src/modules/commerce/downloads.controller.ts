@@ -22,6 +22,7 @@ export class DownloadsController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Header('Cache-Control', 'no-store')
+  @Header('X-Robots-Tag', 'noindex, nofollow')
   @Redirect(undefined, 302)
   @Get('files/:sheetId/:fileType/download')
   async freeDownload(

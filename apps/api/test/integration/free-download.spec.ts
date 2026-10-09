@@ -72,12 +72,31 @@ describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
     expect(location.searchParams.get('X-Amz-Expires')).toBe('300');
     expect(disposition(location)).toBe(`attachment; filename="${sheet.slug}.pdf"`);
     expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['x-robots-tag']).toBe('noindex, nofollow');
 
     const logs = await prisma.downloadLog.findMany();
     expect(logs).toHaveLength(1);
     expect(logs[0]).toMatchObject({ sheetId: sheet.id, fileType: 'PDF', tokenId: null, ua: 'vitest-agent' });
     expect(logs[0]!.ipHash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(logs)).not.toContain('203.0.113.77');
+  });
+
+  it('Có nhiều file hiện hành cùng type: phát file mới nhất', async () => {
+    const sheet = await addSheet({ files: [] });
+    for (const [name, createdAt] of [['new', '2026-02-01'], ['old', '2026-01-01']] as const) {
+      await prisma.sheetFile.create({
+        data: {
+          sheetId: sheet.id,
+          type: 'PDF',
+          storageKey: `private/sheets/${sheet.id}/PDF/${name}.bin`,
+          size: 1,
+          mimeType: 'application/octet-stream',
+          createdAt: new Date(createdAt),
+        },
+      });
+    }
+    const res = await download(sheet.id, 'pdf').expect(302);
+    expect(new URL(res.headers.location as string).pathname).toContain('/PDF/new.bin');
   });
 
   it('MIDI tải với đuôi .mid, MP3 với .mp3; mỗi lượt một dòng log', async () => {

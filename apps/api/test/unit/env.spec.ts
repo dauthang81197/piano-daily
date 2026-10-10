@@ -188,6 +188,70 @@ describe('validateEnv', () => {
   });
 });
 
+describe('validateEnv — NODE_ENV=production', () => {
+  const prod = {
+    ...valid,
+    NODE_ENV: 'production',
+    PAYPAL_CLIENT_ID: 'id',
+    PAYPAL_CLIENT_SECRET: 'paypal-secret',
+    PAYPAL_WEBHOOK_ID: 'wh',
+    RESEND_API_KEY: 're_x',
+    EMAIL_FROM: 'Piano <a@b.co>',
+  };
+
+  it('đủ secret thì khởi động', () => {
+    expect(validateEnv(prod).NODE_ENV).toBe('production');
+  });
+
+  it.each(['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'RESEND_API_KEY', 'EMAIL_FROM'])(
+    'thiếu %s -> lỗi nêu đúng tên biến',
+    (variable) => {
+      for (const value of [undefined, '']) {
+        try {
+          validateEnv({ ...prod, [variable]: value });
+          expect.unreachable();
+        } catch (err) {
+          expect((err as EnvValidationError).variables).toEqual([variable]);
+          expect((err as Error).message).toContain(`${variable} (thiếu)`);
+        }
+      }
+    },
+  );
+
+  it.each(['JWT_ACCESS_SECRET', 'INTERNAL_API_SECRET', 'VIEW_SALT', 'S3_ENDPOINT', 'S3_SECRET_ACCESS_KEY'])(
+    'thiếu %s -> lỗi nêu đúng tên biến',
+    (variable) => {
+      try {
+        validateEnv({ ...prod, [variable]: undefined });
+        expect.unreachable();
+      } catch (err) {
+        expect((err as EnvValidationError).variables).toEqual([variable]);
+      }
+    },
+  );
+
+  it('liệt kê mọi biến thiếu cùng lúc', () => {
+    try {
+      validateEnv({ ...valid, NODE_ENV: 'production' });
+      expect.unreachable();
+    } catch (err) {
+      expect((err as EnvValidationError).variables.sort()).toEqual([
+        'EMAIL_FROM',
+        'PAYPAL_CLIENT_ID',
+        'PAYPAL_CLIENT_SECRET',
+        'PAYPAL_WEBHOOK_ID',
+        'RESEND_API_KEY',
+      ]);
+    }
+  });
+
+  it('ngoài production vẫn tuỳ chọn', () => {
+    for (const NODE_ENV of ['development', 'test']) {
+      expect(() => validateEnv({ ...valid, NODE_ENV })).not.toThrow();
+    }
+  });
+});
+
 describe('validateEnv — INTERNAL_API_SECRET, VIEW_SALT và CORS_WEB_ORIGIN', () => {
   it.each([
     ['INTERNAL_API_SECRET', ''],

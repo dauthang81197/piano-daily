@@ -130,6 +130,8 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
    - Environment `production` (có thể bật required reviewers nếu muốn duyệt trước khi deploy).
 4. Đổi `NEXT_PUBLIC_*` (host, URL media) thì phải build lại image: chạy lại workflow.
 
+**Production có domain thật sau Cloudflare** (TLS, CDN, `admin.`/`api.`/`cdn.`): xem [docs/cloudflare.md](docs/cloudflare.md) (`docker-compose.cloudflare.yml`, `deploy/Caddyfile.cloudflare`); chạy song song, không thay deploy sslip.io ở trên.
+
 ## Quy ước chính
 
 - **Config:** API chỉ đọc env qua `ConfigModule` (validate bằng zod, `apps/api/src/config/env.ts`). Thiếu/sai biến thì process thoát mã 1 và log nêu tên biến.

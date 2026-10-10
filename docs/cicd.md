@@ -36,3 +36,5 @@ Cập nhật: 2026-10-08. Nhánh: `chore/ci-cd-docker-hub-deploy`. Hướng dẫ
 - Workflow CI chạy cả `pnpm test` ở gốc. Trên máy Windows có sẵn 2 test `midi-player-bundle` fail (lỗi đường dẫn Windows); trên Linux chưa biết kết quả.
 - Backup Postgres và giám sát chưa có (Story 5.2, 5.3). Chưa có firewall phía server do script quản lý.
 - Docker Hub: nếu repo image để private thì server phải `docker login` (workflow đã làm bước này bằng token).
+
+- Production có domain thật sau Cloudflare (compose/Caddy riêng, firewall chỉ nhận Cloudflare, smoke check): xem [cloudflare.md](cloudflare.md).

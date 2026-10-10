@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-28-2026 10:17
-last_updated: 10-10-2026 14:00
+last_updated: 10-10-2026 15:00
 project: Piano Daily
 project_key: NOKEY
 tracking_system: file-system
@@ -79,7 +79,7 @@ development_status:
   4-2-gui-lai-email-va-gia-han-token: review
   4-3-hoan-tien-tu-admin: review
   4-4-cai-dat-site: review
-  4-5-quan-ly-vi-tri-quang-cao: backlog
+  4-5-quan-ly-vi-tri-quang-cao: review
   4-6-hien-thi-quang-cao-tren-site-cong-khai: backlog
   4-7-dashboard-doanh-thu-va-luot-dung: backlog
   epic-4-retrospective: optional

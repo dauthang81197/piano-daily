@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX, pageSchema } from './catalog';
 import { PURCHASABLE_FILE_TYPES, priceCentsSchema } from './pricing';
 
 /** Trạng thái đơn hàng (Story 3.3); phải trùng enum `OrderStatus` của Prisma (có test kiểm tra). */
@@ -104,3 +105,109 @@ export const downloadStatusResponseSchema = z.object({
   status: z.enum(DOWNLOAD_STATUSES),
 });
 export type DownloadStatusResponse = z.infer<typeof downloadStatusResponseSchema>;
+
+// ── Admin: danh sách và chi tiết đơn (Story 4.1) ─────────────
+
+/** Múi giờ báo cáo: mọi ngày ở admin và ranh giới ngày của bộ lọc/báo cáo tính theo múi giờ này. */
+export const REPORT_TZ = 'Asia/Ho_Chi_Minh';
+
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const dateMessage = 'Ngày phải có dạng YYYY-MM-DD.';
+
+/** Chuỗi `YYYY-MM-DD` là ngày lịch có thật (không nhận 2026-02-30). */
+export function isValidDateOnly(value: string): boolean {
+  const m = DATE_PATTERN.exec(value);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+}
+
+const dateOnlySchema = z.string().refine(isValidDateOnly, { error: dateMessage });
+const pageMessage = 'Trang phải là số nguyên từ 1.';
+const pageSizeMessage = `Kích thước trang phải từ 1 đến ${PAGE_SIZE_MAX}.`;
+
+/** Query `GET /admin/orders`. `from`/`to` là ngày theo `REPORT_TZ` (gồm cả hai đầu). */
+export const adminOrderListQuerySchema = z
+  .object({
+    status: orderStatusSchema.optional(),
+    from: dateOnlySchema.optional(),
+    to: dateOnlySchema.optional(),
+    email: z
+      .string()
+      .trim()
+      .max(254, { error: 'Email tối đa 254 ký tự.' })
+      .optional()
+      .transform((value) => value || undefined),
+    reviewRequired: z
+      .enum(['true', 'false'], { error: 'reviewRequired phải là true hoặc false.' })
+      .optional()
+      .transform((value) => (value === undefined ? undefined : value === 'true')),
+    page: z.coerce
+      .number({ error: pageMessage })
+      .int({ error: pageMessage })
+      .min(1, { error: pageMessage })
+      .max(1_000_000, { error: 'Trang quá lớn.' })
+      .default(1),
+    pageSize: z.coerce
+      .number({ error: pageSizeMessage })
+      .int({ error: pageSizeMessage })
+      .min(1, { error: pageSizeMessage })
+      .max(PAGE_SIZE_MAX, { error: pageSizeMessage })
+      .default(PAGE_SIZE_DEFAULT),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, { error: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.', path: ['from'] });
+export type AdminOrderListQueryInput = z.input<typeof adminOrderListQuerySchema>;
+export type AdminOrderListQuery = z.output<typeof adminOrderListQuerySchema>;
+
+/** Một dòng danh sách đơn: không có secret, token hay payload PayPal. */
+export const adminOrderListItemSchema = z.object({
+  id: z.string(),
+  orderCode: z.string(),
+  email: z.string(),
+  sheet: z.object({ id: z.string(), title: z.string() }),
+  fileTypes: z.array(z.enum(PURCHASABLE_FILE_TYPES)),
+  amountCents: z.number().int().nonnegative(),
+  currency: z.string(),
+  status: orderStatusSchema,
+  reviewRequired: z.boolean(),
+  createdAt: z.string(),
+});
+export type AdminOrderListItem = z.infer<typeof adminOrderListItemSchema>;
+export const adminOrderListResponseSchema = pageSchema(adminOrderListItemSchema);
+
+/** Trạng thái token của đơn: không có chuỗi token. */
+export const adminOrderTokenSchema = z.object({
+  status: z.enum(DOWNLOAD_STATUSES),
+  expiresAt: z.string(),
+  usedDownloads: z.number().int().nonnegative(),
+  maxDownloads: z.number().int().nonnegative(),
+  revokedAt: z.string().nullable(),
+});
+export type AdminOrderToken = z.infer<typeof adminOrderTokenSchema>;
+
+/** Một lượt tải: thời điểm, loại file, UA. Không có `ipHash`. */
+export const adminOrderDownloadSchema = z.object({
+  id: z.string(),
+  fileType: z.string(),
+  ua: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type AdminOrderDownload = z.infer<typeof adminOrderDownloadSchema>;
+
+/** Số dòng lịch sử tải tối đa trong chi tiết đơn. */
+export const ADMIN_ORDER_DOWNLOADS_MAX = 100;
+
+export const adminOrderDetailSchema = adminOrderListItemSchema.extend({
+  items: z.array(orderItemSchema),
+  paypalOrderId: z.string().nullable(),
+  paypalCaptureId: z.string().nullable(),
+  payerEmail: z.string().nullable(),
+  payerName: z.string().nullable(),
+  paidAt: z.string().nullable(),
+  refundedAt: z.string().nullable(),
+  emailSentAt: z.string().nullable(),
+  token: adminOrderTokenSchema.nullable(),
+  downloads: z.array(adminOrderDownloadSchema),
+});
+export type AdminOrderDetail = z.infer<typeof adminOrderDetailSchema>;

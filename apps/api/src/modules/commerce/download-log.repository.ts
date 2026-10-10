@@ -20,4 +20,14 @@ export class DownloadLogRepository {
   ): Promise<void> {
     await tx.downloadLog.create({ data: entry });
   }
+
+  /** Lịch sử tải của một token, mới nhất trước, tối đa `limit` dòng. Không chọn `ipHash`. */
+  async listByToken(tokenId: string, limit: number): Promise<{ id: string; fileType: FileType; ua: string | null; createdAt: Date }[]> {
+    return this.prisma.downloadLog.findMany({
+      where: { tokenId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      select: { id: true, fileType: true, ua: true, createdAt: true },
+    });
+  }
 }

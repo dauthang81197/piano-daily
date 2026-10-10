@@ -36,6 +36,8 @@ export const ErrorCode = {
   TOKEN_REVOKED: 'TOKEN_REVOKED',
   /** Cùng email đã mua đủ các định dạng này và link tải còn hiệu lực: không tạo đơn, link được gửi lại qua email (409). */
   ALREADY_PURCHASED: 'ALREADY_PURCHASED',
+  /** Số Sheet khớp tiêu chí lúc áp dụng giá hàng loạt khác số đã xem trước (409, `details.count` = số mới). */
+  BULK_COUNT_CHANGED: 'BULK_COUNT_CHANGED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

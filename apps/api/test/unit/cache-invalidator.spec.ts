@@ -237,3 +237,39 @@ describe('CacheInvalidator.track / trackTaxonomy', () => {
     expect(notify).not.toHaveBeenCalled();
   });
 });
+
+describe('CacheInvalidator.notifySheets (đặt giá hàng loạt)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const row = (id: string, status = 'PUBLISHED') => ({
+    id,
+    status,
+    level: 'BEGINNER',
+    composerId: 'cA',
+    seriesId: null,
+    genres: [{ genreId: 'g1' }],
+  });
+
+  it('gom tag của mọi Sheet PUBLISHED, bỏ Draft, chia lô <= 100 tag', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const published = Array.from({ length: 120 }, (_, i) => row(`s${i}`));
+    const findMany = vi.fn().mockResolvedValue([...published, row('draft', 'DRAFT')]);
+    await makeInvalidator('http://web:4100', { sheet: { findMany } }).notifySheets([...published.map((r) => r.id), 'draft']);
+    const sent = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body).tags as string[]);
+    expect(sent.length).toBeGreaterThan(1);
+    for (const tags of sent) expect(tags.length).toBeLessThanOrEqual(100);
+    const all = sent.flat();
+    expect(new Set(all).size).toBe(all.length);
+    expect(all).toEqual(expect.arrayContaining(['sheet:s0', 'sheet:s119', 'list:genre:g1', 'search', 'sitemap']));
+    expect(all).not.toContain('sheet:draft');
+  });
+
+  it('không ném khi đọc DB hoặc gọi web lỗi', async () => {
+    const inv = makeInvalidator('http://web:4100', { sheet: { findMany: vi.fn().mockRejectedValue(new Error('db down')) } });
+    vi.spyOn((inv as unknown as { logger: { error: () => void } }).logger, 'error').mockImplementation(() => {});
+    await expect(inv.notifySheets(['s1'])).resolves.toBeUndefined();
+  });
+});

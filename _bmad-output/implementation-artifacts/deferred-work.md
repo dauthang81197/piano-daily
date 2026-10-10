@@ -96,3 +96,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-9-tu-huy-don-pending-qua-han.md`
   summary: Đơn fulfil lệch số tiền/tiền tệ bị `markReviewRequired` và ném lỗi lặp lại mỗi giờ.
   evidence: Đơn giữ PENDING nên cron quét lại mỗi lượt; chỉ gây nhiễu log và ghi DB thừa.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-10-dat-gia-hang-loat.md`
+  summary: Apply đặt giá hàng loạt chỉ so `expectedCount`, nên tập Sheet bị thay cùng số lượng giữa preview và apply vẫn qua.
+  evidence: `applyBulkPricing` so `locked.length` với `expectedCount`, không so danh sách id; cần gửi ids/hash trong hợp đồng apply.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-10-dat-gia-hang-loat.md`
+  summary: Sheet PUBLISHED đã không bán được từ trước làm cả lô đặt giá hàng loạt bị 422, và danh sách vi phạm không giới hạn.
+  evidence: Kiểm bất biến chạy trên mọi Sheet PUBLISHED trong lô sau update, không phân biệt lỗi có sẵn với lỗi do đợt này gây ra.

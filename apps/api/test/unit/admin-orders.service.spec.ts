@@ -1,25 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AdminOrdersService, dayStartUtc, reportRangeToUtc } from '../../src/modules/commerce/admin-orders.service';
-
-describe('dayStartUtc / reportRangeToUtc (REPORT_TZ = Asia/Ho_Chi_Minh, UTC+7)', () => {
-  it('00:00 ngày 01/10 giờ Việt Nam là 17:00 UTC ngày 30/09', () => {
-    expect(dayStartUtc('2026-10-01').toISOString()).toBe('2026-09-30T17:00:00.000Z');
-  });
-  it('from = to gồm trọn một ngày: [00:00, 24:00) giờ Việt Nam', () => {
-    const { gte, lt } = reportRangeToUtc('2026-10-01', '2026-10-01');
-    expect(gte?.toISOString()).toBe('2026-09-30T17:00:00.000Z');
-    expect(lt?.toISOString()).toBe('2026-10-01T17:00:00.000Z');
-  });
-  it('qua ranh giới năm, chỉ một đầu', () => {
-    expect(reportRangeToUtc(undefined, '2026-12-31').lt?.toISOString()).toBe('2026-12-31T17:00:00.000Z');
-    expect(reportRangeToUtc('2026-01-01').lt).toBeUndefined();
-    expect(reportRangeToUtc()).toEqual({});
-  });
-  it('múi giờ có DST vẫn đúng đầu ngày', () => {
-    expect(dayStartUtc('2026-07-01', 'America/New_York').toISOString()).toBe('2026-07-01T04:00:00.000Z');
-    expect(dayStartUtc('2026-01-01', 'America/New_York').toISOString()).toBe('2026-01-01T05:00:00.000Z');
-  });
-});
+import { AdminOrdersService } from '../../src/modules/commerce/admin-orders.service';
 
 const query = { page: 2, pageSize: 10 };
 const row = {

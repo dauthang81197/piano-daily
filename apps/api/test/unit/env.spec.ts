@@ -42,6 +42,12 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...valid, SITE_URL: 'not a url' })).toThrow(EnvValidationError);
   });
 
+  it('ALERT_EMAIL tuỳ chọn và phải là email', () => {
+    expect(validateEnv({ ...valid, ALERT_EMAIL: '' }).ALERT_EMAIL).toBeUndefined();
+    expect(validateEnv({ ...valid, ALERT_EMAIL: 'me@x.co' }).ALERT_EMAIL).toBe('me@x.co');
+    expect(() => validateEnv({ ...valid, ALERT_EMAIL: 'nope' })).toThrow(EnvValidationError);
+  });
+
   it('PayPal: PAYPAL_MODE sandbox|live, client id/secret tuỳ chọn', () => {
     expect(() => validateEnv({ ...valid, PAYPAL_MODE: 'live' })).toThrow(EnvValidationError);
     expect(

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ErrorCode } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
 import type { Env } from '../../config/env';
+import { AlertService } from '../notify/alert.service';
 import { OrderRepository } from './order.repository';
 import { OrderService } from './order.service';
 import { PaymentEventRepository } from './payment-event.repository';
@@ -47,6 +48,7 @@ export class WebhookService {
     private readonly orders: OrderService,
     private readonly orderRepo: OrderRepository,
     private readonly config: ConfigService<Env, true>,
+    private readonly alerts: AlertService,
   ) {}
 
   async handle(headers: Record<string, string | undefined>, rawBody: string): Promise<void> {
@@ -61,9 +63,13 @@ export class WebhookService {
       verified = await this.provider.verifyWebhook(headers, rawBody);
     } catch (err) {
       this.logger.error(`Xác thực webhook PayPal thất bại: ${err instanceof Error ? err.name : 'unknown'}`);
+      void this.alerts.alert('WEBHOOK_ERROR', 'Lỗi webhook PayPal', 'Không xác minh được chữ ký webhook PayPal (lỗi khi gọi PayPal).', 'verify');
       throw unavailable();
     }
-    if (!verified) throw badRequest('Chữ ký webhook không hợp lệ.');
+    if (!verified) {
+      void this.alerts.alert('WEBHOOK_ERROR', 'Lỗi webhook PayPal', 'Chữ ký webhook PayPal không hợp lệ.', 'signature');
+      throw badRequest('Chữ ký webhook không hợp lệ.');
+    }
 
     const event = parseEvent(rawBody);
     if (!event) throw badRequest('Nội dung webhook không hợp lệ.');
@@ -76,6 +82,7 @@ export class WebhookService {
     } catch (err) {
       if (err instanceof AppException) throw err;
       this.logger.error(`Xử lý webhook ${event.event_type} thất bại: ${err instanceof Error ? err.name : 'unknown'}`);
+      void this.alerts.alert('WEBHOOK_ERROR', 'Lỗi webhook PayPal', `Xử lý webhook ${event.event_type} thất bại (${err instanceof Error ? err.name : 'unknown'}).`, `dispatch:${event.event_type}`);
       throw unavailable();
     }
     await this.events.markProcessed(event.id);

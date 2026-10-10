@@ -1,0 +1,40 @@
+# Giám sát uptime tối thiểu: gọi web và <api>/health mỗi 5 phút. Down thì job fail và GitHub gửi email
+# cho người tạo/sửa lịch (xem docs/cicd.md). Cần Variables: UPTIME_WEB_URL, UPTIME_API_URL (thiếu biến nào thì bỏ qua biến đó).
+name: uptime
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      UPTIME_WEB_URL: ${{ vars.UPTIME_WEB_URL }}
+      UPTIME_API_URL: ${{ vars.UPTIME_API_URL }}
+    steps:
+      - name: Kiểm tra web và API
+        run: |
+          failed=0
+          probe() {
+            local name="$1" url="$2"
+            if [ -z "$url" ]; then
+              echo "::warning::Chưa đặt biến repo $name, bỏ qua."
+              return
+            fi
+            if curl -fsS --max-time 20 --retry 2 -o /dev/null "$url"; then
+              echo "OK $url"
+            else
+              echo "::error::DOWN $url"
+              failed=1
+            fi
+          }
+          probe UPTIME_WEB_URL "$UPTIME_WEB_URL"
+          api="${UPTIME_API_URL%/}"
+          probe UPTIME_API_URL "${api:+$api/health}"
+          exit "$failed"

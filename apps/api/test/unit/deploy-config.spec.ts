@@ -43,6 +43,14 @@ describe('docker-compose.cloudflare.yml', () => {
     expect(example).toMatch(/^BACKUP_KEEP=14$/m);
   });
 
+  it('cảnh báo vận hành: ALERT_EMAIL cho api, backup có URL và secret nội bộ', () => {
+    expect(service(compose, 'api')).toContain('ALERT_EMAIL:');
+    const backup = service(compose, 'backup');
+    expect(backup).toContain('API_INTERNAL_URL: http://api:4000');
+    expect(backup).toContain('INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?');
+    expect(read('deploy/.env.cloudflare.example')).toContain('ALERT_EMAIL=');
+  });
+
   it('api đúng một instance', () => {
     expect(compose).not.toMatch(/replicas|scale:/);
   });

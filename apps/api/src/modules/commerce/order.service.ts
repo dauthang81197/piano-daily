@@ -24,6 +24,7 @@ import { isPrismaError } from '../catalog/prisma-errors';
 import { PurchasableFilesSource } from '../catalog/purchasable-files-source.service';
 import type { Env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AlertService } from '../notify/alert.service';
 import { EMAIL_PORT, type EmailPort } from '../notify/email-port';
 import { SettingsService } from '../settings/settings.service';
 import { buildDownloadEmail } from './download-email';
@@ -118,6 +119,7 @@ export class OrderService {
     private readonly prisma: PrismaService,
     @Inject(EMAIL_PORT) private readonly email: EmailPort,
     private readonly config: ConfigService<Env, true>,
+    private readonly alerts: AlertService,
   ) {}
 
   /** Mốc thời gian các lần gửi lại theo khoá email băm. */
@@ -240,6 +242,7 @@ export class OrderService {
     }
     if (capture.amount !== formatUsd(order.amountCents) || capture.currency !== order.currency) {
       await this.orders.markReviewRequired(order.id);
+      void this.alerts.alert('REVIEW_REQUIRED', `Đơn ${order.orderCode} cần xem xét (lệch số tiền)`, `Đơn ${order.orderCode}: capture lệch amount/currency, đã chuyển review_required.`, order.orderCode);
       // Không log số tiền hay chi tiết PayPal, chỉ mã đơn.
       this.logger.error(`Capture lệch amount/currency, cần xem xét thủ công (${order.orderCode}).`);
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
@@ -251,7 +254,10 @@ export class OrderService {
     const granted = await this.grantInTransaction(order, capture, types, days, maxDownloads);
 
     if (granted) {
-      if (order.status !== 'PENDING') this.logger.warn(`LATE_CAPTURE ${order.orderCode} (từ ${order.status})`);
+      if (order.status !== 'PENDING') {
+        this.logger.warn(`LATE_CAPTURE ${order.orderCode} (từ ${order.status})`);
+        void this.alerts.alert('LATE_CAPTURE', `Capture muộn cho đơn ${order.orderCode}`, `Đơn ${order.orderCode} (từ ${order.status}) đã được cấp token sau capture muộn.`, order.orderCode);
+      }
       // Sau commit và không chặn response; chỉ lần fulfil thắng mới tới đây nên mỗi đơn gửi đúng một email.
       void this.sendPurchaseEmail(order, granted.token);
       return { orderCode: order.orderCode, ...granted };
@@ -457,6 +463,7 @@ export class OrderService {
     } catch (err) {
       if (!(err instanceof MissingPurchasedFileError)) throw err;
       await this.orders.markReviewRequired(order.id);
+      void this.alerts.alert('REVIEW_REQUIRED', `Đơn ${order.orderCode} cần xem xét (thiếu file)`, `Đơn ${order.orderCode}: thiếu file hiện hành cho đơn đã thanh toán, đã chuyển review_required.`, order.orderCode);
       this.logger.error(`Thiếu file hiện hành cho đơn đã thanh toán, cần xem xét thủ công (${order.orderCode}).`);
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
     }

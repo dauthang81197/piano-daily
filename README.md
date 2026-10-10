@@ -132,6 +132,40 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
 
 **Production có domain thật sau Cloudflare** (TLS, CDN, `admin.`/`api.`/`cdn.`): xem [docs/cloudflare.md](docs/cloudflare.md) (`docker-compose.cloudflare.yml`, `deploy/Caddyfile.cloudflare`); chạy song song, không thay deploy sslip.io ở trên.
 
+## Backup và khôi phục
+
+Service `backup` trong `docker-compose.cloudflare.yml` (code ở `deploy/backup/`) chạy `pg_dump --format=custom` mỗi đêm lúc `BACKUP_AT` (mặc định `03:00`, múi giờ `Asia/Ho_Chi_Minh`) và đẩy lên bucket **private** của R2 (`S3_BUCKET_PRIVATE`) với key `backups/piano-daily-<YYYYMMDDTHHMMSSZ>.dump` (UTC). Sau khi upload thành công mới xoá bớt, giữ `BACKUP_KEEP` bản mới nhất (mặc định 14); chỉ đụng khoá `backups/piano-daily-*.dump`. Lỗi bất kỳ thì in `ERROR ...` ra stderr (xem `docker compose logs backup`) và `backup.sh` thoát mã khác 0; vòng lặp vẫn sống và thử lại hôm sau. Cảnh báo/giám sát thuộc Story 5.3.
+
+**Chạy tay một lần** (trên server, trong thư mục `/opt/piano-daily`):
+
+```bash
+docker compose -f docker-compose.cloudflare.yml --env-file .env run --rm --no-deps backup backup-loop.sh --once
+echo $?   # 0 = thành công
+```
+
+**Kiểm tra bản backup:** xem `docker compose logs backup` (dòng `INFO đã upload backups/piano-daily-....dump (N byte)`), hoặc liệt kê bucket private trong dashboard R2. Tải một bản về để thử khôi phục (dùng `aws s3 cp s3://<bucket-private>/backups/<tên>.dump ./restore-test.dump --endpoint-url $S3_ENDPOINT`).
+
+**Khôi phục vào DB trống ở local (không bao giờ trỏ vào DB production):**
+
+```bash
+# 1. DB trống
+docker run -d --name pd-restore -e POSTGRES_PASSWORD=piano -e POSTGRES_DB=piano_restore -p 55434:5432 postgres:18.6
+# 2. Khôi phục (file cục bộ, hoặc key S3 nếu đã export S3_* và S3_BUCKET_PRIVATE); cần pg_restore 18 và aws CLI trên máy
+bash deploy/backup/restore.sh ./restore-test.dump postgresql://postgres:piano@localhost:55434/piano_restore
+# 3. Chạy app trỏ vào DB đó
+DATABASE_URL=postgresql://postgres:piano@localhost:55434/piano_restore pnpm --filter @piano-daily/api start
+# 4. Dọn dẹp
+docker rm -f pd-restore
+```
+
+Kiểm tra: đăng nhập admin, đơn hàng và nội dung hiện đúng như trên production.
+
+**Checklist đã thử khôi phục** (điền sau khi làm thật trên máy có Docker):
+- [ ] Chạy `backup-loop.sh --once` với R2 thật hoặc MinIO, bản `.dump` xuất hiện trong bucket private. Ngày thử: ____
+- [ ] Khôi phục bản đó vào DB trống ở local, không có lỗi `pg_restore`. Ngày thử: ____
+- [ ] Chạy app trỏ vào DB đã khôi phục, đơn hàng/nội dung đúng. Ngày thử: ____
+- [ ] Xoay vòng: vượt `BACKUP_KEEP` thì bản cũ nhất bị xoá. Ngày thử: ____
+
 ## Quy ước chính
 
 - **Config:** API chỉ đọc env qua `ConfigModule` (validate bằng zod, `apps/api/src/config/env.ts`). Thiếu/sai biến thì process thoát mã 1 và log nêu tên biến.

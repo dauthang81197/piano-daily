@@ -30,6 +30,19 @@ describe('docker-compose.cloudflare.yml', () => {
     expect(compose).not.toMatch(/8443|9443/);
   });
 
+  it('service backup chạy riêng, build từ deploy/backup, đọc bucket private, không publish cổng', () => {
+    const backup = service(compose, 'backup');
+    expect(backup).toContain('build: ./deploy/backup');
+    expect(backup).toContain('restart: unless-stopped');
+    expect(backup).not.toMatch(/^\s+ports:/m);
+    expect(backup).toContain('S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:?');
+    expect(backup).not.toContain('S3_BUCKET_PUBLIC');
+    expect(backup).toMatch(/postgres:\n\s+condition: service_healthy/);
+    const example = read('deploy/.env.cloudflare.example');
+    expect(example).toMatch(/^BACKUP_AT=03:00$/m);
+    expect(example).toMatch(/^BACKUP_KEEP=14$/m);
+  });
+
   it('api đúng một instance', () => {
     expect(compose).not.toMatch(/replicas|scale:/);
   });

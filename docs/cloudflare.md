@@ -74,6 +74,10 @@ Kiểm: `sitemap.xml`, `api.<ROOT_DOMAIN>/health`, `admin.<ROOT_DOMAIN>/login`, 
 - [ ] Vào `https://<ROOT_DOMAIN>/` từ IP Việt Nam được chuyển tới `/vi` (đã bật IP Geolocation).
 - [ ] Webhook PayPal (`PAYPAL_WEBHOOK_ID`) trỏ tới `https://api.<ROOT_DOMAIN>/webhooks/paypal`, thử một đơn sandbox/live và nhận email link tải.
 
+## Backup hằng đêm
+
+Service `backup` tự chạy cùng compose (biến `BACKUP_AT`, `BACKUP_KEEP` trong `.env`) và ghi vào bucket private. Cách chạy tay, kiểm tra và khôi phục thử: xem [README, mục "Backup và khôi phục"](../README.md#backup-và-khôi-phục).
+
 ## Lưu ý khi dùng image dựng sẵn
 
 - `NEXT_PUBLIC_*` của web/admin được nhúng lúc build. Image dựng cho sslip.io trỏ API/CDN của host cũ; muốn chạy bản Cloudflare phải build lại image với `https://api.<ROOT_DOMAIN>` và `https://cdn.<ROOT_DOMAIN>` (CI hiện chưa có workflow riêng cho biến thể này).

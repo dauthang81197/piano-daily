@@ -138,3 +138,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-trien-khai-production-tren-vps-sau-cloudflare.md`
   summary: Thêm healthcheck cho web/admin, `depends_on: service_healthy` cho Caddy, và smoke check kiểm nội dung SSR cụ thể thay vì `<html`.
   evidence: `up --wait` hiện không chứng minh web/admin phục vụ được; smoke check chấp nhận mọi trang 2xx có thẻ `<html`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-2-backup-hang-dem-va-kiem-tra-khoi-phuc.md`
+  summary: Vòng lặp backup không chạy bù khi container/VPS tắt đúng giờ, không bắt SIGTERM, và không có healthcheck/dấu hiệu lần thành công cuối (cần cho cảnh báo Story 5.3).
+  evidence: Nếu container tắt lúc `BACKUP_AT`, lần backup bị bỏ tới hôm sau không có log; service lỗi liên tục vẫn trông khoẻ dưới `restart: unless-stopped`.

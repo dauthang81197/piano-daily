@@ -40,6 +40,8 @@ export const ErrorCode = {
   BULK_COUNT_CHANGED: 'BULK_COUNT_CHANGED',
   /** Thao tác admin chỉ áp dụng cho đơn PAID (gửi lại email, gia hạn token) (409). */
   ORDER_NOT_PAID: 'ORDER_NOT_PAID',
+  /** PayPal từ chối hoàn tiền; lý do nằm trong `message` (422). */
+  REFUND_REJECTED: 'REFUND_REJECTED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

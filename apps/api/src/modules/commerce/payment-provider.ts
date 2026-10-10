@@ -44,6 +44,21 @@ export class OrderAlreadyCapturedError extends Error {
   }
 }
 
+/** Kết quả hoàn tiền đã chuẩn hoá. */
+export type RefundResult = {
+  /** Id refund của PayPal; null khi capture đã được hoàn từ trước. */
+  refundId: string | null;
+  status: string | null;
+};
+
+/** PayPal từ chối hoàn tiền (422 / lỗi nghiệp vụ); `reason` là lý do hiển thị cho admin. */
+export class RefundRejectedError extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = 'RefundRejectedError';
+  }
+}
+
 export interface PaymentProvider {
   createOrder(input: CreateProviderOrderInput): Promise<{ providerOrderId: string }>;
   getOrder(providerOrderId: string): Promise<CaptureResult>;
@@ -52,7 +67,11 @@ export interface PaymentProvider {
    * (không ném); đã capture ném `OrderAlreadyCapturedError`.
    */
   capture(providerOrderId: string, requestId: string): Promise<CaptureResult>;
-  refund(captureId: string): Promise<unknown>;
+  /**
+   * Hoàn tiền toàn phần capture. `requestId` là khoá idempotency phía cổng (`refund-<mã đơn>`) để bấm lại/retry an toàn.
+   * Bị từ chối nghiệp vụ ném `RefundRejectedError(reason)`; capture đã hoàn đủ coi như thành công; lỗi mạng/5xx ném nguyên.
+   */
+  refund(captureId: string, requestId: string): Promise<RefundResult>;
   verifyWebhook(headers: Record<string, string | undefined>, rawBody: string): Promise<boolean>;
 }
 

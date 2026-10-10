@@ -13,6 +13,8 @@ export const ordersApi = {
   get: (id: string, signal?: AbortSignal) => apiFetch<AdminOrderDetail>(item(id), { signal }),
   /** `POST /admin/orders/:id/resend-email` — trả chi tiết đơn đã làm mới. */
   resendEmail: (id: string) => apiFetch<AdminOrderDetail>(`${item(id)}/resend-email`, { method: 'POST' }),
+  /** `POST /admin/orders/:id/refund` — hoàn tiền toàn phần qua PayPal, trả chi tiết đơn đã làm mới. */
+  refund: (id: string) => apiFetch<AdminOrderDetail>(`${item(id)}/refund`, { method: 'POST' }),
   /** `POST /admin/orders/:id/extend-token` — thêm ngày và/hoặc lượt tải. */
   extendToken: (id: string, body: ExtendTokenBody) => apiFetch<AdminOrderDetail>(`${item(id)}/extend-token`, { method: 'POST', json: body }),
 };

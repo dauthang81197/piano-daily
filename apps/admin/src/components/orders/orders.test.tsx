@@ -276,3 +276,62 @@ describe('Trang /orders/[id] — gửi lại email và gia hạn (Story 4.2)', (
   });
 });
 
+
+describe('Trang /orders/[id] — hoàn tiền (Story 4.3)', () => {
+  const refundPosts = (fetchMock: Awaited<ReturnType<typeof signIn>>) =>
+    fetchMock.mock.calls.filter(([input, init]) => new URL(String(input)).pathname === `/admin/orders/${ID}/refund` && (init as RequestInit)?.method === 'POST');
+
+  it('nút brass; bấm một lần chỉ mở xác nhận, Huỷ không gọi API', async () => {
+    const fetchMock = await signIn((url) => (url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined));
+    render(<OrderDetail id={ID} />);
+    const button = await screen.findByRole('button', { name: 'Hoàn tiền' });
+    expect(button.className).toContain('bg-secondary');
+    const user = userEvent.setup();
+    await user.click(button);
+    expect(screen.getByRole('group', { name: 'Xác nhận hoàn tiền' })).toBeInTheDocument();
+    expect(refundPosts(fetchMock)).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.queryByRole('group', { name: 'Xác nhận hoàn tiền' })).not.toBeInTheDocument();
+    expect(refundPosts(fetchMock)).toHaveLength(0);
+  });
+
+  it('xác nhận: gọi API và cập nhật ngay thành REFUNDED, token đã vô hiệu', async () => {
+    const refreshed = {
+      ...DETAIL,
+      status: 'REFUNDED',
+      refundedAt: '2026-10-10T02:00:00.000Z',
+      token: { ...DETAIL.token, status: 'REVOKED', revokedAt: '2026-10-10T02:00:00.000Z' },
+    };
+    const fetchMock = await signIn((url) => {
+      if (url.pathname === `/admin/orders/${ID}/refund`) return jsonResponse(200, refreshed);
+      return url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined;
+    });
+    render(<OrderDetail id={ID} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Hoàn tiền' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận hoàn tiền' }));
+    expect(await screen.findByRole('button', { name: 'Hoàn tiền' })).toBeDisabled();
+    expect(refundPosts(fetchMock)).toHaveLength(1);
+    expect(screen.getAllByText(formatReportDateTime(refreshed.refundedAt)).length).toBeGreaterThan(0);
+  });
+
+  it('PayPal từ chối: FormError nêu lý do, đơn giữ nguyên', async () => {
+    await signIn((url) => {
+      if (url.pathname === `/admin/orders/${ID}/refund`)
+        return jsonResponse(422, { error: { code: 'REFUND_REJECTED', message: 'PayPal từ chối hoàn tiền: Refund window expired' } });
+      return url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined;
+    });
+    render(<OrderDetail id={ID} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Hoàn tiền' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận hoàn tiền' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Refund window expired');
+  });
+
+  it('đơn không PAID: nút Hoàn tiền bị vô hiệu kèm lý do', async () => {
+    await signIn((url) => (url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, { ...DETAIL, status: 'REFUNDED', token: null }) : undefined));
+    render(<OrderDetail id={ID} />);
+    expect(await screen.findByRole('button', { name: 'Hoàn tiền' })).toBeDisabled();
+    expect(screen.getByText(/Chỉ đơn đã thanh toán/)).toBeInTheDocument();
+  });
+});

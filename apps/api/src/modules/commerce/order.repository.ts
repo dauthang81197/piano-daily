@@ -157,6 +157,7 @@ const ORDER_FOR_CAPTURE = {
   items: true,
   email: true,
   locale: true,
+  paypalCaptureId: true,
   sheet: { select: { title: true } },
 } as const;
 

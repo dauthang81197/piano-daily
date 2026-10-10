@@ -30,7 +30,7 @@ import { buildDownloadEmail } from './download-email';
 import { DownloadTokenRepository, tokenStatus } from './download-token.repository';
 import { type OrderForCapture, OrderRepository, toLocale } from './order.repository';
 import { orderNotPaid, tokenRevoked } from './token.service';
-import { type CaptureResult, OrderAlreadyCapturedError, PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
+import { type CaptureResult, OrderAlreadyCapturedError, PAYMENT_PROVIDER, type PaymentProvider, RefundRejectedError } from './payment-provider';
 
 type DownloadEmailInput = {
   to: string;
@@ -272,6 +272,40 @@ export class OrderService {
       if (changed) await this.tokens.revokeByOrder(tx, orderId);
       return changed;
     });
+  }
+
+  /**
+   * Admin hoàn tiền toàn phần (Story 4.3). Chỉ đơn PAID có `paypalCaptureId`. Gọi PayPal NGOÀI transaction; chỉ khi PayPal
+   * xác nhận mới `refund()` (REFUNDED + vô hiệu token). PayPal từ chối -> 422 `REFUND_REJECTED`, lỗi khác -> 503; Order giữ PAID.
+   * `refund()` trả false vì webhook thắng đua vẫn là thành công.
+   */
+  async adminRefund(orderId: string): Promise<void> {
+    const order = await this.orders.findById(orderId);
+    if (!order) throw notFound('Không tìm thấy đơn hàng.');
+    if (order.status !== 'PAID') throw orderNotPaid();
+    if (!order.paypalCaptureId) {
+      throw new AppException(ErrorCode.ORDER_NOT_PAID, HttpStatus.CONFLICT, 'Đơn chưa có mã capture PayPal nên không hoàn tiền được. Hãy hoàn tiền trực tiếp trên PayPal.');
+    }
+
+    try {
+      await this.provider.refund(order.paypalCaptureId, `refund-${order.orderCode}`);
+    } catch (err) {
+      if (err instanceof RefundRejectedError) {
+        this.logger.warn(`PayPal từ chối hoàn tiền (${order.orderCode}).`);
+        throw new AppException(ErrorCode.REFUND_REJECTED, HttpStatus.UNPROCESSABLE_ENTITY, `PayPal từ chối hoàn tiền: ${err.reason}`);
+      }
+      this.logger.error(`Hoàn tiền PayPal thất bại (${order.orderCode}): ${err instanceof Error ? err.name : 'unknown'}`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    try {
+      const changed = await this.refund(order.id);
+      if (!changed) this.logger.warn(`Hoàn tiền PayPal xong nhưng đơn ${order.orderCode} không còn PAID (webhook thắng đua hoặc đã đổi trạng thái).`);
+    } catch (err) {
+      // PayPal đã hoàn tiền nhưng DB lỗi: webhook PAYMENT.CAPTURE.REFUNDED sẽ hội tụ.
+      this.logger.error(`PayPal đã hoàn tiền nhưng ghi DB lỗi (${order.orderCode}): ${err instanceof Error ? err.name : 'unknown'}`);
+      throw err;
+    }
   }
 
   /** Webhook `PAYMENT.CAPTURE.DENIED`: chỉ Order PENDING sang FAILED (UPDATE có điều kiện); trạng thái khác giữ nguyên. */

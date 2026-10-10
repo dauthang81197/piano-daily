@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../src/config/env';
 import {
   OrderAlreadyCapturedError,
-  PaymentProviderNotSupportedError,
+  RefundRejectedError,
   ProviderOrderNotFoundError,
 } from '../../src/modules/commerce/payment-provider';
 import { PaypalNotConfiguredError, PaypalProvider } from '../../src/modules/commerce/paypal.provider';
@@ -11,6 +11,7 @@ import { PaypalNotConfiguredError, PaypalProvider } from '../../src/modules/comm
 const createOrder = vi.fn();
 const captureOrder = vi.fn();
 const getOrder = vi.fn();
+const refundCapturedPayment = vi.fn();
 const clientCtor = vi.fn();
 
 vi.mock('@paypal/paypal-server-sdk', () => ({
@@ -20,6 +21,9 @@ vi.mock('@paypal/paypal-server-sdk', () => ({
     constructor(options: unknown) {
       clientCtor(options);
     }
+  },
+  PaymentsController: class {
+    refundCapturedPayment = refundCapturedPayment;
   },
   OrdersController: class {
     createOrder = createOrder;
@@ -38,6 +42,7 @@ describe('PaypalProvider', () => {
     createOrder.mockReset();
     captureOrder.mockReset();
     getOrder.mockReset();
+    refundCapturedPayment.mockReset();
     clientCtor.mockReset();
   });
 
@@ -146,9 +151,69 @@ describe('PaypalProvider', () => {
     await expect(live().getOrder('PP-1')).rejects.toThrow('network');
   });
 
-  it('refund chưa hỗ trợ', async () => {
-    const provider = new PaypalProvider(config({}));
-    await expect(provider.refund()).rejects.toBeInstanceOf(PaymentProviderNotSupportedError);
+  describe('refund', () => {
+    it.each(['FAILED', 'CANCELLED', 'PENDING'])('trạng thái %s: RefundRejectedError, không coi là đã hoàn', async (status) => {
+      refundCapturedPayment.mockResolvedValue({ result: { id: 'RF-1', status } });
+      await expect(live().refund('CAP-1', 'r')).rejects.toBeInstanceOf(RefundRejectedError);
+    });
+
+    it('phản hồi 2xx không có trạng thái: lỗi hệ thống, không coi là đã hoàn', async () => {
+      refundCapturedPayment.mockResolvedValue({ result: {} });
+      await expect(live().refund('CAP-1', 'r')).rejects.not.toBeInstanceOf(RefundRejectedError);
+    });
+
+    it.each([400, 403, 404])('HTTP %i có body lỗi: RefundRejectedError', async (statusCode) => {
+      refundCapturedPayment.mockRejectedValueOnce(Object.assign(new Error('x'), { statusCode, result: { message: 'Lý do' } }));
+      await expect(live().refund('C', 'r')).rejects.toMatchObject({ reason: 'Lý do' });
+    });
+
+    it.each([401, 409, 500])('HTTP %i: ném nguyên, không phải từ chối nghiệp vụ', async (statusCode) => {
+      refundCapturedPayment.mockRejectedValueOnce(Object.assign(new Error('boom'), { statusCode }));
+      const err = await live().refund('C', 'r').catch((e: unknown) => e);
+      expect(err).not.toBeInstanceOf(RefundRejectedError);
+    });
+
+    it('gọi SDK với capture id, request id, không body (hoàn toàn phần)', async () => {
+      refundCapturedPayment.mockResolvedValue({ result: { id: 'RF-1', status: 'COMPLETED' } });
+      await expect(live().refund('CAP-1', 'refund-PD-ABC234')).resolves.toEqual({ refundId: 'RF-1', status: 'COMPLETED' });
+      const arg = refundCapturedPayment.mock.calls[0]![0];
+      expect(arg).toMatchObject({ captureId: 'CAP-1', paypalRequestId: 'refund-PD-ABC234' });
+      expect(arg.body).toBeUndefined();
+    });
+
+    it('422 bị từ chối: RefundRejectedError với description', async () => {
+      refundCapturedPayment.mockRejectedValue(
+        Object.assign(new Error('x'), {
+          statusCode: 422,
+          result: { details: [{ issue: 'REFUND_NOT_ALLOWED', description: 'Refund window expired' }] },
+        }),
+      );
+      const err = await live().refund('CAP-1', 'r').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RefundRejectedError);
+      expect((err as RefundRejectedError).reason).toBe('Refund window expired');
+    });
+
+    it('lý do dự phòng: issue rồi message', async () => {
+      refundCapturedPayment.mockRejectedValueOnce(Object.assign(new Error('x'), { statusCode: 422, result: { details: [{ issue: 'REFUND_NOT_ALLOWED' }] } }));
+      await expect(live().refund('C', 'r')).rejects.toMatchObject({ reason: 'REFUND_NOT_ALLOWED' });
+      refundCapturedPayment.mockRejectedValueOnce(Object.assign(new Error('x'), { statusCode: 422, result: { message: 'Business error' } }));
+      await expect(live().refund('C', 'r')).rejects.toMatchObject({ reason: 'Business error' });
+    });
+
+    it('CAPTURE_FULLY_REFUNDED coi như thành công', async () => {
+      refundCapturedPayment.mockRejectedValue(
+        Object.assign(new Error('x'), { statusCode: 422, result: { details: [{ issue: 'CAPTURE_FULLY_REFUNDED' }] } }),
+      );
+      await expect(live().refund('CAP-1', 'r')).resolves.toMatchObject({ refundId: null });
+    });
+
+    it('5xx / lỗi mạng / thiếu cấu hình ném nguyên', async () => {
+      refundCapturedPayment.mockRejectedValueOnce(Object.assign(new Error('boom'), { statusCode: 500 }));
+      await expect(live().refund('C', 'r')).rejects.toThrow('boom');
+      refundCapturedPayment.mockRejectedValueOnce(new Error('network'));
+      await expect(live().refund('C', 'r')).rejects.toThrow('network');
+      await expect(new PaypalProvider(config({})).refund('C', 'r')).rejects.toBeInstanceOf(PaypalNotConfiguredError);
+    });
   });
 
   describe('verifyWebhook', () => {

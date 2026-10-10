@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { isApiError } from '@/lib/api/client';
 import { ordersApi } from '@/lib/api/orders';
+import { formatUsd } from '@/lib/format';
 
 const GENERIC_ERROR = 'Đã có lỗi xảy ra. Vui lòng thử lại sau ít phút.';
 
@@ -35,7 +36,8 @@ function parseAmount(raw: string, label: string, max: number): number | undefine
 export function OrderActions({ order, onChange }: { order: AdminOrderDetail; onChange: (order: AdminOrderDetail) => void }) {
   const [days, setDays] = useState('');
   const [downloads, setDownloads] = useState('');
-  const [busy, setBusy] = useState<'resend' | 'extend' | null>(null);
+  const [busy, setBusy] = useState<'resend' | 'extend' | 'refund' | null>(null);
+  const [confirmingRefund, setConfirmingRefund] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -44,7 +46,7 @@ export function OrderActions({ order, onChange }: { order: AdminOrderDetail; onC
   const noToken = order.token === null;
   const blocked = !paid || revoked || noToken;
   const reason = !paid
-    ? 'Chỉ đơn đã thanh toán (PAID) mới gửi lại email hoặc gia hạn được.'
+    ? 'Chỉ đơn đã thanh toán (PAID) mới gửi lại email, gia hạn hoặc hoàn tiền được.'
     : noToken
       ? 'Đơn chưa có link tải.'
       : revoked
@@ -58,6 +60,22 @@ export function OrderActions({ order, onChange }: { order: AdminOrderDetail; onC
     try {
       onChange(await ordersApi.resendEmail(order.id));
       setNotice('Đã gửi lại email link tải.');
+    } catch (err) {
+      setError(actionErrorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const refund = async () => {
+    if (busy !== null) return;
+    setError(null);
+    setNotice(null);
+    setBusy('refund');
+    try {
+      onChange(await ordersApi.refund(order.id));
+      setConfirmingRefund(false);
+      setNotice('Đã hoàn tiền và vô hiệu link tải.');
     } catch (err) {
       setError(actionErrorMessage(err));
     } finally {
@@ -120,6 +138,23 @@ export function OrderActions({ order, onChange }: { order: AdminOrderDetail; onC
           {busy === 'extend' ? 'Đang gia hạn…' : 'Gia hạn'}
         </Button>
       </form>
+      {confirmingRefund && paid ? (
+        <div role="group" aria-label="Xác nhận hoàn tiền" className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-error">Hoàn toàn bộ {formatUsd(order.amountCents)} cho đơn {order.orderCode}? Link tải sẽ bị vô hiệu và không thể hoàn tác.</span>
+          <Button type="button" variant="secondary" disabled={busy !== null} onClick={refund}>
+            {busy === 'refund' ? 'Đang hoàn tiền…' : 'Xác nhận hoàn tiền'}
+          </Button>
+          <Button type="button" variant="ghost" disabled={busy !== null} onClick={() => setConfirmingRefund(false)}>
+            Huỷ
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <Button type="button" variant="secondary" disabled={!paid || busy !== null} onClick={() => setConfirmingRefund(true)}>
+            Hoàn tiền
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

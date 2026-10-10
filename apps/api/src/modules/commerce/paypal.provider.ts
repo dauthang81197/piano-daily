@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CheckoutPaymentIntent, Client, Environment, type Order, OrdersController } from '@paypal/paypal-server-sdk';
+import { CheckoutPaymentIntent, Client, Environment, type Order, OrdersController, PaymentsController } from '@paypal/paypal-server-sdk';
 import { formatUsd } from '@piano-daily/shared';
 import type { Env } from '../../config/env';
 import {
@@ -9,7 +9,8 @@ import {
   type CreateProviderOrderInput,
   OrderAlreadyCapturedError,
   type PaymentProvider,
-  PaymentProviderNotSupportedError,
+  type RefundResult,
+  RefundRejectedError,
   ProviderOrderNotFoundError,
 } from './payment-provider';
 
@@ -30,23 +31,34 @@ export class PaypalNotConfiguredError extends Error {
  */
 @Injectable()
 export class PaypalProvider implements PaymentProvider {
+  private client: Client | null = null;
   private orders: OrdersController | null = null;
+  private payments: PaymentsController | null = null;
 
   constructor(private readonly config: ConfigService<Env, true>) {}
 
-  private controller(): OrdersController {
-    if (this.orders) return this.orders;
+  private sdkClient(): Client {
+    if (this.client) return this.client;
     const oAuthClientId = this.config.get('PAYPAL_CLIENT_ID', { infer: true });
     const oAuthClientSecret = this.config.get('PAYPAL_CLIENT_SECRET', { infer: true });
     if (!oAuthClientId || !oAuthClientSecret) throw new PaypalNotConfiguredError();
     const live = this.config.get('PAYPAL_MODE', { infer: true }) === 'live';
-    const client = new Client({
+    this.client = new Client({
       environment: live ? Environment.Production : Environment.Sandbox,
       clientCredentialsAuthCredentials: { oAuthClientId, oAuthClientSecret },
       timeout: 15_000,
     });
-    this.orders = new OrdersController(client);
+    return this.client;
+  }
+
+  private controller(): OrdersController {
+    this.orders ??= new OrdersController(this.sdkClient());
     return this.orders;
+  }
+
+  private paymentsController(): PaymentsController {
+    this.payments ??= new PaymentsController(this.sdkClient());
+    return this.payments;
   }
 
   async createOrder(input: CreateProviderOrderInput): Promise<{ providerOrderId: string }> {
@@ -101,8 +113,28 @@ export class PaypalProvider implements PaymentProvider {
     }
   }
 
-  refund(): Promise<never> {
-    return Promise.reject(new PaymentProviderNotSupportedError('refund'));
+  async refund(captureId: string, requestId: string): Promise<RefundResult> {
+    try {
+      const { result } = await this.paymentsController().refundCapturedPayment({
+        captureId,
+        // Cùng mã đơn gửi lại (bấm lại/retry) thì PayPal phát lại đúng kết quả cũ, không hoàn hai lần.
+        paypalRequestId: requestId,
+        prefer: 'return=minimal',
+      });
+      const status = result?.status ?? null;
+      // Chỉ COMPLETED mới là PayPal đã xác nhận hoàn tiền. PENDING: đơn giữ PAID, webhook REFUNDED sẽ hội tụ khi PayPal hoàn tất.
+      if (status === 'PENDING') throw new RefundRejectedError('PayPal đang xử lý hoàn tiền; đơn sẽ tự chuyển sang Đã hoàn tiền khi PayPal hoàn tất.');
+      if (status === 'FAILED' || status === 'CANCELLED') throw new RefundRejectedError(`PayPal không hoàn tiền được (trạng thái ${status}).`);
+      if (status !== 'COMPLETED') throw new Error('Phản hồi hoàn tiền của PayPal không xác định.');
+      return { refundId: result?.id ?? null, status };
+    } catch (err) {
+      if (err instanceof RefundRejectedError) throw err;
+      if (isRefundBusinessError(err)) {
+        if (errorIssues(err).includes('CAPTURE_FULLY_REFUNDED')) return { refundId: null, status: 'COMPLETED' };
+        throw new RefundRejectedError(refundRejectionReason(err));
+      }
+      throw err;
+    }
   }
 
   /**
@@ -152,14 +184,42 @@ export class PaypalProvider implements PaymentProvider {
 /** Các `issue` trong body lỗi 422 của PayPal (SDK ném `ApiError` mang `statusCode` và `result`); null nếu không phải 422. */
 function apiErrorIssues(err: unknown): string[] | null {
   if (typeof err !== 'object' || err === null) return null;
-  const { statusCode, result } = err as { statusCode?: unknown; result?: unknown };
+  const { statusCode } = err as { statusCode?: unknown };
   if (statusCode !== 422) return null;
+  return errorIssues(err);
+}
+
+/** Các `issue` trong body lỗi của PayPal, không phụ thuộc status. */
+function errorIssues(err: unknown): string[] {
+  const { result } = err as { result?: unknown };
   const details = (result as { details?: unknown } | null | undefined)?.details;
   if (!Array.isArray(details)) return [];
   return details.flatMap((d: unknown) => {
     const issue = (d as { issue?: unknown } | null)?.issue;
     return typeof issue === 'string' ? [issue] : [];
   });
+}
+
+/** Lỗi nghiệp vụ của PayPal khi hoàn tiền: HTTP 422 (hoặc 400/403/404 có body lỗi; 409 là xung đột tạm thời nên coi như lỗi hệ thống); 5xx/mạng thì không. */
+function isRefundBusinessError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const { statusCode } = err as { statusCode?: unknown };
+  return statusCode === 422 || statusCode === 400 || statusCode === 403 || statusCode === 404;
+}
+
+/** Lý do từ body lỗi PayPal: `details[].description`/`issue`, rồi `message`. Không kèm payload khác. */
+function refundRejectionReason(err: unknown): string {
+  const result = (err as { result?: unknown }).result as { details?: unknown; message?: unknown } | null | undefined;
+  const parts: string[] = [];
+  if (Array.isArray(result?.details)) {
+    for (const d of result.details) {
+      const { description, issue } = (d ?? {}) as { description?: unknown; issue?: unknown };
+      const text = typeof description === 'string' && description ? description : typeof issue === 'string' ? issue : '';
+      if (text) parts.push(text);
+    }
+  }
+  if (parts.length === 0 && typeof result?.message === 'string' && result.message) parts.push(result.message);
+  return parts.length ? parts.join('; ').slice(0, 300) : 'PayPal từ chối hoàn tiền.';
 }
 
 function normaliseStatus(status: string | undefined): CaptureStatus {

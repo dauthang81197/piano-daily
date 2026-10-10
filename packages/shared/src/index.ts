@@ -10,3 +10,5 @@ export * from './pricing';
 export * from './bulk-pricing';
 export * from './settings';
 export * from './ads';
+export * from './report-range';
+export * from './analytics';

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { JsonLd } from '@/components/seo/json-ld';
 import { SheetDetail } from '@/components/sheet/sheet-detail';
 import { ViewBeacon } from '@/components/sheet/view-beacon';
+import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchSheetDetail } from '@/lib/catalog';
 import { sheetHref } from '@/lib/query';
@@ -45,7 +46,7 @@ export default async function SheetPage({ params }: Props) {
       <JsonLd
         data={breadcrumbJsonLd({ sheet, locale, homeLabel: nav('home'), levelLabel: nav(`levels.${levelKey}`) })}
       />
-      <SheetDetail sheet={sheet} />
+      <SheetDetail sheet={sheet} ads={await fetchAds()} />
       <ViewBeacon sheetId={sheet.id} />
     </>
   );

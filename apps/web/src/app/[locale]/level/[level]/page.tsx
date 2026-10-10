@@ -4,11 +4,13 @@ import { hasLocale } from 'next-intl';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { GenreTags } from '@/components/catalog/genre-tags';
+import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
 import { SearchForm } from '@/components/layout/search-form';
 import { Link } from '@/i18n/navigation';
+import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchLevelSheets, fetchLevelSummary } from '@/lib/catalog';
 import { levelHref, parseGenre, parseLevelSlug, parsePage, parseSort } from '@/lib/query';
@@ -45,6 +47,7 @@ export default async function LevelPage({ params, searchParams }: Props) {
   const page = parsePage(query.page);
   if (!level || page === null) notFound();
   setRequestLocale(locale);
+  const ads = await fetchAds();
 
   const sort = parseSort(query.sort);
   const genreSlug = parseGenre(query.genre);
@@ -109,6 +112,8 @@ export default async function LevelPage({ params, searchParams }: Props) {
       ) : (
         <SheetGrid items={list.items} />
       )}
+
+      <AdSlotFrame slots={ads} position="IN_LIST" />
 
       <Pagination
         page={list.page}

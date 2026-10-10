@@ -393,3 +393,42 @@ describe('SheetDetail — nút mua (Story 3.6)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('SheetDetail — quảng cáo (Story 4.6)', () => {
+  const ad = (position: 'IN_CONTENT' | 'SIDEBAR_RIGHT' | 'SIDEBAR_LEFT', htmlCode = '<p>ad</p>') => ({ position, htmlCode, image: null, link: null });
+  const all = [ad('IN_CONTENT'), ad('SIDEBAR_RIGHT'), ad('SIDEBAR_LEFT')];
+  const ads = (c: HTMLElement) => Array.from(c.querySelectorAll('aside[aria-label="Advertisement"]'));
+
+  it('IN_CONTENT trong article, sau ảnh trang và trước video; SIDEBAR_RIGHT đầu cột aside; SIDEBAR_LEFT ẩn dưới xl', () => {
+    const { container } = render(withIntl(<SheetDetail sheet={full} ads={all} />, 'en'));
+    const article = container.querySelector('article')!;
+    const [inContent] = ads(article);
+    expect(inContent).toBeTruthy();
+    const pages = article.querySelector('#sheet-pages')!;
+    const video = article.querySelector('iframe[src*="youtube"]')!;
+    expect(pages.compareDocumentPosition(inContent!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(video.compareDocumentPosition(inContent!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    const side = screen.getByRole('complementary', { name: 'Related sheets' });
+    expect(side.firstElementChild!.getAttribute('aria-label')).toBe('Advertisement');
+    const left = Array.from(container.querySelectorAll('div.hidden')).find((d) => d.className.includes('xl:block') && d.querySelector('aside[aria-label="Advertisement"]'));
+    expect(left).toBeTruthy();
+    expect(container.querySelectorAll('iframe[sandbox="allow-scripts allow-popups"]')).toHaveLength(3);
+  });
+
+  it('SIDEBAR_RIGHT hiện kể cả khi cột phải không có nội dung khác', () => {
+    render(withIntl(<SheetDetail sheet={bare} ads={[ad('SIDEBAR_RIGHT')]} />, 'en'));
+    const side = screen.getByRole('complementary', { name: 'Related sheets' });
+    expect(within(side).getByLabelText('Advertisement')).toBeTruthy();
+  });
+
+  it('không có slot: không aside quảng cáo, không cột trái', () => {
+    const { container } = render(withIntl(<SheetDetail sheet={full} ads={[]} />, 'en'));
+    expect(ads(container)).toHaveLength(0);
+    expect(container.querySelector('div.grid')!.className).not.toContain('12rem');
+  });
+
+  it('chế độ xem trước (showDownloads=false): không hiện quảng cáo', () => {
+    const { container } = render(withIntl(<SheetDetail sheet={full} showDownloads={false} ads={all} />, 'en'));
+    expect(ads(container)).toHaveLength(0);
+  });
+});

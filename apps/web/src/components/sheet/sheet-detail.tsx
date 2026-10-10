@@ -1,9 +1,10 @@
-import type { PublicSheetDetail, PublicSheetItem } from '@piano-daily/shared';
+import type { PublicAdSlot, PublicSheetDetail, PublicSheetItem } from '@piano-daily/shared';
 import { useFormatter, useTranslations } from 'next-intl';
 import { LEVEL_BADGE, badge } from '@/components/catalog/sheet-card';
 import { Link } from '@/i18n/navigation';
 import { genreHref, sheetHref } from '@/lib/query';
 import { Breadcrumb } from './breadcrumb';
+import { AdSlotFrame, findAdSlot } from '@/components/ads/ad-slot-frame';
 import { PurchaseProvider } from '@/components/payment/purchase-provider';
 import { apiBase, AudioDownloadCallout, availableDownloads, DownloadButtons } from './download-buttons';
 import { PurchaseButtons } from './purchase-buttons';
@@ -40,7 +41,15 @@ function SheetLinks({ title, items }: { title: string; items: PublicSheetItem[] 
  * sidebar "cùng Series" và "liên quan". Không tự gọi API (Story 2.10 dùng lại với dữ liệu preview). Sheet miễn phí có
  * nút tải trực tiếp (Story 3.2); `showDownloads={false}` (route preview Draft) ẩn mọi nút tải.
  */
-export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicSheetDetail; showDownloads?: boolean }) {
+export function SheetDetail({
+  sheet,
+  showDownloads = true,
+  ads,
+}: {
+  sheet: PublicSheetDetail;
+  showDownloads?: boolean;
+  ads?: readonly PublicAdSlot[];
+}) {
   const t = useTranslations('Sheet');
   const nav = useTranslations('Nav');
   const format = useFormatter();
@@ -50,6 +59,10 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
   // Sheet không free: nút mở modal thanh toán (Story 3.6); cần API base cho báo giá/tạo đơn.
   const purchase = !sheet.isFree && downloads.length > 0 && apiBase() !== null;
   const showPdf = hasPdf && (purchase || sheet.isFree);
+  // Chế độ xem trước (Draft) không hiện quảng cáo.
+  const adSlots = showDownloads ? ads : undefined;
+  const hasLeftAd = findAdSlot(adSlots, 'SIDEBAR_LEFT') !== null;
+  const hasRightAd = findAdSlot(adSlots, 'SIDEBAR_RIGHT') !== null;
 
   const content = (
     <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
@@ -62,7 +75,14 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
         ]}
       />
 
-      <div className="grid gap-gutter lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div
+        className={`grid gap-gutter ${hasLeftAd ? 'lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[12rem_minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'}`}
+      >
+        {hasLeftAd ? (
+          <div className="hidden xl:block">
+            <AdSlotFrame slots={adSlots} position="SIDEBAR_LEFT" />
+          </div>
+        ) : null}
         <article className="flex min-w-0 flex-col gap-gutter">
           <header className="flex flex-col gap-4">
             <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">
@@ -160,12 +180,15 @@ export function SheetDetail({ sheet, showDownloads = true }: { sheet: PublicShee
 
           <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={downloads} purchase={purchase} />
 
+          <AdSlotFrame slots={adSlots} position="IN_CONTENT" />
+
           <YoutubeEmbed url={sheet.youtubeUrl} title={sheet.title} />
           <Lyrics markdown={sheet.lyricsChords} />
         </article>
 
-        {showPdf || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
+        {showPdf || hasRightAd || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
           <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter">
+            <AdSlotFrame slots={adSlots} position="SIDEBAR_RIGHT" />
             {showPdf && purchase ? (
               <PurchaseButtons variant="pdf" title={sheet.title} types={['PDF']} />
             ) : showPdf ? (

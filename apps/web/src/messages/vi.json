@@ -93,6 +93,11 @@
     "previewLoading": "Đang tải bản nghe thử {title}",
     "previewError": "Không phát được bản nghe thử {title}. Bấm để thử lại"
   },
+  "Ads": {
+    "label": "Quảng cáo",
+    "frameTitle": "Nội dung quảng cáo",
+    "dismiss": "Đóng quảng cáo"
+  },
   "Pagination": {
     "label": "Phân trang",
     "previous": "Trước",

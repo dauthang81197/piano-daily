@@ -3,9 +3,11 @@ import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { LevelLinks } from '@/components/catalog/level-links';
+import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
+import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchComposer, fetchComposerSheets } from '@/lib/catalog';
 import { composerHref, parsePage, parseSort } from '@/lib/query';
@@ -39,6 +41,7 @@ export default async function ComposerPage({ params, searchParams }: Props) {
   const page = parsePage(query.page);
   if (page === null) notFound();
   setRequestLocale(locale);
+  const ads = await fetchAds();
 
   const composer = await fetchComposer(slug);
   if (!composer) notFound();
@@ -78,6 +81,8 @@ export default async function ComposerPage({ params, searchParams }: Props) {
       ) : (
         <SheetGrid items={list.items} />
       )}
+
+      <AdSlotFrame slots={ads} position="IN_LIST" />
 
       <Pagination
         page={list.page}

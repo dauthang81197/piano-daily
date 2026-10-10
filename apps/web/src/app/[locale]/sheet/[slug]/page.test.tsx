@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchSheetDetail = vi.fn();
+const fetchAds = vi.fn();
+vi.mock('@/lib/ads', () => ({ fetchAds: (...a: unknown[]) => fetchAds(...a) }));
 vi.mock('@/lib/catalog', () => ({ fetchSheetDetail: (...a: unknown[]) => fetchSheetDetail(...a) }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
@@ -21,7 +23,9 @@ vi.mock('@/components/sheet/view-beacon', () => ({
   ViewBeacon: ({ sheetId }: { sheetId: string }) => <span data-testid="beacon" data-sheet-id={sheetId} />,
 }));
 vi.mock('@/components/sheet/sheet-detail', () => ({
-  SheetDetail: ({ sheet }: { sheet: { title: string } }) => <h1>{sheet.title}</h1>,
+  SheetDetail: ({ sheet, ads }: { sheet: { title: string }; ads?: unknown[] }) => (
+    <h1 data-ads={ads?.length ?? 0}>{sheet.title}</h1>
+  ),
 }));
 
 import SheetPage, { generateMetadata } from './page';
@@ -42,6 +46,7 @@ const run = (locale = 'en', slug = 'fur-elise') => SheetPage({ params: Promise.r
 
 describe('SheetPage', () => {
   beforeEach(() => {
+    fetchAds.mockReset().mockResolvedValue([]);
     fetchSheetDetail.mockReset().mockResolvedValue(sheet);
   });
 
@@ -85,6 +90,12 @@ describe('SheetPage', () => {
     fetchSheetDetail.mockResolvedValue(null);
     await expect(run('en', 'zzz')).rejects.toThrow('NEXT_NOT_FOUND');
     await expect(run('xx')).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+
+  it('lấy quảng cáo bằng fetchAds và truyền cho SheetDetail', async () => {
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_CONTENT', htmlCode: '<b>x</b>', image: null, link: null }]);
+    render(await run());
+    expect(screen.getByRole('heading', { name: 'Für Elise' })).toHaveAttribute('data-ads', '1');
   });
 });
 

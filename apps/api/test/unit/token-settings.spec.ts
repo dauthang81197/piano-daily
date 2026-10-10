@@ -4,7 +4,7 @@ import type { PrismaService } from '../../src/prisma/prisma.service';
 import { SettingsService } from '../../src/modules/settings/settings.service';
 
 const settings = (value: string | null) =>
-  new SettingsService({ siteSetting: { findUnique: vi.fn(async () => (value === null ? null : { value })) } } as unknown as PrismaService);
+  new SettingsService({ siteSetting: { findUnique: vi.fn(async () => (value === null ? null : { value })) } } as unknown as PrismaService, {} as never, {} as never, {} as never);
 
 describe('SettingsService: cấu hình token', () => {
   it.each([

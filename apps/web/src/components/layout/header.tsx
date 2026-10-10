@@ -9,17 +9,24 @@ const navLink =
   'rounded-md px-2 py-1 text-body-md text-on-surface hover:text-primary ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
-export function Header() {
+export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?: string; logoUrl?: string | null } = {}) {
   const t = useTranslations('Nav');
   return (
     <header className="relative border-b border-outline-variant bg-surface">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-gutter px-margin-mobile py-4 md:px-margin-desktop">
         <Link
           href="/"
-          aria-label={t('logoLabel')}
+          aria-label={t('logoLabel', { name: siteName })}
           className="rounded-md font-display text-headline-sm text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
         >
-          Piano Daily
+          {logoUrl ? (
+            <span className="flex items-center gap-2">
+              <img src={logoUrl} alt="" className="h-8 w-auto max-w-[8rem] object-contain" />
+              <span>{siteName}</span>
+            </span>
+          ) : (
+            siteName
+          )}
         </Link>
         <nav aria-label={t('primary')} className="hidden items-center gap-2 md:flex">
           <Link href="/" className={navLink}>

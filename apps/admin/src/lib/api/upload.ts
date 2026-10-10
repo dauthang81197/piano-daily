@@ -50,36 +50,46 @@ function errorOf({ status, body }: XhrResult): Promise<ApiError> {
 }
 
 /**
- * Upload file cho Sheet (`POST /admin/sheets/:id/files`, multipart `type` + `file`) với tiến trình %.
- * Dùng chung phiên của `session.ts`: Bearer token trong bộ nhớ; gặp 401 thì refresh MỘT lần rồi gửi lại.
- * Lỗi HTTP → `ApiError{status, code, message}`; lỗi mạng → `NETWORK_ERROR`.
+ * Gửi multipart `POST path` bằng XHR với tiến trình %. Dùng chung phiên của `session.ts`: Bearer token trong bộ nhớ;
+ * gặp 401 thì refresh MỘT lần rồi gửi lại (`buildForm` được gọi lại cho mỗi lần gửi). Lỗi HTTP -> `ApiError`.
  */
-export async function uploadSheetFile(
-  sheetId: string,
-  file: File,
+export async function uploadMultipart<T>(
+  path: string,
+  buildForm: () => FormData,
   onProgress?: UploadProgress,
-  { type = 'PDF', signal }: { type?: UploadableFileType; signal?: AbortSignal } = {},
-): Promise<Sheet> {
-  const path = `/admin/sheets/${encodeURIComponent(sheetId)}/files`;
-  const form = () => {
-    const data = new FormData();
-    data.append('type', type);
-    data.append('file', file, file.name);
-    return data;
-  };
-
+  signal?: AbortSignal,
+): Promise<T> {
   onProgress?.(0);
-  let res = await send(path, form(), getAccessToken(), onProgress, signal);
+  let res = await send(path, buildForm(), getAccessToken(), onProgress, signal);
   if (res.status === 401) {
     const refreshed = await refreshSession();
     if (!refreshed) throw new ApiError(401, 'UNAUTHORIZED', SESSION_EXPIRED_MESSAGE);
     onProgress?.(0);
-    res = await send(path, form(), getAccessToken(), onProgress, signal);
+    res = await send(path, buildForm(), getAccessToken(), onProgress, signal);
     if (res.status === 401) {
       clearSession('unauthenticated');
       throw await errorOf(res);
     }
   }
   if (res.status < 200 || res.status >= 300) throw await errorOf(res);
-  return JSON.parse(res.body) as Sheet;
+  return JSON.parse(res.body) as T;
+}
+
+/**
+ * Upload file cho Sheet (`POST /admin/sheets/:id/files`, multipart `type` + `file`) với tiến trình %.
+ * Lỗi HTTP → `ApiError{status, code, message}`; lỗi mạng → `NETWORK_ERROR`.
+ */
+export function uploadSheetFile(
+  sheetId: string,
+  file: File,
+  onProgress?: UploadProgress,
+  { type = 'PDF', signal }: { type?: UploadableFileType; signal?: AbortSignal } = {},
+): Promise<Sheet> {
+  const form = () => {
+    const data = new FormData();
+    data.append('type', type);
+    data.append('file', file, file.name);
+    return data;
+  };
+  return uploadMultipart<Sheet>(`/admin/sheets/${encodeURIComponent(sheetId)}/files`, form, onProgress, signal);
 }

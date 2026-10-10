@@ -7,7 +7,7 @@
     "home": "Trang chủ",
     "search": "Tìm kiếm",
     "primary": "Điều hướng chính",
-    "logoLabel": "Piano Daily, về trang chủ",
+    "logoLabel": "{name}, về trang chủ",
     "openMenu": "Mở menu",
     "closeMenu": "Đóng menu",
     "levels": {
@@ -42,6 +42,7 @@
     "en": "English"
   },
   "Footer": {
+    "youtube": "Kênh YouTube",
     "aboutTitle": "Giới thiệu",
     "about": "Piano Daily là thư viện sheet piano tuyển chọn, sắp xếp theo trình độ để người chơi dễ tìm bản nhạc phù hợp.",
     "levelsTitle": "Trình độ",

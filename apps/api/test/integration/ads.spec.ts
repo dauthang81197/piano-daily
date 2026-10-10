@@ -122,16 +122,17 @@ describe('Quảng cáo (Story 4.5, Postgres + web giả)', () => {
     const list = await as(editorToken, api().get('/admin/ads')).expect(200);
     expect(list.body).toHaveLength(1);
 
-    const writes = [
-      as(editorToken, api().post('/admin/ads')).send({ position: 'HEADER', htmlCode: 'x' }),
-      as(editorToken, api().patch(`/admin/ads/${slot.id}`)).send({ htmlCode: 'y' }),
-      as(editorToken, api().patch(`/admin/ads/${slot.id}/active`)).send({ isActive: true }),
-      as(editorToken, api().delete(`/admin/ads/${slot.id}`)),
+    // Mỗi request được tạo ngay trước khi chờ (supertest đóng server tạm sau request đầu nếu tạo sẵn cả loạt).
+    const writes: (() => request.Test)[] = [
+      () => as(editorToken, api().post('/admin/ads')).send({ position: 'HEADER', htmlCode: 'x' }),
+      () => as(editorToken, api().patch(`/admin/ads/${slot.id}`)).send({ htmlCode: 'y' }),
+      () => as(editorToken, api().patch(`/admin/ads/${slot.id}/active`)).send({ isActive: true }),
+      () => as(editorToken, api().delete(`/admin/ads/${slot.id}`)),
       // body sai vẫn 403 (guard chạy trước validate)
-      as(editorToken, api().post('/admin/ads')).send({}),
+      () => as(editorToken, api().post('/admin/ads')).send({}),
     ];
-    for (const req of writes) {
-      const res = await req.expect(403);
+    for (const makeRequest of writes) {
+      const res = await makeRequest().expect(403);
       expect(errorResponseSchema.parse(res.body).error.code).toBe('FORBIDDEN');
     }
     const after = await prisma.adSlot.findUniqueOrThrow({ where: { id: slot.id } });

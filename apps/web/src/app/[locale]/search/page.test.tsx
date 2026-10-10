@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchFacets = vi.fn();
 const fetchSearch = vi.fn();
+const fetchAds = vi.fn();
+vi.mock('@/lib/ads', () => ({ fetchAds: (...a: unknown[]) => fetchAds(...a) }));
+vi.mock('@/components/ads/ad-slot-frame', () => ({
+  AdSlotFrame: ({ slots, position }: { slots: unknown[]; position: string }) => (
+    <div data-testid="ad" data-position={position} data-count={slots.length} />
+  ),
+}));
 vi.mock('@/lib/catalog', () => ({
   fetchFacets: (...a: unknown[]) => fetchFacets(...a),
   fetchSearch: (...a: unknown[]) => fetchSearch(...a),
@@ -40,6 +47,7 @@ const run = (search: Record<string, string> = {}, locale = 'en') =>
 
 describe('SearchPage', () => {
   beforeEach(() => {
+    fetchAds.mockReset().mockResolvedValue([]);
     fetchFacets.mockReset().mockResolvedValue(facets);
     fetchSearch.mockReset().mockResolvedValue(empty);
   });
@@ -114,6 +122,14 @@ describe('SearchPage', () => {
     expect(screen.getByText('emptyTitle')).toBeInTheDocument();
     expect(screen.queryByText(/^clearFilter/)).toBeNull();
     expect(screen.getAllByText(/^levels\./)).toHaveLength(4);
+  });
+
+  it('IN_LIST: truyền quảng cáo từ fetchAds vào AdSlotFrame, nằm sau lưới', async () => {
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_LIST', htmlCode: '<b>x</b>', image: null, link: null }]);
+    render(await run());
+    const ad = screen.getByTestId('ad');
+    expect(ad).toHaveAttribute('data-position', 'IN_LIST');
+    expect(ad).toHaveAttribute('data-count', '1');
   });
 });
 

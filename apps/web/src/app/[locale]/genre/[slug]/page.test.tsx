@@ -4,6 +4,13 @@ import { withIntl } from '@/components/layout/test-utils';
 
 const fetchGenre = vi.fn();
 const fetchGenreSheets = vi.fn();
+const fetchAds = vi.fn();
+vi.mock('@/lib/ads', () => ({ fetchAds: (...a: unknown[]) => fetchAds(...a) }));
+vi.mock('@/components/ads/ad-slot-frame', () => ({
+  AdSlotFrame: ({ slots, position }: { slots: unknown[]; position: string }) => (
+    <div data-testid="ad" data-position={position} data-count={slots.length} />
+  ),
+}));
 vi.mock('@/lib/catalog', () => ({
   fetchGenre: (...a: unknown[]) => fetchGenre(...a),
   fetchGenreSheets: (...a: unknown[]) => fetchGenreSheets(...a),
@@ -42,6 +49,7 @@ const run = (search: Record<string, string> = {}, locale = 'en', slug = 'pop') =
 
 describe('GenrePage', () => {
   beforeEach(() => {
+    fetchAds.mockReset().mockResolvedValue([]);
     fetchGenre.mockReset().mockResolvedValue(item);
     fetchGenreSheets.mockReset().mockResolvedValue(some);
   });
@@ -103,6 +111,14 @@ describe('GenrePage', () => {
     expect(fourth.container.querySelector('h1 svg')).toBeNull();
   });
 
+
+  it('IN_LIST: truyền quảng cáo từ fetchAds vào AdSlotFrame, nằm sau lưới', async () => {
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_LIST', htmlCode: '<b>x</b>', image: null, link: null }]);
+    render(withIntl(await run()));
+    const ad = screen.getByTestId('ad');
+    expect(ad).toHaveAttribute('data-position', 'IN_LIST');
+    expect(ad).toHaveAttribute('data-count', '1');
+  });
 });
 
 describe('generateMetadata', () => {

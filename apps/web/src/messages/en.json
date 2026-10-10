@@ -93,6 +93,11 @@
     "previewLoading": "Loading preview of {title}",
     "previewError": "Preview of {title} could not be played. Press to try again"
   },
+  "Ads": {
+    "label": "Advertisement",
+    "frameTitle": "Advertisement content",
+    "dismiss": "Close advertisement"
+  },
   "Pagination": {
     "label": "Pagination",
     "previous": "Previous",

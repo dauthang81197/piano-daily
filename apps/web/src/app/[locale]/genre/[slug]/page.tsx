@@ -4,9 +4,11 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { GenreIcon } from '@/components/catalog/genre-icon';
 import { LevelLinks } from '@/components/catalog/level-links';
+import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
+import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchGenre, fetchGenreSheets } from '@/lib/catalog';
 import { genreHref, parsePage, parseSort } from '@/lib/query';
@@ -41,6 +43,7 @@ export default async function GenrePage({ params, searchParams }: Props) {
   const page = parsePage(query.page);
   if (page === null) notFound();
   setRequestLocale(locale);
+  const ads = await fetchAds();
 
   const genre = await fetchGenre(slug);
   if (!genre) notFound();
@@ -73,6 +76,8 @@ export default async function GenrePage({ params, searchParams }: Props) {
       ) : (
         <SheetGrid items={list.items} />
       )}
+
+      <AdSlotFrame slots={ads} position="IN_LIST" />
 
       <Pagination
         page={list.page}

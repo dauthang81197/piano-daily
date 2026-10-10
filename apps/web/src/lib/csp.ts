@@ -31,7 +31,8 @@ export function buildCsp(env: CspEnv = process.env): string {
     'script-src': list("'self'", "'unsafe-inline'", isDev ? "'unsafe-eval'" : undefined, paypal, youtube),
     'style-src': "'self' 'unsafe-inline'",
     // Nút và logo PayPal (paypal.com, paypalobjects.com) cho modal thanh toán (Story 3.6).
-    'img-src': list("'self'", 'data:', media, paypal, 'https://www.paypalobjects.com'),
+    // `https:` cho ảnh quảng cáo (Story 4.6) do founder nhập URL tuỳ ý; chỉ nới ảnh, không nới script/connect/frame.
+    'img-src': list("'self'", 'data:', 'https:', media, paypal, 'https://www.paypalobjects.com'),
     'media-src': list("'self'", media),
     'font-src': "'self'",
     'connect-src': list("'self'", api, media, paypal),

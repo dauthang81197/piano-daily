@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchLevelSummary = vi.fn();
 const fetchLevelSheets = vi.fn();
+const fetchAds = vi.fn();
+vi.mock('@/lib/ads', () => ({ fetchAds: (...a: unknown[]) => fetchAds(...a) }));
+vi.mock('@/components/ads/ad-slot-frame', () => ({
+  AdSlotFrame: ({ slots, position }: { slots: unknown[]; position: string }) => (
+    <div data-testid="ad" data-position={position} data-count={slots.length} />
+  ),
+}));
 vi.mock('@/lib/catalog', () => ({
   fetchLevelSummary: (...a: unknown[]) => fetchLevelSummary(...a),
   fetchLevelSheets: (...a: unknown[]) => fetchLevelSheets(...a),
@@ -40,6 +47,7 @@ const run = (level: string, search: Record<string, string> = {}, locale = 'en') 
 
 describe('LevelPage', () => {
   beforeEach(() => {
+    fetchAds.mockReset().mockResolvedValue([]);
     fetchLevelSummary.mockReset().mockResolvedValue(summary);
     fetchLevelSheets.mockReset().mockResolvedValue(empty);
   });
@@ -73,6 +81,14 @@ describe('LevelPage', () => {
     expect(screen.getByText('emptyTitle')).toBeInTheDocument();
     expect(screen.queryByText('clearFilter')).toBeNull();
     expect(fetchLevelSheets).toHaveBeenCalledWith('beginner', { page: 1, sort: 'newest' });
+  });
+
+  it('IN_LIST: truyền quảng cáo từ fetchAds vào AdSlotFrame, nằm sau lưới', async () => {
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_LIST', htmlCode: '<b>x</b>', image: null, link: null }]);
+    render(await run('beginner'));
+    const ad = screen.getByTestId('ad');
+    expect(ad).toHaveAttribute('data-position', 'IN_LIST');
+    expect(ad).toHaveAttribute('data-count', '1');
   });
 });
 

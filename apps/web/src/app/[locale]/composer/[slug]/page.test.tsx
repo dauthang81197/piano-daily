@@ -4,6 +4,13 @@ import { withIntl } from '@/components/layout/test-utils';
 
 const fetchComposer = vi.fn();
 const fetchComposerSheets = vi.fn();
+const fetchAds = vi.fn();
+vi.mock('@/lib/ads', () => ({ fetchAds: (...a: unknown[]) => fetchAds(...a) }));
+vi.mock('@/components/ads/ad-slot-frame', () => ({
+  AdSlotFrame: ({ slots, position }: { slots: unknown[]; position: string }) => (
+    <div data-testid="ad" data-position={position} data-count={slots.length} />
+  ),
+}));
 vi.mock('@/lib/catalog', () => ({
   fetchComposer: (...a: unknown[]) => fetchComposer(...a),
   fetchComposerSheets: (...a: unknown[]) => fetchComposerSheets(...a),
@@ -42,6 +49,7 @@ const run = (search: Record<string, string> = {}, locale = 'en', slug = 'bach') 
 
 describe('ComposerPage', () => {
   beforeEach(() => {
+    fetchAds.mockReset().mockResolvedValue([]);
     fetchComposer.mockReset().mockResolvedValue(item);
     fetchComposerSheets.mockReset().mockResolvedValue(some);
   });
@@ -97,6 +105,14 @@ describe('ComposerPage', () => {
     expect(screen.queryByText(/Baroque/)).toBeNull();
   });
 
+
+  it('IN_LIST: truyền quảng cáo từ fetchAds vào AdSlotFrame, nằm sau lưới', async () => {
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_LIST', htmlCode: '<b>x</b>', image: null, link: null }]);
+    render(withIntl(await run()));
+    const ad = screen.getByTestId('ad');
+    expect(ad).toHaveAttribute('data-position', 'IN_LIST');
+    expect(ad).toHaveAttribute('data-count', '1');
+  });
 });
 
 describe('generateMetadata', () => {

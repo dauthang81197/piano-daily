@@ -204,3 +204,75 @@ describe('Trang /orders/[id] — chi tiết', () => {
     expect(screen.getByText(formatReportDateTime('2026-10-03T02:07:00.000Z'))).toBeInTheDocument();
   });
 });
+
+describe('Trang /orders/[id] — gửi lại email và gia hạn (Story 4.2)', () => {
+  const postsTo = (fetchMock: Awaited<ReturnType<typeof signIn>>, suffix: string) =>
+    fetchMock.mock.calls.filter(([input, init]) => new URL(String(input)).pathname === `/admin/orders/${ID}/${suffix}` && (init as RequestInit)?.method === 'POST');
+
+  it('gửi lại email: gọi API, cập nhật ngay "Gửi email lúc"', async () => {
+    const refreshed = { ...DETAIL, emailSentAt: '2026-10-09T05:00:00.000Z' };
+    const fetchMock = await signIn((url) => {
+      if (url.pathname === `/admin/orders/${ID}/resend-email`) return jsonResponse(200, refreshed);
+      return url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined;
+    });
+    render(<OrderDetail id={ID} />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Gửi lại email' }));
+    expect(await screen.findByText(formatReportDateTime(refreshed.emailSentAt))).toBeInTheDocument();
+    expect(postsTo(fetchMock, 'resend-email')).toHaveLength(1);
+  });
+
+  it('gửi lại email lỗi: FormError nêu lý do cụ thể từ API', async () => {
+    await signIn((url) => {
+      if (url.pathname === `/admin/orders/${ID}/resend-email`)
+        return jsonResponse(503, { error: { code: 'SERVICE_UNAVAILABLE', message: 'Dịch vụ email chưa được cấu hình nên chưa gửi được email.' } });
+      return url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined;
+    });
+    render(<OrderDetail id={ID} />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Gửi lại email' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Dịch vụ email chưa được cấu hình nên chưa gửi được email.');
+  });
+
+  it('gia hạn: nút brass, gửi đúng body, cập nhật ngay thẻ token', async () => {
+    const refreshed = { ...DETAIL, token: { ...DETAIL.token, maxDownloads: 8, expiresAt: '2026-11-30T00:00:00.000Z' } };
+    const fetchMock = await signIn((url) => {
+      if (url.pathname === `/admin/orders/${ID}/extend-token`) return jsonResponse(200, refreshed);
+      return url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined;
+    });
+    render(<OrderDetail id={ID} />);
+    const button = await screen.findByRole('button', { name: 'Gia hạn' });
+    expect(button.className).toContain('bg-secondary');
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Thêm ngày'), '30');
+    await user.type(screen.getByLabelText('Thêm lượt tải'), '3');
+    await user.click(button);
+    expect(await screen.findByText('2 / 8')).toBeInTheDocument();
+    expect(screen.getByText(formatReportDateTime(refreshed.token.expiresAt))).toBeInTheDocument();
+    const init = postsTo(fetchMock, 'extend-token')[0]![1];
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({ addDays: 30, addDownloads: 3 });
+  });
+
+  it('gia hạn với ô trống hoặc số sai: báo lỗi và không gọi API', async () => {
+    const fetchMock = await signIn((url) => (url.pathname === `/admin/orders/${ID}` ? jsonResponse(200, DETAIL) : undefined));
+    render(<OrderDetail id={ID} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Gia hạn' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nhập số ngày hoặc số lượt cần thêm.');
+    await user.type(screen.getByLabelText('Thêm ngày'), '0');
+    await user.click(screen.getByRole('button', { name: 'Gia hạn' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Số ngày phải là số nguyên từ 1 đến 3650.');
+    expect(postsTo(fetchMock, 'extend-token')).toHaveLength(0);
+  });
+
+  it('đơn REFUNDED: hai nút bị vô hiệu kèm lý do', async () => {
+    await signIn((url) =>
+      url.pathname === `/admin/orders/${ID}`
+        ? jsonResponse(200, { ...DETAIL, status: 'REFUNDED', token: { ...DETAIL.token, status: 'REVOKED', revokedAt: '2026-10-03T02:07:00.000Z' } })
+        : undefined,
+    );
+    render(<OrderDetail id={ID} />);
+    expect(await screen.findByRole('button', { name: 'Gửi lại email' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gia hạn' })).toBeDisabled();
+    expect(screen.getByText(/Chỉ đơn đã thanh toán/)).toBeInTheDocument();
+  });
+});
+

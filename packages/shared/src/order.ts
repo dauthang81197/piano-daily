@@ -211,3 +211,31 @@ export const adminOrderDetailSchema = adminOrderListItemSchema.extend({
   downloads: z.array(adminOrderDownloadSchema),
 });
 export type AdminOrderDetail = z.infer<typeof adminOrderDetailSchema>;
+
+// ── Admin: gia hạn token (Story 4.2) ─────────────────────────
+
+/** Giới hạn một lần gia hạn. */
+export const EXTEND_TOKEN_DAYS_MAX = 3650;
+export const EXTEND_TOKEN_DOWNLOADS_MAX = 1000;
+
+/** Body `POST /admin/orders/:id/extend-token`: ít nhất một trong hai, đều là số nguyên dương. */
+export const extendTokenBodySchema = z
+  .strictObject({
+    addDays: z
+      .number({ error: 'Số ngày phải là số nguyên dương.' })
+      .int({ error: 'Số ngày phải là số nguyên dương.' })
+      .min(1, { error: 'Số ngày phải là số nguyên dương.' })
+      .max(EXTEND_TOKEN_DAYS_MAX, { error: `Số ngày tối đa ${EXTEND_TOKEN_DAYS_MAX}.` })
+      .optional(),
+    addDownloads: z
+      .number({ error: 'Số lượt phải là số nguyên dương.' })
+      .int({ error: 'Số lượt phải là số nguyên dương.' })
+      .min(1, { error: 'Số lượt phải là số nguyên dương.' })
+      .max(EXTEND_TOKEN_DOWNLOADS_MAX, { error: `Số lượt tối đa ${EXTEND_TOKEN_DOWNLOADS_MAX}.` })
+      .optional(),
+  })
+  .refine((v) => v.addDays !== undefined || v.addDownloads !== undefined, {
+    error: 'Nhập số ngày hoặc số lượt cần thêm.',
+    path: ['addDays'],
+  });
+export type ExtendTokenBody = z.infer<typeof extendTokenBodySchema>;

@@ -9,6 +9,7 @@ import { loadErrorMessage } from '@/components/taxonomy/server-error';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ordersApi } from '@/lib/api/orders';
 import { formatReportDateTime, formatUsd } from '@/lib/format';
+import { OrderActions } from './order-actions';
 import { ORDER_STATUS_LABELS, REVIEW_LABEL, TOKEN_STATUS_LABELS } from './order-labels';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -29,7 +30,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** Trang chi tiết đơn (chỉ đọc): đơn, items snapshot, PayPal, mốc thời gian, token và lịch sử tải. */
+/** Trang chi tiết đơn: thao tác gửi lại email / gia hạn, đơn, items snapshot, PayPal, mốc thời gian, token và lịch sử tải. */
 export function OrderDetail({ id }: { id: string }) {
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +80,8 @@ export function OrderDetail({ id }: { id: string }) {
               <Field label="Gửi email lúc">{formatReportDateTime(order.emailSentAt)}</Field>
             </dl>
           </Section>
+
+          <OrderActions order={order} onChange={setOrder} />
 
           <Section title="File đã mua">
             <Table aria-label="File đã mua">

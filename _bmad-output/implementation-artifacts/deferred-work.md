@@ -110,3 +110,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-danh-sach-va-chi-tiet-don-hang.md`
   summary: Chi tiết đơn cắt lịch sử tải ở 100 dòng nhưng UI không báo bị cắt hay hiện tổng.
   evidence: API trả tối đa 100 `downloads` và không có tổng hay cờ cắt bớt; token dùng nhiều sẽ bị hiển thị thiếu.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-gui-lai-email-va-gia-han-token.md`
+  summary: Gửi lại email cho đơn có token hết hạn/hết lượt vẫn báo thành công dù người mua nhận link chết.
+  evidence: `resendDownloadEmail` chỉ chặn đơn không PAID, chưa có token hoặc token bị vô hiệu; không xét `tokenStatus` EXPIRED/EXHAUSTED.
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-2-gui-lai-email-va-gia-han-token.md`
+  summary: Thiếu test integration cho biên hạn năm 9999 của gia hạn và assertion rằng log gửi lại email không chứa email hay token.
+  evidence: Test hiện chỉ phủ tràn INT4 của số lượt; log chỉ gồm mã đơn và tên lỗi nhưng không có test khoá lại.

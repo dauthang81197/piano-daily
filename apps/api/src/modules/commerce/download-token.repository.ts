@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { FileType, OrderStatus, type CapturedFile, type DownloadStatus, type PurchasableFileType } from '@piano-daily/shared';
-import type { Prisma } from '../../generated/client';
+import { Prisma } from '../../generated/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /** Token ngẫu nhiên mật mã học: 32 byte, base64url (43 ký tự). */
@@ -77,6 +77,37 @@ export class DownloadTokenRepository {
   /** Thu hồi token của Order (đặt `revoked_at` nếu chưa có) trong transaction của caller. Order không có token thì không làm gì. */
   async revokeByOrder(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
     await tx.downloadToken.updateMany({ where: { orderId, revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
+  /** Trạng thái tối thiểu của token theo Order (để phân loại lý do khi gia hạn không áp dụng được); null nếu Order chưa có token. */
+  async findStateByOrderId(orderId: string): Promise<{ revokedAt: Date | null } | null> {
+    return this.prisma.downloadToken.findUnique({ where: { orderId }, select: { revokedAt: true } });
+  }
+
+  /**
+   * Gia hạn nguyên tử bằng đúng một UPDATE: chỉ khi Order PAID, token chưa vô hiệu và kết quả còn trong giới hạn
+   * (INT4 cho lượt, năm < 9999 cho hạn). `expires_at = greatest(now(), expires_at) + addDays`; không đổi `used_downloads`.
+   * Trả true nếu có dòng được cập nhật.
+   */
+  async extend(orderId: string, extension: { addDays?: number; addDownloads?: number }): Promise<boolean> {
+    const days = extension.addDays ?? null;
+    const downloads = extension.addDownloads ?? null;
+    // Biểu thức hạn mới viết lại ở SET và WHERE (UPDATE ... FROM không cho subquery tham chiếu bảng đích).
+    const newExpiry = Prisma.sql`CASE WHEN ${days}::int IS NULL THEN dt.expires_at
+      ELSE greatest(now(), dt.expires_at) + make_interval(days => ${days}::int) END`;
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      UPDATE download_tokens dt
+      SET expires_at = ${newExpiry},
+          max_downloads = dt.max_downloads + COALESCE(${downloads}::int, 0)
+      FROM orders o
+      WHERE dt.order_id = ${orderId}::uuid
+        AND o.id = dt.order_id
+        AND o.status = 'PAID'::"OrderStatus"
+        AND dt.revoked_at IS NULL
+        AND dt.max_downloads::bigint + COALESCE(${downloads}::int, 0) <= 2147483647
+        AND ${newExpiry} < timestamptz '9999-01-01 00:00:00+00'
+      RETURNING dt.id AS id`);
+    return rows.length > 0;
   }
 
   /** Token hiện có của Order (kèm file lúc cấp); null nếu chưa có. */

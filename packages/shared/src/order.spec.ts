@@ -9,6 +9,7 @@ import {
   ORDER_CODE_PATTERN,
   OrderStatus,
   orderEmailSchema,
+  extendTokenBodySchema,
 } from './order';
 
 const ALL = Object.values(OrderStatus);
@@ -110,5 +111,19 @@ describe('adminOrderListQuerySchema (Story 4.1)', () => {
     expect(adminOrderListQuerySchema.safeParse({ status: 'NOPE' }).success).toBe(false);
     expect(adminOrderListQuerySchema.safeParse({ pageSize: '101' }).success).toBe(false);
     expect(adminOrderListQuerySchema.safeParse({ reviewRequired: 'yes' }).success).toBe(false);
+  });
+});
+
+describe('extendTokenBodySchema (Story 4.2)', () => {
+  it('nhận một hoặc cả hai trường', () => {
+    expect(extendTokenBodySchema.parse({ addDays: 7 })).toEqual({ addDays: 7 });
+    expect(extendTokenBodySchema.parse({ addDownloads: 3 })).toEqual({ addDownloads: 3 });
+    expect(extendTokenBodySchema.parse({ addDays: 5, addDownloads: 2 })).toEqual({ addDays: 5, addDownloads: 2 });
+    expect(extendTokenBodySchema.safeParse({ addDays: 3650, addDownloads: 1000 }).success).toBe(true);
+  });
+  it('từ chối rỗng, 0, âm, thập phân, quá cận, trường lạ', () => {
+    for (const bad of [{}, { addDays: 0 }, { addDownloads: -1 }, { addDays: 1.5 }, { addDays: 3651 }, { addDownloads: 1001 }, { addDays: '7' }, { addDays: 1, extra: 1 }]) {
+      expect(extendTokenBodySchema.safeParse(bad).success).toBe(false);
+    }
   });
 });

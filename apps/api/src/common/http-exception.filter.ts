@@ -34,6 +34,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   TOKEN_EXHAUSTED: 'Link tải đã hết lượt tải.',
   TOKEN_REVOKED: 'Link tải đã bị vô hiệu.',
   BULK_COUNT_CHANGED: 'Số Sheet khớp tiêu chí đã thay đổi. Hãy xem trước lại rồi áp dụng.',
+  ORDER_NOT_PAID: 'Chỉ đơn đã thanh toán (PAID) mới thực hiện được thao tác này.',
   ALREADY_PURCHASED: 'Bạn đã mua bài này. Chúng tôi đã gửi lại link tải vào email của bạn.',
 };
 

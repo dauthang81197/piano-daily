@@ -4,6 +4,7 @@ import {
   type AdminOrderDetail,
   type AdminOrderListItem,
   type AdminOrderListQuery,
+  type ExtendTokenBody,
   orderItemSchema,
   type OrderItem,
   type OrderStatus,
@@ -16,6 +17,8 @@ import { notFound } from '../catalog/catalog.helpers';
 import { DownloadLogRepository } from './download-log.repository';
 import { tokenStatus } from './download-token.repository';
 import { OrderRepository, type AdminOrderRow } from './order.repository';
+import { OrderService } from './order.service';
+import { TokenService } from './token.service';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -84,12 +87,14 @@ function toListItem(row: AdminOrderRow): AdminOrderListItem {
 
 const iso = (date: Date | null) => (date ? date.toISOString() : null);
 
-/** Đọc đơn hàng cho admin (Story 4.1). Chỉ đọc; không log email. */
+/** Đọc đơn hàng (Story 4.1) và thao tác gửi lại email / gia hạn token (Story 4.2) cho admin. Không log email. */
 @Injectable()
 export class AdminOrdersService {
   constructor(
     private readonly orders: OrderRepository,
     private readonly downloadLogs: DownloadLogRepository,
+    private readonly orderService: OrderService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async list(query: AdminOrderListQuery): Promise<Page<AdminOrderListItem>> {
@@ -129,5 +134,17 @@ export class AdminOrdersService {
         : null,
       downloads: logs.map((log) => ({ id: log.id, fileType: log.fileType, ua: log.ua, createdAt: log.createdAt.toISOString() })),
     };
+  }
+
+  /** Gửi lại email link tải rồi trả chi tiết đơn đã làm mới. */
+  async resendEmail(id: string): Promise<AdminOrderDetail> {
+    await this.orderService.resendDownloadEmail(id);
+    return this.get(id);
+  }
+
+  /** Gia hạn token (qua `TokenService`) rồi trả chi tiết đơn đã làm mới. */
+  async extendToken(id: string, body: ExtendTokenBody): Promise<AdminOrderDetail> {
+    await this.tokenService.extend(id, body);
+    return this.get(id);
   }
 }

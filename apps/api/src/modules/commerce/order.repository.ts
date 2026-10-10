@@ -89,6 +89,11 @@ export class OrderRepository {
     return count === 1;
   }
 
+  /** Ghi đè `email_sent_at` bằng thời điểm hiện tại (admin gửi lại email thành công). */
+  async overwriteEmailSentAt(id: string): Promise<void> {
+    await this.prisma.order.update({ where: { id }, data: { emailSentAt: new Date() } });
+  }
+
   /** Đơn PENDING tạo trước `cutoff`, cũ nhất trước, tối đa `limit`. */
   async findStalePending(cutoff: Date, limit: number): Promise<StalePendingOrder[]> {
     return this.prisma.order.findMany({

@@ -29,7 +29,16 @@ import { SettingsService } from '../settings/settings.service';
 import { buildDownloadEmail } from './download-email';
 import { DownloadTokenRepository, tokenStatus } from './download-token.repository';
 import { type OrderForCapture, OrderRepository, toLocale } from './order.repository';
+import { orderNotPaid, tokenRevoked } from './token.service';
 import { type CaptureResult, OrderAlreadyCapturedError, PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
+
+type DownloadEmailInput = {
+  to: string;
+  locale: OrderLocale;
+  orderCode: string;
+  sheetTitle: string;
+  token: string;
+};
 
 /** Bảng chữ cái base32 Crockford (không I, L, O, U). */
 const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -288,22 +297,59 @@ export class OrderService {
   }
 
   /** Gửi email link tải qua `EmailPort`; lỗi chỉ log tên lỗi + mã đơn (không email, không token). Trả true nếu đã gửi. */
-  private async deliverDownloadEmail(input: {
-    to: string;
-    locale: OrderLocale;
-    orderCode: string;
-    sheetTitle: string;
-    token: string;
-  }): Promise<boolean> {
+  private async deliverDownloadEmail(input: DownloadEmailInput): Promise<boolean> {
     try {
-      const base = this.config.get('SITE_URL', { infer: true }) ?? this.config.get('CORS_WEB_ORIGIN', { infer: true });
-      const link = `${base.replace(/\/+$/, '')}/${input.locale}/downloads/${encodeURIComponent(input.token)}`;
-      const content = buildDownloadEmail({ locale: input.locale, orderCode: input.orderCode, sheetTitle: input.sheetTitle, link });
-      const result = await this.email.send({ to: input.to, ...content });
-      return result !== false;
+      return await this.sendDownloadEmail(input);
     } catch (err) {
       this.logger.error(`Gửi email link tải thất bại (${input.orderCode}): ${err instanceof Error ? err.name : 'unknown'}`);
       return false;
+    }
+  }
+
+  /** Dựng link + email rồi gửi qua `EmailPort`. Trả false khi adapter chưa cấu hình; lỗi gửi thật thì ném. */
+  private async sendDownloadEmail(input: DownloadEmailInput): Promise<boolean> {
+    const base = this.config.get('SITE_URL', { infer: true }) ?? this.config.get('CORS_WEB_ORIGIN', { infer: true });
+    const link = `${base.replace(/\/+$/, '')}/${input.locale}/downloads/${encodeURIComponent(input.token)}`;
+    const content = buildDownloadEmail({ locale: input.locale, orderCode: input.orderCode, sheetTitle: input.sheetTitle, link });
+    const result = await this.email.send({ to: input.to, ...content });
+    return result !== false;
+  }
+
+  /**
+   * Admin gửi lại email link tải (Story 4.2) cho đơn PAID có token chưa vô hiệu. Không qua hạn mức 3 lần/giờ của người mua.
+   * Thành công thì ghi đè `email_sent_at`; adapter chưa cấu hình (503) hoặc lỗi gửi (502) thì giữ nguyên và báo lý do.
+   */
+  async resendDownloadEmail(orderId: string): Promise<void> {
+    const order = await this.orders.findById(orderId);
+    if (!order) throw notFound('Không tìm thấy đơn hàng.');
+    if (order.status !== 'PAID') throw orderNotPaid();
+    const stored = await this.tokens.findByOrderId(order.id);
+    if (!stored) throw notFound('Đơn chưa có link tải.');
+    const state = await this.tokens.findStateByOrderId(order.id);
+    if (state?.revokedAt) throw tokenRevoked();
+
+    let sent: boolean;
+    try {
+      sent = await this.sendDownloadEmail({
+        to: order.email,
+        locale: toLocale(order.locale),
+        orderCode: order.orderCode,
+        sheetTitle: order.sheet.title,
+        token: stored.token,
+      });
+    } catch (err) {
+      const name = err instanceof Error ? err.name : 'unknown';
+      this.logger.error(`Admin gửi lại email thất bại (${order.orderCode}): ${name}`);
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.BAD_GATEWAY, `Gửi email thất bại (${name}). Vui lòng thử lại sau.`);
+    }
+    if (!sent) {
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE, 'Dịch vụ email chưa được cấu hình nên chưa gửi được email.');
+    }
+    try {
+      await this.orders.overwriteEmailSentAt(order.id);
+    } catch (err) {
+      // Email đã gửi: không báo lỗi cho admin chỉ vì không ghi được mốc `email_sent_at`.
+      this.logger.warn(`Đã gửi lại email nhưng không ghi được email_sent_at (${order.orderCode}): ${err instanceof Error ? err.name : 'UnknownError'}`);
     }
   }
 

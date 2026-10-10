@@ -59,6 +59,7 @@ function build(
     previous?: { files: string[]; expiresAt?: Date; used?: number; max?: number; revokedAt?: Date | null };
     emailFails?: boolean;
     emailSkipped?: boolean;
+    revoked?: boolean;
     siteUrl?: string;
   } = {},
 ) {
@@ -72,12 +73,14 @@ function build(
     markPaid: vi.fn(async () => options.markPaid ?? true),
     markReviewRequired: vi.fn(async () => undefined),
     setEmailSentAt: vi.fn(async () => true),
+    overwriteEmailSentAt: vi.fn(async () => undefined),
     findPaidByEmailAndSheet: vi.fn(async () =>
       options.previous ? [{ id: 'old-order', orderCode: 'PD-OLD234', locale: 'vi', sheetTitle: 'Für Elise' }] : [],
     ),
   };
   const tokens = {
     create: vi.fn(async () => undefined),
+    findStateByOrderId: vi.fn(async () => ({ revokedAt: options.revoked ? new Date() : null })),
     findByOrderId: vi.fn(async (id: string) =>
       options.noToken ? null : { token: id === 'old-order' ? 'OLD-TOKEN' : 'TOKEN-1', files: [{ fileType: 'PDF', name: 'a.pdf' }] },
     ),
@@ -506,5 +509,55 @@ describe('OrderService.captureOrder / fulfil', () => {
     const { service, provider } = build({ status: 'REFUNDED' });
     await expect(service.captureOrder(REQ)).rejects.toMatchObject({ code: 'NOT_FOUND' });
     expect(provider.capture).not.toHaveBeenCalled();
+  });
+});
+
+describe('OrderService.resendDownloadEmail (admin, Story 4.2)', () => {
+  it('đơn PAID: gửi email với link token, ghi đè email_sent_at, không đụng hạn mức người mua', async () => {
+    const { service, email, repo } = build({ status: 'PAID' });
+    await service.resendDownloadEmail('order-1');
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(email.send.mock.calls[0][0].to).toBe('buyer@example.com');
+    expect(email.send.mock.calls[0][0].text).toContain('/downloads/TOKEN-1');
+    expect(repo.overwriteEmailSentAt).toHaveBeenCalledWith('order-1');
+    expect(repo.setEmailSentAt).not.toHaveBeenCalled();
+    // Nhiều lần liên tiếp vẫn gửi (không bị giới hạn 3 lần/giờ).
+    for (let i = 0; i < 5; i += 1) await service.resendDownloadEmail('order-1');
+    expect(email.send).toHaveBeenCalledTimes(6);
+  });
+
+  it.each(['PENDING', 'REFUNDED', 'FAILED'])('đơn %s: 409 ORDER_NOT_PAID, không gửi, không ghi', async (status) => {
+    const { service, email, repo } = build({ status });
+    await expect(service.resendDownloadEmail('order-1')).rejects.toMatchObject({ code: 'ORDER_NOT_PAID' });
+    expect(email.send).not.toHaveBeenCalled();
+    expect(repo.overwriteEmailSentAt).not.toHaveBeenCalled();
+  });
+
+  it('token đã vô hiệu: 409, không gửi', async () => {
+    const { service, email } = build({ status: 'PAID', revoked: true });
+    await expect(service.resendDownloadEmail('order-1')).rejects.toMatchObject({ code: 'TOKEN_REVOKED' });
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it('chưa có token: 404', async () => {
+    const { service } = build({ status: 'PAID', noToken: true });
+    await expect(service.resendDownloadEmail('order-1')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('email ném lỗi: 502 kèm lý do, email_sent_at giữ nguyên, không lộ email/token', async () => {
+    const { service, repo } = build({ status: 'PAID', emailFails: true });
+    const err = await service.resendDownloadEmail('order-1').catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
+    expect((err as { getStatus(): number }).getStatus()).toBe(502);
+    expect(String((err as Error).message)).not.toMatch(/buyer@example\.com|TOKEN-1/);
+    expect(repo.overwriteEmailSentAt).not.toHaveBeenCalled();
+  });
+
+  it('adapter chưa cấu hình (trả false): 503 kèm lý do, email_sent_at giữ nguyên', async () => {
+    const { service, repo } = build({ status: 'PAID', emailSkipped: true });
+    const err = await service.resendDownloadEmail('order-1').catch((e: unknown) => e);
+    expect((err as { getStatus(): number }).getStatus()).toBe(503);
+    expect((err as Error).message).toMatch(/chưa được cấu hình/);
+    expect(repo.overwriteEmailSentAt).not.toHaveBeenCalled();
   });
 });

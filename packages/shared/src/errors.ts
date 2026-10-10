@@ -38,6 +38,8 @@ export const ErrorCode = {
   ALREADY_PURCHASED: 'ALREADY_PURCHASED',
   /** Số Sheet khớp tiêu chí lúc áp dụng giá hàng loạt khác số đã xem trước (409, `details.count` = số mới). */
   BULK_COUNT_CHANGED: 'BULK_COUNT_CHANGED',
+  /** Thao tác admin chỉ áp dụng cho đơn PAID (gửi lại email, gia hạn token) (409). */
+  ORDER_NOT_PAID: 'ORDER_NOT_PAID',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

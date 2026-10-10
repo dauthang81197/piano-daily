@@ -18,6 +18,7 @@ import { PAYMENT_PROVIDER } from './payment-provider';
 import { PaymentEventRepository } from './payment-event.repository';
 import { PaymentsController } from './payments.controller';
 import { PaypalProvider } from './paypal.provider';
+import { TokenService } from './token.service';
 import { WebhookService } from './webhook.service';
 import { WebhooksController } from './webhooks.controller';
 
@@ -35,6 +36,7 @@ import { WebhooksController } from './webhooks.controller';
     PaidDownloadsService,
     PaymentEventRepository,
     PendingOrderCleanupService,
+    TokenService,
     WebhookService,
     { provide: PAYMENT_PROVIDER, useClass: PaypalProvider },
   ],

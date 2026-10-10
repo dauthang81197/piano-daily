@@ -84,8 +84,8 @@ development_status:
   4-7-dashboard-doanh-thu-va-luot-dung: review
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-trien-khai-production-tren-vps-sau-cloudflare: backlog
+  epic-5: in-progress
+  5-1-trien-khai-production-tren-vps-sau-cloudflare: review
   5-2-backup-hang-dem-va-kiem-tra-khoi-phuc: backlog
   5-3-ci-va-giam-sat-toi-thieu: backlog
   5-4-checklist-bat-thanh-toan-that: backlog

@@ -131,3 +131,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-cai-dat-site.md`
   summary: Thêm cách gỡ logo, và xoá file logo cũ sau khi revalidate xong.
   evidence: Chỉ có `POST admin/settings/logo`; file cũ bị xoá ngay nên trang web đã cache có thể hiện ảnh hỏng đến khi revalidate xong.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-1-trien-khai-production-tren-vps-sau-cloudflare.md`
+  summary: Script firewall chỉ dùng `ufw` nên cổng 80/443 do Docker publish vẫn có thể truy cập trực tiếp, cần luật `DOCKER-USER` (hoặc bind giao diện) và kiểm bằng probe ngoài.
+  evidence: Docker thêm luật NAT iptables bỏ qua chuỗi INPUT của ufw; tài liệu chỉ cảnh báo, chưa có tự động hoá nên IP gốc còn truy cập trực tiếp và giả mạo `CF-Connecting-IP`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-1-trien-khai-production-tren-vps-sau-cloudflare.md`
+  summary: Thêm healthcheck cho web/admin, `depends_on: service_healthy` cho Caddy, và smoke check kiểm nội dung SSR cụ thể thay vì `<html`.
+  evidence: `up --wait` hiện không chứng minh web/admin phục vụ được; smoke check chấp nhận mọi trang 2xx có thẻ `<html`.

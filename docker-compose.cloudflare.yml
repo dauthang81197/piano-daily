@@ -1,0 +1,107 @@
+# Piano Daily — production sau Cloudflare (domain thật, TLS, CDN). Song song với docker-compose.prod.yml (sslip.io), không thay thế.
+#   cd /opt/piano-daily && IMAGE_TAG=sha-abc1234 docker compose -f docker-compose.cloudflare.yml --env-file .env up -d --wait
+# Hướng dẫn đầy đủ: docs/cloudflare.md. Cấu hình bí mật nằm ở `.env` TRÊN SERVER (mẫu: deploy/.env.cloudflare.example).
+# Domain chỉ đến từ ROOT_DOMAIN: web = ROOT_DOMAIN, admin./api. là subdomain, cdn. là custom domain của bucket R2 public (không qua Caddy).
+# Chỉ Caddy publish cổng 80 và 443. Postgres, API, web, admin chỉ nằm trong mạng nội bộ của compose.
+# Chỉ chạy MỘT instance API (rate limit và dedupe lượt xem ở bộ nhớ trong, AD-15): không dùng replicas/scale.
+# Cổng nội bộ giữ như image hiện có: web 4100, admin 4101, api 4000 (khác 3000/3001/4000 mặc định của Next).
+name: piano-daily
+
+services:
+  postgres:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-piano}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: ${POSTGRES_DB:-piano_daily}
+    volumes:
+      # Postgres 18 lưu dữ liệu dưới /var/lib/postgresql/<major>/docker.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${DOCKERHUB_USERNAME:?Thiếu DOCKERHUB_USERNAME}/piano-daily-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-piano}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-piano_daily}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Thiếu JWT_ACCESS_SECRET trong .env}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      CORS_ADMIN_ORIGIN: https://admin.${ROOT_DOMAIN:?Thiếu ROOT_DOMAIN trong .env}
+      CORS_WEB_ORIGIN: https://${ROOT_DOMAIN}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
+      VIEW_SALT: ${VIEW_SALT:?Thiếu VIEW_SALT trong .env}
+      WEB_INTERNAL_URL: http://web:4100
+      # PayPal, email Resend: bắt buộc khi NODE_ENV=production (API không khởi động nếu thiếu).
+      PAYPAL_MODE: ${PAYPAL_MODE:-live}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:?Thiếu PAYPAL_CLIENT_ID trong .env}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:?Thiếu PAYPAL_CLIENT_SECRET trong .env}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:?Thiếu PAYPAL_WEBHOOK_ID trong .env}
+      RESEND_API_KEY: ${RESEND_API_KEY:?Thiếu RESEND_API_KEY trong .env}
+      EMAIL_FROM: ${EMAIL_FROM:?Thiếu EMAIL_FROM trong .env}
+      SITE_URL: https://${ROOT_DOMAIN}
+      # Cloudflare R2: bucket tạo sẵn trước (không tự tạo), bucket public bật truy cập công khai (custom domain https://cdn.${ROOT_DOMAIN}).
+      S3_ENDPOINT: ${S3_ENDPOINT:?Thiếu S3_ENDPOINT trong .env}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Thiếu S3_ACCESS_KEY_ID trong .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Thiếu S3_SECRET_ACCESS_KEY trong .env}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:?Thiếu S3_BUCKET_PUBLIC trong .env}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:?Thiếu S3_BUCKET_PRIVATE trong .env}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:?Thiếu S3_PUBLIC_BASE_URL trong .env}
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_AUTO_CREATE_BUCKETS: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  web:
+    image: ${DOCKERHUB_USERNAME:?Thiếu DOCKERHUB_USERNAME}/piano-daily-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:4000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  admin:
+    image: ${DOCKERHUB_USERNAME:?Thiếu DOCKERHUB_USERNAME}/piano-daily-admin:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    environment:
+      ROOT_DOMAIN: ${ROOT_DOMAIN:?Thiếu ROOT_DOMAIN trong .env}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/Caddyfile.cloudflare:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - admin
+      - api
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

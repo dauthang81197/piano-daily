@@ -177,7 +177,23 @@ export const envSchema = z.object({
   .refine((env) => env.PAYPAL_MODE !== 'live' || (env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET), {
     path: ['PAYPAL_CLIENT_ID'],
     error: 'PAYPAL_MODE=live bắt buộc có PAYPAL_CLIENT_ID và PAYPAL_CLIENT_SECRET',
+  })
+  // Production: PayPal và email là bắt buộc (ngoài production vẫn tuỳ chọn). Báo đúng tên từng biến thiếu.
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    for (const name of PRODUCTION_REQUIRED) {
+      if (!env[name]) ctx.addIssue({ code: 'custom', path: [name], message: 'bắt buộc khi NODE_ENV=production' });
+    }
   });
+
+/** Biến tuỳ chọn ngoài production nhưng bắt buộc khi `NODE_ENV=production`. */
+const PRODUCTION_REQUIRED = [
+  'PAYPAL_CLIENT_ID',
+  'PAYPAL_CLIENT_SECRET',
+  'PAYPAL_WEBHOOK_ID',
+  'RESEND_API_KEY',
+  'EMAIL_FROM',
+] as const;
 
 export type Env = z.infer<typeof envSchema>;
 

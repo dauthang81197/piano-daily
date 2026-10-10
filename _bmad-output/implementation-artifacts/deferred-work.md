@@ -89,3 +89,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-8-webhook-paypal.md`
   summary: `payment_events.payload` giữ nguyên JSON event vô thời hạn (có thể chứa tên/email người trả), chưa có job dọn.
   evidence: bảng chỉ có insert và `markProcessed`; cần chính sách giữ (vd. xoá payload sau 90 ngày) khi làm vận hành.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-9-tu-huy-don-pending-qua-han.md`
+  summary: Dọn đơn PENDING quá hạn có thể đói khi hơn 100 đơn kẹt (APPROVED/lỗi PayPal) chiếm hết batch cũ nhất trước.
+  evidence: `findStalePending` luôn lấy 100 đơn cũ nhất; đơn không xử lý được vẫn PENDING nên lượt sau lấy lại, đơn mới bị bỏ đói.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-9-tu-huy-don-pending-qua-han.md`
+  summary: Đơn fulfil lệch số tiền/tiền tệ bị `markReviewRequired` và ném lỗi lặp lại mỗi giờ.
+  evidence: Đơn giữ PENDING nên cron quét lại mỗi lượt; chỉ gây nhiễu log và ghi DB thừa.

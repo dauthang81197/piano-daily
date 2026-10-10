@@ -10,6 +10,7 @@ import {
   OrderAlreadyCapturedError,
   type PaymentProvider,
   PaymentProviderNotSupportedError,
+  ProviderOrderNotFoundError,
 } from './payment-provider';
 
 /** Mã lỗi 422 của PayPal khi thanh toán bị từ chối (người mua có thể thử phương thức khác). */
@@ -70,8 +71,15 @@ export class PaypalProvider implements PaymentProvider {
   }
 
   async getOrder(providerOrderId: string): Promise<CaptureResult> {
-    const { result } = await this.controller().getOrder({ id: providerOrderId });
-    return toCaptureResult(result);
+    try {
+      const { result } = await this.controller().getOrder({ id: providerOrderId });
+      return toCaptureResult(result);
+    } catch (err) {
+      if (typeof err === 'object' && err !== null && (err as { statusCode?: unknown }).statusCode === 404) {
+        throw new ProviderOrderNotFoundError();
+      }
+      throw err;
+    }
   }
 
   async capture(providerOrderId: string, _requestId: string): Promise<CaptureResult> {
@@ -168,5 +176,6 @@ function toCaptureResult(order: Order): CaptureResult {
     amount: capture?.amount?.value ?? null,
     currency: capture?.amount?.currencyCode ?? null,
     payer: { email: order.payer?.emailAddress ?? null, name: name || null },
+    orderStatus: order.status ?? null,
   };
 }

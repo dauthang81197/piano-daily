@@ -9,6 +9,7 @@ import { DownloadsController } from './downloads.controller';
 import { DownloadsService } from './downloads.service';
 import { OrderRepository } from './order.repository';
 import { OrderService } from './order.service';
+import { PendingOrderCleanupService } from './pending-order-cleanup.service';
 import { PaidDownloadsController } from './paid-downloads.controller';
 import { PaidDownloadsService } from './paid-downloads.service';
 import { PAYMENT_PROVIDER } from './payment-provider';
@@ -30,6 +31,7 @@ import { WebhooksController } from './webhooks.controller';
     OrderService,
     PaidDownloadsService,
     PaymentEventRepository,
+    PendingOrderCleanupService,
     WebhookService,
     { provide: PAYMENT_PROVIDER, useClass: PaypalProvider },
   ],

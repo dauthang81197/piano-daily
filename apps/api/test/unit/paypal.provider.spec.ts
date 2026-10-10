@@ -1,7 +1,11 @@
 import type { ConfigService } from '@nestjs/config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../src/config/env';
-import { OrderAlreadyCapturedError, PaymentProviderNotSupportedError } from '../../src/modules/commerce/payment-provider';
+import {
+  OrderAlreadyCapturedError,
+  PaymentProviderNotSupportedError,
+  ProviderOrderNotFoundError,
+} from '../../src/modules/commerce/payment-provider';
 import { PaypalNotConfiguredError, PaypalProvider } from '../../src/modules/commerce/paypal.provider';
 
 const createOrder = vi.fn();
@@ -89,6 +93,7 @@ describe('PaypalProvider', () => {
       amount: '4.99',
       currency: 'USD',
       payer: { email: 'p@example.com', name: 'Jo Payer' },
+      orderStatus: null,
     });
     expect(captureOrder).toHaveBeenCalledWith(expect.objectContaining({ id: 'PP-1' }));
   });
@@ -120,6 +125,25 @@ describe('PaypalProvider', () => {
     getOrder.mockResolvedValue(paidOrder());
     await expect(live().getOrder('PP-1')).resolves.toMatchObject({ status: 'COMPLETED', captureId: 'CAP-1' });
     expect(getOrder).toHaveBeenCalledWith({ id: 'PP-1' });
+  });
+
+  it('getOrder: điền orderStatus từ status của order PayPal', async () => {
+    getOrder.mockResolvedValue({ result: { id: 'PP-1', status: 'APPROVED' } });
+    await expect(live().getOrder('PP-1')).resolves.toMatchObject({ status: 'PENDING', orderStatus: 'APPROVED' });
+  });
+
+  it.each(['CREATED', 'SAVED', 'PAYER_ACTION_REQUIRED', 'VOIDED'])('getOrder: giữ nguyên orderStatus %s', async (status) => {
+    getOrder.mockResolvedValue({ result: { id: 'PP-1', status } });
+    await expect(live().getOrder('PP-1')).resolves.toMatchObject({ orderStatus: status });
+  });
+
+  it('getOrder: HTTP 404 ném ProviderOrderNotFoundError; lỗi khác ném nguyên', async () => {
+    getOrder.mockRejectedValueOnce(Object.assign(new Error('nf'), { statusCode: 404 }));
+    await expect(live().getOrder('PP-1')).rejects.toBeInstanceOf(ProviderOrderNotFoundError);
+    getOrder.mockRejectedValueOnce(Object.assign(new Error('boom'), { statusCode: 500 }));
+    await expect(live().getOrder('PP-1')).rejects.toThrow('boom');
+    getOrder.mockRejectedValueOnce(new Error('network'));
+    await expect(live().getOrder('PP-1')).rejects.toThrow('network');
   });
 
   it('refund chưa hỗ trợ', async () => {

@@ -24,7 +24,17 @@ export type CaptureResult = {
   amount: string | null;
   currency: string | null;
   payer: { email: string | null; name: string | null };
+  /** Status của order PayPal (CREATED, APPROVED, COMPLETED...); null khi không có. Chỉ `getOrder` điền. */
+  orderStatus?: string | null;
 };
+
+/** PayPal không còn đơn này (HTTP 404). */
+export class ProviderOrderNotFoundError extends Error {
+  constructor() {
+    super('Đơn PayPal không tồn tại.');
+    this.name = 'ProviderOrderNotFoundError';
+  }
+}
 
 /** PayPal báo đơn đã được capture trước đó (`ORDER_ALREADY_CAPTURED`): caller đọc lại bằng `getOrder`. */
 export class OrderAlreadyCapturedError extends Error {

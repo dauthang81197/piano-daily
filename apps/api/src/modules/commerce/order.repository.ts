@@ -89,6 +89,16 @@ export class OrderRepository {
     return count === 1;
   }
 
+  /** Đơn PENDING tạo trước `cutoff`, cũ nhất trước, tối đa `limit`. */
+  async findStalePending(cutoff: Date, limit: number): Promise<StalePendingOrder[]> {
+    return this.prisma.order.findMany({
+      where: { status: 'PENDING', createdAt: { lt: cutoff } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+      select: { id: true, orderCode: true, paypalOrderId: true },
+    });
+  }
+
   /** Các đơn PAID của cùng email (đã chữ thường) và Sheet, mới nhất trước; tối đa 20. */
   async findPaidByEmailAndSheet(email: string, sheetId: string): Promise<PaidOrderRef[]> {
     const rows = await this.prisma.order.findMany({
@@ -100,6 +110,8 @@ export class OrderRepository {
     return rows.map((row) => ({ id: row.id, orderCode: row.orderCode, locale: toLocale(row.locale), sheetTitle: row.sheet.title }));
   }
 }
+
+export type StalePendingOrder = { id: string; orderCode: string; paypalOrderId: string | null };
 
 export type PaidOrderRef = { id: string; orderCode: string; locale: OrderLocale; sheetTitle: string };
 

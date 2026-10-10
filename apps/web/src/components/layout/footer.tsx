@@ -1,8 +1,9 @@
+import { isSiteYoutubeUrl } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { LEVELS } from '@/lib/levels';
 
-export function Footer() {
+export function Footer({ youtubeUrl = '' }: { youtubeUrl?: string } = {}) {
   const t = useTranslations('Footer');
   const nav = useTranslations('Nav');
   return (
@@ -11,6 +12,18 @@ export function Footer() {
         <section>
           <h2 className="font-display text-headline-sm text-primary">{t('aboutTitle')}</h2>
           <p className="mt-2 text-body-md text-on-surface-variant">{t('about')}</p>
+          {isSiteYoutubeUrl(youtubeUrl) ? (
+            <p className="mt-2">
+              <a
+                href={youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md text-body-md text-on-surface-variant hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              >
+                {t('youtube')}
+              </a>
+            </p>
+          ) : null}
         </section>
         <section>
           <h2 className="font-display text-headline-sm text-primary">{t('levelsTitle')}</h2>

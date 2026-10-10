@@ -10,6 +10,10 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
+vi.mock('@/lib/site-settings', () => ({
+  fetchSiteSettings: async () => ({ siteName: 'Studio X', logoUrl: null, seoDescription: '', youtubeUrl: '' }),
+}));
+
 import { generateMetadata } from './page';
 
 describe('generateMetadata (trang chủ)', () => {
@@ -17,7 +21,7 @@ describe('generateMetadata (trang chủ)', () => {
 
   it('title tuyệt đối (không dính hậu tố của layout), description, canonical, hreflang, Open Graph', async () => {
     const m = await meta('vi');
-    expect(m.title).toEqual({ absolute: 'title' });
+    expect(m.title).toEqual({ absolute: 'Studio X' });
     expect(m.description).toBe('homeDescription');
     expect(m.alternates?.canonical).toBe('/vi');
     expect(m.alternates?.languages).toMatchObject({ vi: '/vi', en: '/en', 'x-default': '/en' });

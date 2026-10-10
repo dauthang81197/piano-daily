@@ -25,6 +25,7 @@ const PUBLIC_ROUTES = ['GET /health', 'POST /auth/login', 'POST /auth/refresh', 
   'GET /composers/:slug',
   'GET /genres/:slug',
   'GET /levels/:level/summary',
+  'GET /settings/site',
 ];
 
 function joinPath(...parts: (string | string[] | undefined)[]): string {

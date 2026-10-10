@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { routing } from '@/i18n/routing';
 import { LEVELS } from '@/lib/levels';
 import { pageMetadata } from '@/lib/seo';
+import { fetchSiteSettings } from '@/lib/site-settings';
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -14,7 +15,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!hasLocale(routing.locales, locale)) return {};
   const meta = await getTranslations({ locale, namespace: 'Meta' });
   const seo = await getTranslations({ locale, namespace: 'Seo' });
-  return pageMetadata({ locale, path: '/', title: meta('title'), description: seo('homeDescription'), absoluteTitle: true });
+  const site = await fetchSiteSettings();
+  return pageMetadata({
+    locale,
+    path: '/',
+    title: site.siteName || meta('title'),
+    description: site.seoDescription || seo('homeDescription'),
+    absoluteTitle: true,
+  });
 }
 
 export default async function HomePage({ params }: Props) {

@@ -124,3 +124,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-3-hoan-tien-tu-admin.md`
   summary: Thêm test cho nhánh PayPal đã hoàn nhưng ghi DB lỗi, và test đua admin với webhook có kiểm soát thứ tự.
   evidence: Test đua hiện chấp nhận cả 200 và 409 cho admin nên không chứng minh nhánh webhook thắng đã chạy ở tầng tích hợp.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-cai-dat-site.md`
+  summary: Đưa tên site đã lưu vào `og:siteName` và JSON-LD (hiện vẫn là hằng `SITE_NAME` trong `seo.ts`).
+  evidence: Sau khi đổi tên site, tiêu đề tab đã đổi nhưng bản xem trước chia sẻ mạng xã hội vẫn hiện "Piano Daily".
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-cai-dat-site.md`
+  summary: Thêm cách gỡ logo, và xoá file logo cũ sau khi revalidate xong.
+  evidence: Chỉ có `POST admin/settings/logo`; file cũ bị xoá ngay nên trang web đã cache có thể hiện ảnh hỏng đến khi revalidate xong.

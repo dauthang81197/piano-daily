@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { IdentityModule } from '../identity/identity.module';
 import { MediaModule } from '../media/media.module';
 import { SettingsModule } from '../settings/settings.module';
-import { CacheInvalidator } from './cache-invalidator';
+import { CacheInvalidatorModule } from './cache-invalidator.module';
 import { ComposersController } from './composers.controller';
 import { ComposersService } from './composers.service';
 import { FreeDownloadSource } from './free-download-source.service';
@@ -25,9 +25,9 @@ import { SheetFileGcService } from './sheet-file-gc.service';
 
 /** Module chủ của bảng Composer, Genre, Series, Sheet, SheetGenre, SheetFile (AD-1). Storage đi qua `media`. */
 @Module({
-  imports: [MediaModule, IdentityModule, SettingsModule],
+  imports: [MediaModule, IdentityModule, SettingsModule, CacheInvalidatorModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, PublicSheetsController],
-  providers: [CacheInvalidator, PricingService, FreeDownloadSource, PurchasableFilesSource, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
+  providers: [PricingService, FreeDownloadSource, PurchasableFilesSource, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
   exports: [FreeDownloadSource, PricingService, PurchasableFilesSource],
 })
 export class CatalogModule {}

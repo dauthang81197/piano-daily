@@ -7,6 +7,7 @@ import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { routing } from '@/i18n/routing';
 import { siteUrl } from '@/lib/site';
+import { fetchSiteSettings } from '@/lib/site-settings';
 import { beVietnamPro, playfairDisplay } from '../fonts';
 import '../globals.css';
 
@@ -20,10 +21,11 @@ export async function generateMetadata({ params }: Pick<Props, 'params'>): Promi
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) return {};
   const t = await getTranslations({ locale, namespace: 'Meta' });
+  const site = await fetchSiteSettings();
   return {
     metadataBase: new URL(siteUrl()),
-    title: { default: t('title'), template: `%s | ${t('title')}` },
-    description: t('description'),
+    title: { default: site.siteName, template: `%s | ${site.siteName}` },
+    description: site.seoDescription || t('description'),
   };
 }
 
@@ -31,14 +33,15 @@ export default async function LocaleLayout({ children, params }: Props) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
+  const site = await fetchSiteSettings();
 
   return (
     <html lang={locale} className={`${playfairDisplay.variable} ${beVietnamPro.variable}`}>
       <body className="flex min-h-screen flex-col bg-surface font-sans text-body-md text-on-surface antialiased">
         <NextIntlClientProvider>
-          <Header />
+          <Header siteName={site.siteName} logoUrl={site.logoUrl} />
           <div className="flex-1">{children}</div>
-          <Footer />
+          <Footer youtubeUrl={site.youtubeUrl} />
         </NextIntlClientProvider>
       </body>
     </html>

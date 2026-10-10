@@ -7,7 +7,7 @@
     "home": "Home",
     "search": "Search",
     "primary": "Main navigation",
-    "logoLabel": "Piano Daily, go to home page",
+    "logoLabel": "{name}, go to home page",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "levels": {
@@ -43,6 +43,7 @@
   },
   "Footer": {
     "aboutTitle": "About",
+    "youtube": "YouTube channel",
     "about": "Piano Daily is a curated library of piano sheet music, arranged by skill level so players can find suitable pieces with ease.",
     "levelsTitle": "Levels",
     "disclaimerTitle": "Copyright",

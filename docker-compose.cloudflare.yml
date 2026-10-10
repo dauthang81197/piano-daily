@@ -46,6 +46,7 @@ services:
       PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:?Thiếu PAYPAL_WEBHOOK_ID trong .env}
       RESEND_API_KEY: ${RESEND_API_KEY:?Thiếu RESEND_API_KEY trong .env}
       EMAIL_FROM: ${EMAIL_FROM:?Thiếu EMAIL_FROM trong .env}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
       SITE_URL: https://${ROOT_DOMAIN}
       # Cloudflare R2: bucket tạo sẵn trước (không tự tạo), bucket public bật truy cập công khai (custom domain https://cdn.${ROOT_DOMAIN}).
       S3_ENDPOINT: ${S3_ENDPOINT:?Thiếu S3_ENDPOINT trong .env}
@@ -114,6 +115,9 @@ services:
       S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:?Thiếu S3_BUCKET_PRIVATE trong .env}
       BACKUP_AT: ${BACKUP_AT:-03:00}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      # Báo lỗi backup qua API nội bộ (Story 5.3); bỏ qua nếu API không với tới được.
+      API_INTERNAL_URL: http://api:4000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
       TZ: Asia/Ho_Chi_Minh
     depends_on:
       postgres:

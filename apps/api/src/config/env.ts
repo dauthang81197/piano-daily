@@ -162,6 +162,8 @@ export const envSchema = z.object({
    */
   RESEND_API_KEY: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
   EMAIL_FROM: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  /** Địa chỉ nhận cảnh báo vận hành (Story 5.3). Tuỳ chọn, KHÔNG bắt buộc ở production: thiếu thì chỉ log `ALERT <kind>`. */
+  ALERT_EMAIL: z.preprocess(emptyAsUndefined, z.email().optional()),
   SITE_URL: z.preprocess(
     emptyAsUndefined,
     z

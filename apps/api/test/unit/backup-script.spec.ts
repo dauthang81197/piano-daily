@@ -72,6 +72,12 @@ fi
 exit 1
 `;
 
+// Ghi đối số và body vào FAKE_CURL_LOG; FAKE_CURL_FAIL=1 giả lập API không với tới được.
+const FAKE_CURL = `#!/usr/bin/env bash
+echo "$@" >>"$FAKE_CURL_LOG"
+[ -z "\${FAKE_CURL_FAIL:-}" ] || exit 7
+`;
+
 const FAKE_PG_RESTORE = `#!/usr/bin/env bash
 echo "$@" >"$FAKE_RESTORE_LOG"
 cat "\${@: -1}" >"$FAKE_RESTORE_LOG.content"
@@ -92,6 +98,7 @@ describe.skipIf(!hasBash)("deploy/backup scripts", () => {
     S3_BUCKET_PRIVATE: "private",
     FAKE_S3_DIR: store,
     FAKE_RESTORE_LOG: path.join(work, "restore.log"),
+    FAKE_CURL_LOG: path.join(work, "curl.log"),
   });
   const run = (script: string, args: string[], env: NodeJS.ProcessEnv) =>
     spawnSync("bash", [script, ...args], { env, encoding: "utf8" });
@@ -124,6 +131,7 @@ describe.skipIf(!hasBash)("deploy/backup scripts", () => {
       ["pg_dump", FAKE_PG_DUMP],
       ["aws", FAKE_AWS],
       ["pg_restore", FAKE_PG_RESTORE],
+      ["curl", FAKE_CURL],
     ] as const) {
       writeFileSync(path.join(bin, name), body.replace(/\r\n/g, "\n"));
       chmodSync(path.join(bin, name), 0o755);
@@ -176,6 +184,52 @@ describe.skipIf(!hasBash)("deploy/backup scripts", () => {
     expect(r.stderr).toMatch(/^ERROR /m);
     expect(stored()).toHaveLength(16);
     expect(r.stdout + r.stderr).not.toMatch(/SECRETPASS|SECRETKEY/);
+  });
+
+  it("lỗi + có API_INTERNAL_URL/INTERNAL_API_SECRET: POST /internal/alerts, mã thoát vẫn khác 0", () => {
+    const r = run(BACKUP, [], {
+      ...baseEnv(),
+      FAKE_PG_MODE: "fail",
+      API_INTERNAL_URL: "http://api:4000/",
+      INTERNAL_API_SECRET: "internal-secret-value",
+    });
+    expect(r.status).not.toBe(0);
+    const called = readFileSync(path.join(work, "curl.log"), "utf8");
+    expect(called).toContain("http://api:4000/internal/alerts");
+    expect(called).toContain("--max-time 10");
+    expect(called).toMatch(/-fsS/);
+    expect(called).toContain("X-Internal-Secret: internal-secret-value");
+    expect(called).toContain("BACKUP_FAILED");
+    expect(r.stdout + r.stderr).not.toContain("internal-secret-value");
+  });
+
+  it("curl lỗi (API không với tới): bỏ qua, vẫn thoát với mã 1 và log ERROR", () => {
+    const r = run(BACKUP, [], {
+      ...baseEnv(),
+      FAKE_PG_MODE: "fail",
+      FAKE_CURL_FAIL: "1",
+      API_INTERNAL_URL: "http://api:4000",
+      INTERNAL_API_SECRET: "internal-secret-value",
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/^ERROR /m);
+    expect(r.stderr).toMatch(/^WARN không gửi được cảnh báo$/m);
+  });
+
+  it("thiếu API_INTERNAL_URL: không gọi curl", () => {
+    const r = run(BACKUP, [], { ...baseEnv(), FAKE_PG_MODE: "fail" });
+    expect(r.status).not.toBe(0);
+    expect(existsSync(path.join(work, "curl.log"))).toBe(false);
+  });
+
+  it("thành công: không gọi curl", () => {
+    const r = run(BACKUP, [], {
+      ...baseEnv(),
+      API_INTERNAL_URL: "http://api:4000",
+      INTERNAL_API_SECRET: "internal-secret-value",
+    });
+    expect(r.status).toBe(0);
+    expect(existsSync(path.join(work, "curl.log"))).toBe(false);
   });
 
   it("liệt kê lỗi sau upload: thoát mã khác 0 và log ERROR", () => {

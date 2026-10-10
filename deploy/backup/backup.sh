@@ -7,7 +7,17 @@ PREFIX="backups/piano-daily-"
 SUFFIX=".dump"
 
 log_info() { echo "INFO $*"; }
-fail() { echo "ERROR $*" >&2; exit 1; }
+# Báo lỗi cho API (gửi email cảnh báo) khi có API_INTERNAL_URL và INTERNAL_API_SECRET; mọi lỗi curl bị bỏ qua.
+notify_api() {
+  [ -n "${API_INTERNAL_URL:-}" ] && [ -n "${INTERNAL_API_SECRET:-}" ] || return 0
+  # Chỉ giữ ký tự an toàn cho JSON; không bao giờ đưa secret vào detail.
+  local detail
+  detail="$(printf '%s' "$1" | tr -c 'A-Za-z0-9 ._:/-' ' ' | cut -c1-500)"
+  curl -fsS --max-time 10 -o /dev/null -X POST "${API_INTERNAL_URL%/}/internal/alerts" \
+    -H "X-Internal-Secret: ${INTERNAL_API_SECRET}" -H "Content-Type: application/json" \
+    -d "{\"kind\":\"BACKUP_FAILED\",\"detail\":\"${detail}\"}" >/dev/null 2>&1 || echo "WARN không gửi được cảnh báo" >&2
+}
+fail() { echo "ERROR $*" >&2; notify_api "$*"; exit 1; }
 
 for var in DATABASE_URL S3_ENDPOINT S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY S3_BUCKET_PRIVATE; do
   [ -n "${!var:-}" ] || fail "thiếu biến môi trường $var"

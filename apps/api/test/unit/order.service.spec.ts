@@ -6,7 +6,7 @@ import type { OrderRepository } from '../../src/modules/commerce/order.repositor
 import { generateOrderCode, InvalidOrderTransitionError, OrderService, splitBundle } from '../../src/modules/commerce/order.service';
 import type { DownloadTokenRepository } from '../../src/modules/commerce/download-token.repository';
 import { type CaptureResult, type PaymentProvider } from '../../src/modules/commerce/payment-provider';
-import { OrderAlreadyCapturedError } from '../../src/modules/commerce/payment-provider';
+import { OrderAlreadyCapturedError, RefundRejectedError } from '../../src/modules/commerce/payment-provider';
 import type { PurchasableFilesSource } from '../../src/modules/catalog/purchasable-files-source.service';
 import type { PrismaService } from '../../src/prisma/prisma.service';
 import type { SettingsService } from '../../src/modules/settings/settings.service';
@@ -34,6 +34,7 @@ const ORDER = {
   items: [{ fileType: 'PDF', priceCents: 499 }],
   email: 'buyer@example.com',
   locale: 'en',
+  paypalCaptureId: 'CAP-1',
   sheet: { title: 'Für Elise' },
 };
 const COMPLETED: CaptureResult = {
@@ -61,6 +62,9 @@ function build(
     emailSkipped?: boolean;
     revoked?: boolean;
     siteUrl?: string;
+    captureId?: string | null;
+    refundError?: unknown;
+    markRefunded?: boolean;
   } = {},
 ) {
   const repo = {
@@ -69,7 +73,12 @@ function build(
     findStatus: vi.fn(async () => (options.status ?? 'PENDING') as never),
     updateStatus: vi.fn(async (_id: string, _from: string, _to: string) => true),
     findByPaypalOrderId: vi.fn(async () => (options.order === null ? null : { ...ORDER, status: options.status ?? 'PENDING' })),
-    findById: vi.fn(async () => ({ ...ORDER, status: options.status ?? 'PENDING' })),
+    findById: vi.fn(async () => ({
+      ...ORDER,
+      status: options.status ?? 'PENDING',
+      paypalCaptureId: options.captureId === undefined ? 'CAP-1' : options.captureId,
+    })),
+    markRefunded: vi.fn(async () => options.markRefunded ?? true),
     markPaid: vi.fn(async () => options.markPaid ?? true),
     markReviewRequired: vi.fn(async () => undefined),
     setEmailSentAt: vi.fn(async () => true),
@@ -79,6 +88,7 @@ function build(
     ),
   };
   const tokens = {
+    revokeByOrder: vi.fn(async () => undefined),
     create: vi.fn(async () => undefined),
     findStateByOrderId: vi.fn(async () => ({ revokedAt: options.revoked ? new Date() : null })),
     findByOrderId: vi.fn(async (id: string) =>
@@ -119,6 +129,10 @@ function build(
   const provider = {
     capture: vi.fn(async (): Promise<CaptureResult> => options.capture ?? COMPLETED),
     getOrder: vi.fn(async (): Promise<CaptureResult> => COMPLETED),
+    refund: vi.fn(async (_captureId: string, _requestId: string) => {
+      if (options.refundError) throw options.refundError;
+      return { refundId: 'RF-1', status: 'COMPLETED' };
+    }),
     createOrder: vi.fn(async (_input: unknown) => {
       if (options.providerFails) throw new Error('boom a@b.co');
       return { providerOrderId: 'PP-1' };
@@ -559,5 +573,57 @@ describe('OrderService.resendDownloadEmail (admin, Story 4.2)', () => {
     expect((err as { getStatus(): number }).getStatus()).toBe(503);
     expect((err as Error).message).toMatch(/chưa được cấu hình/);
     expect(repo.overwriteEmailSentAt).not.toHaveBeenCalled();
+  });
+});
+
+describe('adminRefund', () => {
+  it('PAID: gọi PayPal với request id refund-<mã đơn> rồi REFUNDED + vô hiệu token', async () => {
+    const { service, provider, repo, tokens } = build({ status: 'PAID' });
+    await service.adminRefund('order-1');
+    expect(provider.refund).toHaveBeenCalledWith('CAP-1', 'refund-PD-ABC234');
+    expect(repo.markRefunded).toHaveBeenCalled();
+    expect(tokens.revokeByOrder).toHaveBeenCalled();
+  });
+
+  it.each(['PENDING', 'REFUNDED', 'FAILED'])('đơn %s: 409 ORDER_NOT_PAID, không gọi PayPal', async (status) => {
+    const { service, provider } = build({ status });
+    await expect(service.adminRefund('order-1')).rejects.toMatchObject({ code: 'ORDER_NOT_PAID' });
+    expect(provider.refund).not.toHaveBeenCalled();
+  });
+
+  it('thiếu capture id: 409, không gọi PayPal', async () => {
+    const { service, provider } = build({ status: 'PAID', captureId: null });
+    const err = await service.adminRefund('order-1').catch((e: unknown) => e);
+    expect((err as { getStatus(): number }).getStatus()).toBe(409);
+    expect(provider.refund).not.toHaveBeenCalled();
+  });
+
+  it('đơn không tồn tại: 404', async () => {
+    const { service, repo } = build({ status: 'PAID' });
+    repo.findById.mockResolvedValueOnce(null as never);
+    await expect(service.adminRefund('x')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('PayPal từ chối: 422 REFUND_REJECTED kèm lý do, không đổi trạng thái', async () => {
+    const { service, repo, tokens } = build({ status: 'PAID', refundError: new RefundRejectedError('Refund not allowed') });
+    const err = await service.adminRefund('order-1').catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'REFUND_REJECTED' });
+    expect((err as { getStatus(): number }).getStatus()).toBe(422);
+    expect((err as Error).message).toContain('Refund not allowed');
+    expect(repo.markRefunded).not.toHaveBeenCalled();
+    expect(tokens.revokeByOrder).not.toHaveBeenCalled();
+  });
+
+  it('lỗi mạng/5xx: 503, không đổi trạng thái', async () => {
+    const { service, repo } = build({ status: 'PAID', refundError: new Error('ECONNRESET') });
+    const err = await service.adminRefund('order-1').catch((e: unknown) => e);
+    expect((err as { getStatus(): number }).getStatus()).toBe(503);
+    expect(repo.markRefunded).not.toHaveBeenCalled();
+  });
+
+  it('webhook thắng đua (markRefunded false): vẫn thành công, không vô hiệu token lần hai', async () => {
+    const { service, tokens } = build({ status: 'PAID', markRefunded: false });
+    await expect(service.adminRefund('order-1')).resolves.toBeUndefined();
+    expect(tokens.revokeByOrder).not.toHaveBeenCalled();
   });
 });

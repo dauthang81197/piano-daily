@@ -32,6 +32,12 @@ export class AdminOrdersController {
     return this.service.resendEmail(id);
   }
 
+  @Post(':id/refund')
+  @HttpCode(200)
+  refund(@Param('id', UuidParamPipe) id: string): Promise<AdminOrderDetail> {
+    return this.service.refund(id);
+  }
+
   @Post(':id/extend-token')
   @HttpCode(200)
   extendToken(

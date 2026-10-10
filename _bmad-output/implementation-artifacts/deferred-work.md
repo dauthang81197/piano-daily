@@ -117,3 +117,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-2-gui-lai-email-va-gia-han-token.md`
   summary: Thiếu test integration cho biên hạn năm 9999 của gia hạn và assertion rằng log gửi lại email không chứa email hay token.
   evidence: Test hiện chỉ phủ tràn INT4 của số lượt; log chỉ gồm mã đơn và tên lỗi nhưng không có test khoá lại.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-hoan-tien-tu-admin.md`
+  summary: Kiểm chứng với PayPal sandbox xem `PayPal-Request-Id` cố định `refund-<mã đơn>` có phát lại kết quả từ chối cũ khiến không thể thử hoàn tiền lại.
+  evidence: Nếu PayPal lưu cả phản hồi lỗi thì một lần bị từ chối tạm thời (vd thiếu số dư) không thể retry; cần id theo lần thử, vì refund thứ hai đã hoàn đủ được coi là thành công (`CAPTURE_FULLY_REFUNDED`).
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-3-hoan-tien-tu-admin.md`
+  summary: Thêm test cho nhánh PayPal đã hoàn nhưng ghi DB lỗi, và test đua admin với webhook có kiểm soát thứ tự.
+  evidence: Test đua hiện chấp nhận cả 200 và 409 cho admin nên không chứng minh nhánh webhook thắng đã chạy ở tầng tích hợp.

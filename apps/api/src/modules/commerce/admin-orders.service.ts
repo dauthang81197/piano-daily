@@ -142,6 +142,12 @@ export class AdminOrdersService {
     return this.get(id);
   }
 
+  /** Hoàn tiền toàn phần qua PayPal rồi trả chi tiết đơn đã làm mới. */
+  async refund(id: string): Promise<AdminOrderDetail> {
+    await this.orderService.adminRefund(id);
+    return this.get(id);
+  }
+
   /** Gia hạn token (qua `TokenService`) rồi trả chi tiết đơn đã làm mới. */
   async extendToken(id: string, body: ExtendTokenBody): Promise<AdminOrderDetail> {
     await this.tokenService.extend(id, body);

@@ -360,3 +360,28 @@ model PaymentEvent {
 
   @@map("payment_events")
 }
+
+/// Phải trùng enum `AdPosition` trong packages/shared (có test kiểm tra).
+enum AdPosition {
+  HEADER
+  SIDEBAR_LEFT
+  SIDEBAR_RIGHT
+  IN_LIST
+  STICKY_BOTTOM
+  IN_CONTENT
+}
+
+/// Vị trí quảng cáo (Story 4.5). Chỉ module `ads` ghi. `position` UNIQUE: mỗi vị trí tối đa một slot.
+/// CHECK (migration): có `html_code` HOẶC (`image` VÀ `link`). `html_code` không bao giờ vào log.
+model AdSlot {
+  id        String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  position  AdPosition @unique
+  htmlCode  String?    @map("html_code")
+  image     String?
+  link      String?
+  isActive  Boolean    @default(false) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("ad_slots")
+}

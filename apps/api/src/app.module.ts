@@ -12,6 +12,7 @@ import { validationExceptionFactory } from './common/validation';
 import { ConfigModule } from './config/config.module';
 import type { Env } from './config/env';
 import { HealthModule } from './health/health.module';
+import { AdsModule } from './modules/ads/ads.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { IdentityModule } from './modules/identity/identity.module';
@@ -60,6 +61,7 @@ export function safeEqual(a: string, b: string): boolean {
     IdentityModule,
     CatalogModule,
     SettingsModule,
+    AdsModule,
     NotifyModule,
     CommerceModule,
   ],

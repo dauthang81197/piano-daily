@@ -103,3 +103,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-10-dat-gia-hang-loat.md`
   summary: Sheet PUBLISHED đã không bán được từ trước làm cả lô đặt giá hàng loạt bị 422, và danh sách vi phạm không giới hạn.
   evidence: Kiểm bất biến chạy trên mọi Sheet PUBLISHED trong lô sau update, không phân biệt lỗi có sẵn với lỗi do đợt này gây ra.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-danh-sach-va-chi-tiet-don-hang.md`
+  summary: Chuyển helper đổi ngày REPORT_TZ sang UTC (`dayStartUtc`, `reportRangeToUtc`) từ service `commerce` sang shared để Story 4.7 dùng.
+  evidence: Dashboard doanh thu theo ngày/tháng ở `analytics` cần cùng quy tắc và không được import service nội bộ của module khác.
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-danh-sach-va-chi-tiet-don-hang.md`
+  summary: Chi tiết đơn cắt lịch sử tải ở 100 dòng nhưng UI không báo bị cắt hay hiện tổng.
+  evidence: API trả tối đa 100 `downloads` và không có tổng hay cờ cắt bớt; token dùng nhiều sẽ bị hiển thị thiếu.

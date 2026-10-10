@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adminOrderListQuerySchema,
   canTransition,
   captureOrderRequestSchema,
   captureOrderResponseSchema,
@@ -89,5 +90,25 @@ describe('downloadStatusResponseSchema (Story 3.5)', () => {
     expect(downloadStatusResponseSchema.safeParse(ok).success).toBe(true);
     expect(downloadStatusResponseSchema.safeParse({ ...ok, status: 'X' }).success).toBe(false);
     expect(downloadStatusResponseSchema.safeParse({ ...ok, remainingDownloads: -1 }).success).toBe(false);
+  });
+});
+
+describe('adminOrderListQuerySchema (Story 4.1)', () => {
+  it('mặc định trang 1, cỡ trang 20', () => {
+    const q = adminOrderListQuerySchema.parse({});
+    expect(q).toMatchObject({ page: 1, pageSize: 20 });
+    expect(q.reviewRequired).toBeUndefined();
+  });
+  it('đọc bộ lọc từ query string', () => {
+    const q = adminOrderListQuerySchema.parse({ status: 'PAID', email: ' Nguy ', reviewRequired: 'true', from: '2026-10-01', to: '2026-10-01', page: '2' });
+    expect(q).toMatchObject({ status: 'PAID', email: 'Nguy', reviewRequired: true, page: 2 });
+  });
+  it('từ chối from > to, ngày không có thật, status và cỡ trang lạ', () => {
+    expect(adminOrderListQuerySchema.safeParse({ from: '2026-10-02', to: '2026-10-01' }).success).toBe(false);
+    expect(adminOrderListQuerySchema.safeParse({ from: '2026-02-30' }).success).toBe(false);
+    expect(adminOrderListQuerySchema.safeParse({ from: '01/10/2026' }).success).toBe(false);
+    expect(adminOrderListQuerySchema.safeParse({ status: 'NOPE' }).success).toBe(false);
+    expect(adminOrderListQuerySchema.safeParse({ pageSize: '101' }).success).toBe(false);
+    expect(adminOrderListQuerySchema.safeParse({ reviewRequired: 'yes' }).success).toBe(false);
   });
 });

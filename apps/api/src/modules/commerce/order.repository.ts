@@ -109,6 +109,26 @@ export class OrderRepository {
     });
     return rows.map((row) => ({ id: row.id, orderCode: row.orderCode, locale: toLocale(row.locale), sheetTitle: row.sheet.title }));
   }
+
+  /** Danh sách đơn cho admin: mới nhất trước, kèm tổng số khớp. Chỉ đọc. */
+  async listForAdmin(where: Prisma.OrderWhereInput, page: { page: number; pageSize: number }): Promise<{ rows: AdminOrderRow[]; total: number }> {
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        select: ADMIN_LIST_SELECT,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page.page - 1) * page.pageSize,
+        take: page.pageSize,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+    return { rows, total };
+  }
+
+  /** Chi tiết một đơn cho admin (không có chuỗi token); null nếu không tồn tại. */
+  async findDetailForAdmin(id: string): Promise<AdminOrderDetailRow | null> {
+    return this.prisma.order.findUnique({ where: { id }, select: ADMIN_DETAIL_SELECT });
+  }
 }
 
 export type StalePendingOrder = { id: string; orderCode: string; paypalOrderId: string | null };
@@ -136,3 +156,32 @@ const ORDER_FOR_CAPTURE = {
 } as const;
 
 export type OrderForCapture = Prisma.OrderGetPayload<{ select: typeof ORDER_FOR_CAPTURE }>;
+
+const ADMIN_LIST_SELECT = {
+  id: true,
+  orderCode: true,
+  email: true,
+  items: true,
+  amountCents: true,
+  currency: true,
+  status: true,
+  reviewRequired: true,
+  createdAt: true,
+  sheet: { select: { id: true, title: true } },
+} as const;
+
+const ADMIN_DETAIL_SELECT = {
+  ...ADMIN_LIST_SELECT,
+  paypalOrderId: true,
+  paypalCaptureId: true,
+  payerEmail: true,
+  payerName: true,
+  paidAt: true,
+  refundedAt: true,
+  emailSentAt: true,
+  // Không chọn `token.token` (secret) — chỉ trạng thái hiệu lực.
+  token: { select: { id: true, expiresAt: true, maxDownloads: true, usedDownloads: true, revokedAt: true } },
+} as const;
+
+export type AdminOrderRow = Prisma.OrderGetPayload<{ select: typeof ADMIN_LIST_SELECT }>;
+export type AdminOrderDetailRow = Prisma.OrderGetPayload<{ select: typeof ADMIN_DETAIL_SELECT }>;

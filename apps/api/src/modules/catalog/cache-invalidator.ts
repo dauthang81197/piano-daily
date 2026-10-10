@@ -18,6 +18,9 @@ export type TaxonomyKind = 'composer' | 'genre' | 'series';
 
 const REQUEST_TIMEOUT_MS = 5_000;
 const MAX_ATTEMPTS = 3;
+/** Route web nhận 1..100 tag mỗi lần. */
+export const MAX_TAGS_PER_REQUEST = 100;
+const SNAPSHOT_BATCH = 500;
 /** Chờ trước lần thử thứ 2 và thứ 3. */
 const RETRY_DELAYS_MS = [250, 500];
 
@@ -102,6 +105,32 @@ export class CacheInvalidator implements OnModuleInit {
     const after = afterId ? await this.safeSnapshot(afterId) : null;
     void this.notify(this.tagsFor(before, after));
     return result;
+  }
+
+  /**
+   * Phát tag cho nhiều Sheet vừa đổi (đặt giá hàng loạt). Chỉ gọi SAU khi DB commit; gom tag của mọi Sheet,
+   * chia lô ≤ `MAX_TAGS_PER_REQUEST`; không bao giờ ném lỗi.
+   */
+  async notifySheets(sheetIds: string[]): Promise<void> {
+    try {
+      const tags = new Set<string>();
+      for (let i = 0; i < sheetIds.length; i += SNAPSHOT_BATCH) {
+        const rows = await this.prisma.sheet.findMany({
+          where: { id: { in: sheetIds.slice(i, i + SNAPSHOT_BATCH) } },
+          select: { id: true, status: true, level: true, composerId: true, seriesId: true, genres: { select: { genreId: true } } },
+        });
+        for (const { genres, ...rest } of rows) {
+          const state = { ...rest, genreIds: genres.map((g) => g.genreId) };
+          for (const tag of this.tagsFor(state, state)) tags.add(tag);
+        }
+      }
+      const all = [...tags];
+      for (let i = 0; i < all.length; i += MAX_TAGS_PER_REQUEST) {
+        await this.notify(all.slice(i, i + MAX_TAGS_PER_REQUEST));
+      }
+    } catch (err) {
+      this.logger.error({ reason: describe(err) }, 'Revalidate cache hàng loạt thất bại');
+    }
   }
 
   /** Chạy `op` (CRUD danh mục) rồi phát tag taxonomy; `id` lấy từ kết quả khi tạo mới. */

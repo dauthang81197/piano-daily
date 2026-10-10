@@ -7,3 +7,4 @@ export * from './order';
 export * from './slug';
 export * from './sheet';
 export * from './pricing';
+export * from './bulk-pricing';

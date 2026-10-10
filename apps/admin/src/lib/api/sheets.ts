@@ -1,4 +1,8 @@
 import type {
+  BulkPriceApplyInput,
+  BulkPriceApplyResponse,
+  BulkPriceFilter,
+  BulkPricePreviewResponse,
   CreateSheetRequest,
   Page,
   RemovableFileType,
@@ -26,6 +30,10 @@ export const sheetsApi = {
   setStatus: (id: string, status: SheetStatus) => apiFetch<Sheet>(`${item(id)}/status`, { method: 'PATCH', json: { status } }),
   setHot: (id: string, isHot: boolean) => apiFetch<Sheet>(`${item(id)}/hot`, { method: 'PATCH', json: { isHot } }),
   remove: (id: string) => apiFetch<Sheet | { deleted: true }>(item(id), { method: 'DELETE' }),
+  bulkPricingPreview: (filter: BulkPriceFilter) =>
+    apiFetch<BulkPricePreviewResponse>(`${PATH}/bulk-pricing/preview`, { method: 'POST', json: { filter } }),
+  bulkPricingApply: (body: BulkPriceApplyInput) =>
+    apiFetch<BulkPriceApplyResponse>(`${PATH}/bulk-pricing/apply`, { method: 'POST', json: body }),
 };
 
 export type SheetsApi = typeof sheetsApi;

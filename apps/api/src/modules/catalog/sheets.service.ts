@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
+  BULK_PREVIEW_LIMIT,
+  type BulkPriceApplyBody,
+  type BulkPriceApplyResponse,
+  type BulkPriceFilter,
+  type BulkPricePreviewResponse,
   type CreateSheetBody,
   ErrorCode,
   FileType,
@@ -207,6 +212,32 @@ function publishValidationFailed(details: ValidationDetail[]): AppException {
   return new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.UNPROCESSABLE_ENTITY, undefined, details);
 }
 
+/** Điều kiện lọc theo Level/Composer/Genre (AND), dùng chung cho danh sách admin, xem trước và áp dụng giá hàng loạt. */
+function sheetFilterConditions(filter: { level?: Level; composerId?: string; genreId?: string }): Prisma.SheetWhereInput[] {
+  const and: Prisma.SheetWhereInput[] = [];
+  if (filter.level) and.push({ level: filter.level });
+  if (filter.composerId) and.push({ composerId: filter.composerId });
+  if (filter.genreId) and.push({ genres: { some: { genreId: filter.genreId } } });
+  return and;
+}
+
+/** Sheet bị đặt giá hàng loạt chạm tới: khớp tiêu chí và chưa ARCHIVED. Preview và apply dùng chung. */
+function bulkPricingWhere(filter: BulkPriceFilter): Prisma.SheetWhereInput {
+  return { AND: [{ status: { in: ['DRAFT', 'PUBLISHED'] } }, ...sheetFilterConditions(filter)] };
+}
+
+const BULK_PREVIEW_SELECT = {
+  id: true,
+  publicId: true,
+  title: true,
+  level: true,
+  status: true,
+  composer: REF,
+  ...PRICE_SELECT,
+} as const satisfies Prisma.SheetSelect;
+
+const BULK_TX_TIMEOUT_MS = 30_000;
+
 const SHEET_NOT_FOUND = 'Không tìm thấy Sheet.';
 
 /** Tham chiếu cần kiểm tra trước khi ghi. `undefined` = không kiểm tra trường đó. */
@@ -295,9 +326,8 @@ export class SheetsService {
       if (slugQ) or.push({ slug: { contains: slugQ } });
       and.push({ OR: or });
     }
-    if (query.level) and.push({ level: query.level });
+    and.push(...sheetFilterConditions(query));
     if (query.status) and.push({ status: query.status });
-    if (query.composerId) and.push({ composerId: query.composerId });
     const where: Prisma.SheetWhereInput = and.length ? { AND: and } : {};
 
     const [rows, total] = await this.prisma.$transaction([
@@ -311,6 +341,100 @@ export class SheetsService {
       this.prisma.sheet.count({ where }),
     ]);
     return { items: rows.map(toListItem), page: query.page, pageSize: query.pageSize, total };
+  }
+
+  /** Xem trước đặt giá hàng loạt: danh sách (giá hiện tại) và tổng số Sheet DRAFT/PUBLISHED khớp tiêu chí. */
+  async previewBulkPricing(filter: BulkPriceFilter): Promise<BulkPricePreviewResponse> {
+    const where = bulkPricingWhere(filter);
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.sheet.findMany({
+        where,
+        select: BULK_PREVIEW_SELECT,
+        orderBy: [{ title: 'asc' }, { id: 'asc' }],
+        take: BULK_PREVIEW_LIMIT,
+      }),
+      this.prisma.sheet.count({ where }),
+    ]);
+    return {
+      items: rows.map(({ level, status, ...row }) => ({ ...row, level: level as Level, status: status as SheetStatus })),
+      total,
+    };
+  }
+
+  /**
+   * Đặt giá hàng loạt trong MỘT transaction: khoá hàng theo thứ tự id, so `expectedCount` (lệch → 409), ghi các
+   * cột giá được nhập (ô vắng mặt giữ nguyên), rồi kiểm bất biến "PUBLISHED phải miễn phí hoặc bán được"
+   * (vi phạm → rollback cả lô, 422 kèm danh sách). Revalidate chỉ chạy sau commit và không làm hỏng kết quả.
+   */
+  async applyBulkPricing(body: BulkPriceApplyBody): Promise<BulkPriceApplyResponse> {
+    const { filter, changes, expectedCount } = body;
+    const where = bulkPricingWhere(filter);
+    const data: Prisma.SheetUpdateManyMutationInput = {
+      ...(changes.freeMode === 'FREE' ? { isFree: true } : changes.freeMode === 'PAID' ? { isFree: false } : {}),
+      ...(changes.pricePdfCents !== undefined ? { pricePdfCents: changes.pricePdfCents } : {}),
+      ...(changes.priceMidiCents !== undefined ? { priceMidiCents: changes.priceMidiCents } : {}),
+      ...(changes.priceMp3Cents !== undefined ? { priceMp3Cents: changes.priceMp3Cents } : {}),
+      ...(changes.priceBundleCents !== undefined ? { priceBundleCents: changes.priceBundleCents } : {}),
+    };
+    if (Object.keys(data).length === 0) {
+      throw validationFailed([{ path: 'changes', message: 'Cần nhập ít nhất một giá hoặc chọn chế độ Miễn phí / Có giá.' }]);
+    }
+
+    const ids = await this.prisma.$transaction(
+      async (tx) => {
+        const candidates = await tx.sheet.findMany({ where, select: { id: true }, orderBy: { id: 'asc' } });
+        const candidateIds = candidates.map((c) => c.id);
+        // Khoá theo thứ tự id (tránh deadlock); sau khi khoá đọc lại tập khớp để loại Sheet vừa đổi trạng thái.
+        if (candidateIds.length) {
+          await tx.$queryRaw`SELECT id FROM sheets WHERE id = ANY(${candidateIds}::uuid[]) ORDER BY id FOR UPDATE`;
+        }
+        const locked = (
+          await tx.sheet.findMany({ where: { AND: [where, { id: { in: candidateIds } }] }, select: { id: true }, orderBy: { id: 'asc' } })
+        ).map((r) => r.id);
+        if (locked.length !== expectedCount) {
+          throw new AppException(
+            ErrorCode.BULK_COUNT_CHANGED,
+            HttpStatus.CONFLICT,
+            `Số Sheet khớp tiêu chí hiện là ${locked.length}, khác ${expectedCount} đã xem trước. Hãy xem trước lại rồi áp dụng.`,
+            { count: locked.length },
+          );
+        }
+        if (locked.length === 0) {
+          throw publishValidationFailed([{ path: 'filter', message: 'Không có Sheet nào khớp tiêu chí. Hãy đổi tiêu chí.' }]);
+        }
+
+        await tx.sheet.updateMany({ where: { id: { in: locked } }, data });
+
+        const published = await tx.sheet.findMany({
+          where: { id: { in: locked }, status: 'PUBLISHED' },
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            publicId: true,
+            title: true,
+            ...PRICE_SELECT,
+            files: { where: { supersededAt: null, type: { in: PURCHASABLE_FILE_TYPES.slice() } }, select: { type: true } },
+          },
+        });
+        const violations = published.filter(
+          (sheet) => !isMonetisable(computeQuote(sheet.id, sheet, new Set(sheet.files.map((f) => f.type)))),
+        );
+        if (violations.length) {
+          throw publishValidationFailed(
+            violations.map((v) => ({
+              path: 'price',
+              message: `#${v.publicId} ${v.title}: Sheet đã publish không miễn phí cần ít nhất một loại file có giá lớn hơn 0 và đã tải lên.`,
+              sheetId: v.id,
+            })) as ValidationDetail[],
+          );
+        }
+        return locked;
+      },
+      { timeout: BULK_TX_TIMEOUT_MS },
+    );
+
+    void this.cache.notifySheets(ids);
+    return { updated: ids.length };
   }
 
   async get(id: string): Promise<Sheet> {

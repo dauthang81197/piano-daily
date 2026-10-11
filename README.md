@@ -166,6 +166,34 @@ Kiểm tra: đăng nhập admin, đơn hàng và nội dung hiện đúng như t
 - [ ] Chạy app trỏ vào DB đã khôi phục, đơn hàng/nội dung đúng. Ngày thử: ____
 - [ ] Xoay vòng: vượt `BACKUP_KEEP` thì bản cũ nhất bị xoá. Ngày thử: ____
 
+## Checklist bật thanh toán thật (PayPal sandbox → live)
+
+Chỉ làm khi Epic 3 và 4 đã chạy ổn trên production ở chế độ sandbox. Đánh dấu từng ô; bất kỳ bước nào thất bại thì dừng và dùng mục Rollback bên dưới.
+
+**Trước khi bật**
+- [ ] Rà soát bản quyền danh sách Sheet trả phí (câu hỏi mở số 1 của PRD): chỉ để giá cho Sheet bạn có quyền bán, còn lại để miễn phí hoặc chuyển Archived.
+- [ ] Tạo app PayPal **live** (developer.paypal.com → Live), lấy `PAYPAL_CLIENT_ID` và `PAYPAL_CLIENT_SECRET`.
+- [ ] Đăng ký webhook **live** trỏ tới `https://api.<ROOT_DOMAIN>/webhooks/paypal` với đúng 3 event: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.DENIED`; sao chép Webhook ID vào `PAYPAL_WEBHOOK_ID`.
+- [ ] Xác minh domain gửi email trong Resend (SPF/DKIM) và đặt `EMAIL_FROM` thuộc domain đó; gửi thử một email.
+- [ ] Đặt `ALERT_EMAIL`, biến repo `UPTIME_WEB_URL`/`UPTIME_API_URL` và bật branch protection (xem mục CI/CD) để nhận cảnh báo ngay sau go-live.
+- [ ] Đã khôi phục thử một bản backup thành công (mục "Backup và khôi phục").
+
+**Bật**
+- [ ] Cập nhật `.env` trên server: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` (live), `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (build lại image web vì giá trị được nhúng lúc build) và `PAYPAL_MODE=live`.
+- [ ] Triển khai lại và kiểm `https://api.<ROOT_DOMAIN>/health` cùng `deploy/smoke-check.sh <ROOT_DOMAIN>`.
+
+**Kiểm chứng bằng đơn thật**
+- [ ] Đặt giá nhỏ cho một Sheet, mua thật một lần bằng tài khoản của bạn.
+- [ ] Đơn chuyển `PAID`, email link tải đến nơi và tải được file.
+- [ ] Webhook `PAYMENT.CAPTURE.COMPLETED` được ghi vào `payment_events`.
+- [ ] Dashboard admin phản ánh đúng doanh thu và số đơn.
+- [ ] Hoàn tiền đơn đó từ admin: đơn chuyển `REFUNDED`, webhook `PAYMENT.CAPTURE.REFUNDED` được ghi, dashboard trừ doanh thu, token bị vô hiệu.
+
+**Rollback (có sự cố sau go-live)**
+- Vào admin → Cài đặt, tắt "Bật thanh toán": thanh toán mới dừng ngay (`create-order` trả `PAYMENTS_DISABLED`, nút tải Sheet trả phí không khả dụng), token đã phát vẫn tải được.
+- Cần quay về sandbox thì đặt lại `PAYPAL_MODE=sandbox` cùng khoá sandbox rồi triển khai lại.
+- Đơn đã `review_required` hoặc `LATE_CAPTURE`: xử lý thủ công ở trang chi tiết đơn (hoàn tiền hoặc gia hạn token).
+
 ## Quy ước chính
 
 - **Config:** API chỉ đọc env qua `ConfigModule` (validate bằng zod, `apps/api/src/config/env.ts`). Thiếu/sai biến thì process thoát mã 1 và log nêu tên biến.

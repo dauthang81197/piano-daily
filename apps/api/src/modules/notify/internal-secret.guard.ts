@@ -1,13 +1,9 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { type CanActivate, type ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ErrorCode } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
+import { safeEqual } from '../../common/safe-equal';
 import type { Env } from '../../config/env';
-
-function safeEqual(a: string, b: string): boolean {
-  return timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
-}
 
 /** Chỉ cho qua khi header `X-Internal-Secret` đúng `INTERNAL_API_SECRET` (so sánh hằng thời gian); sai/thiếu: 401. */
 @Injectable()

@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { Module, StandardSchemaValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
@@ -6,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { getClientIp } from './common/http/client-ip';
+import { safeEqual } from './common/safe-equal';
 import { AllExceptionsFilter } from './common/http-exception.filter';
 import { buildLoggerParams } from './common/logger';
 import { validationExceptionFactory } from './common/validation';
@@ -21,13 +21,6 @@ import { JwtAuthGuard } from './modules/identity/jwt-auth.guard';
 import { NotifyModule } from './modules/notify/notify.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PrismaModule } from './prisma/prisma.module';
-
-/** So sánh timing-safe (hash trước để độ dài khác nhau không làm lộ thông tin / ném lỗi). */
-export function safeEqual(a: string, b: string): boolean {
-  const ha = createHash('sha256').update(a).digest();
-  const hb = createHash('sha256').update(b).digest();
-  return timingSafeEqual(ha, hb);
-}
 
 @Module({
   imports: [

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-28-2026 10:17
-last_updated: 10-10-2026 16:00
+last_updated: 10-11-2026 12:00
 project: Piano Daily
 project_key: NOKEY
 tracking_system: file-system
@@ -85,8 +85,65 @@ development_status:
   epic-4-retrospective: optional
 
   epic-5: in-progress
-  5-1-trien-khai-production-tren-vps-sau-cloudflare: review
-  5-2-backup-hang-dem-va-kiem-tra-khoi-phuc: review
-  5-3-ci-va-giam-sat-toi-thieu: review
-  5-4-checklist-bat-thanh-toan-that: review
-  epic-5-retrospective: optional
+  5-1-trien-khai-production-tren-vps-sau-cloudflare: done
+  5-2-backup-hang-dem-va-kiem-tra-khoi-phuc: done
+  5-3-ci-va-giam-sat-toi-thieu: done
+  5-4-checklist-bat-thanh-toan-that: done
+  epic-5-retrospective: done
+action_items:
+  - id: "epic-5-retro-item-1-chặn-internal-trên-host-api-ở-caddyfile"
+    epic: 5
+    action: "Chặn /internal/* trên host api. ở Caddyfile.cloudflare (404) và thêm
+      kiểm trong deploy-config.spec.ts"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-2-internal-secret-guard-dùng-chung-safeequ"
+    epic: 5
+    action: "internal-secret.guard dùng chung safeEqual từ app.module thay vì bản
+      sao"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-3-chạy-khôi-phục-thật-một-bản-backup-vào-d"
+    epic: 5
+    action: "Chạy khôi phục thật một bản backup vào DB local, chạy app, điền ngày
+      vào checklist README"
+    owner: "Thắng"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-4-thêm-tín-hiệu-backup-thành-công-gần-nhất"
+    epic: 5
+    action: "Thêm tín hiệu backup thành công gần nhất (dead-man switch) để cảnh báo
+      khi lâu không có bản mới"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-5-đặt-biến-repo-uptime_web_url-uptime_api_"
+    epic: 5
+    action: "Đặt biến repo UPTIME_WEB_URL/UPTIME_API_URL, bật branch protection cho
+      develop, đặt ALERT_EMAIL và gây sự kiện thử"
+    owner: "Thắng"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-6-reconcile-epics-md-story-5-1-theo-tên-fi"
+    epic: 5
+    action: "Reconcile epics.md Story 5.1 theo tên file as-built docker-compose.cloudflare.yml
+      và quyết định thời điểm gỡ luồng sslip.io"
+    owner: "Thắng"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-7-cập-nhật-sprint-status-đưa-5-1-đến-5-4-v"
+    epic: 5
+    action: "Cập nhật sprint-status đưa 5-1 đến 5-4 về done và thêm bước này vào quy
+      trình merge story"
+    owner: "Thắng"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"
+  - id: "epic-5-retro-item-8-gom-checklist-thủ-công-5-1-5-3-firewall"
+    epic: 5
+    action: "Gom checklist thủ công 5.1-5.3 (firewall, smoke check, đăng nhập admin,
+      upload PDF) vào mục go-live cùng 5.4"
+    owner: "Thắng"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-10-11.md"

@@ -97,6 +97,10 @@ describe('deploy/Caddyfile.cloudflare', () => {
     expect(caddy).not.toMatch(/sslip\.io|SITE_HOST/);
   });
 
+  it('host api. chặn /internal/* (404) trước khi proxy', () => {
+    expect(caddy).toMatch(/^api\.\{\$ROOT_DOMAIN\} \{[\s\S]*?respond \/internal\/\* 404[\s\S]*?reverse_proxy api:4000/m);
+  });
+
   it('chuyển IP khách thật bằng {client_ip}, không ghi đè bằng {remote_host}', () => {
     expect(caddy).toContain('header_up CF-Connecting-IP {client_ip}');
     expect(caddy).not.toContain('{remote_host}');

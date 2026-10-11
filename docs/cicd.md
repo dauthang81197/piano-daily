@@ -34,7 +34,15 @@ Cập nhật: 2026-10-08. Nhánh: `chore/ci-cd-docker-hub-deploy`. Hướng dẫ
 - Workflow và compose chưa được chạy thử: chưa kiểm tra pull image, `--wait`, cấp chứng chỉ Caddy, kết nối R2 hay migration trên Postgres 18 thật.
 - Integration test của Story 3.2 (`free-download.spec.ts`) cũng chưa chạy trên Postgres thật; job `test` của workflow sẽ chạy chúng lần đầu và có thể lộ lỗi.
 - Workflow CI chạy cả `pnpm test` ở gốc. Trên máy Windows có sẵn 2 test `midi-player-bundle` fail (lỗi đường dẫn Windows); trên Linux chưa biết kết quả.
-- Backup Postgres và giám sát chưa có (Story 5.2, 5.3). Chưa có firewall phía server do script quản lý.
+- Chưa có firewall phía server do script quản lý. Backup: Story 5.2; CI/giám sát: mục dưới (Story 5.3).
 - Docker Hub: nếu repo image để private thì server phải `docker login` (workflow đã làm bước này bằng token).
 
 - Production có domain thật sau Cloudflare (compose/Caddy riêng, firewall chỉ nhận Cloudflare, smoke check): xem [cloudflare.md](cloudflare.md).
+
+## CI bắt buộc và giám sát tối thiểu (Story 5.3)
+
+**Chặn merge khi CI fail (thao tác thủ công trên GitHub, repo không tự đổi cài đặt):** Settings → Branches → Add branch protection rule cho `develop` → bật "Require status checks to pass before merging" → chọn check `test` (job của `ci-cd`) → bật "Require branches to be up to date before merging". Job `test` chạy lint, typecheck, build và toàn bộ test, gồm test allowlist `@Public()` (`public-routes.spec.ts`) và test khớp enum shared/Prisma (`sheet-enums.spec.ts`).
+
+**Uptime (`.github/workflows/uptime.yml`):** chạy mỗi 5 phút (và chạy tay được), gọi web và `<api>/health` bằng `curl -fsS --max-time 20 --retry 2`. Đặt Variables repo (Settings → Secrets and variables → Actions → Variables): `UPTIME_WEB_URL` (ví dụ `https://piano.example.com`) và `UPTIME_API_URL` (ví dụ `https://api.piano.example.com`, workflow tự thêm `/health`). Thiếu biến nào thì bỏ qua biến đó kèm `::warning::`. Khi down, job fail và nêu URL lỗi. GitHub gửi email "workflow run failed" cho người tạo hoặc sửa lịch `cron` gần nhất; bật tại GitHub → Settings → Notifications → Actions (chọn "Send notifications for failed workflows only"). Lưu ý: GitHub có thể trễ hoặc bỏ lượt chạy theo lịch khi tải cao, và tắt workflow theo lịch sau 60 ngày repo không có hoạt động.
+
+**Cảnh báo sự kiện tiền bạc/vận hành:** đặt `ALERT_EMAIL` trong `.env` của server (tuỳ chọn, không bắt buộc). API gửi email (qua Resend) khi có `REVIEW_REQUIRED` (đơn lệch số tiền hoặc thiếu file), `LATE_CAPTURE`, `WEBHOOK_ERROR` (chữ ký sai hoặc xử lý webhook lỗi) và `BACKUP_FAILED` (job backup gọi `POST /internal/alerts` với `X-Internal-Secret`). Mỗi loại tối đa một email mỗi 15 phút (theo khoá, bộ nhớ trong; khởi động lại API thì đặt lại). Nội dung chỉ có mã đơn và loại sự kiện, không có email người mua hay token. Thiếu `ALERT_EMAIL` thì chỉ ghi log `ALERT <kind>` mức error.

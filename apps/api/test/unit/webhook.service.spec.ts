@@ -1,3 +1,4 @@
+import type { AlertService } from '../../src/modules/notify/alert.service';
 import type { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../src/config/env';
@@ -22,6 +23,7 @@ describe('WebhookService', () => {
   const events = { record: vi.fn(), markProcessed: vi.fn() };
   const orders = { fulfil: vi.fn(), refund: vi.fn(), failIfPending: vi.fn() };
   const orderRepo = { findByPaypalOrderId: vi.fn(), findByOrderCode: vi.fn() };
+  const alerts = { alert: vi.fn() };
   const make = (webhookId: string | undefined = 'WID') =>
     new WebhookService(
       provider as unknown as PaymentProvider,
@@ -29,10 +31,12 @@ describe('WebhookService', () => {
       orders as unknown as OrderService,
       orderRepo as unknown as OrderRepository,
       { get: () => webhookId } as unknown as ConfigService<Env, true>,
+      alerts as unknown as AlertService,
     );
 
   beforeEach(() => {
     for (const fn of [...Object.values(provider), ...Object.values(events), ...Object.values(orders), ...Object.values(orderRepo)]) fn.mockReset();
+    alerts.alert.mockReset();
     provider.verifyWebhook.mockResolvedValue(true);
     events.record.mockResolvedValue({ created: true, processedAt: null });
     orderRepo.findByOrderCode.mockResolvedValue({ id: 'o1', status: 'PENDING' });
@@ -78,9 +82,24 @@ describe('WebhookService', () => {
   });
 
   it('lỗi xử lý không phải AppException: 503 và không markProcessed', async () => {
+    orderRepo.findByOrderCode.mockResolvedValue({ id: 'o1', status: 'PAID' });
     orders.refund.mockRejectedValue(new Error('db down'));
     await expect(make().handle(HEADERS, body('PAYMENT.CAPTURE.REFUNDED'))).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
     expect(events.markProcessed).not.toHaveBeenCalled();
+    expect(alerts.alert).toHaveBeenCalledWith('WEBHOOK_ERROR', expect.any(String), expect.any(String), 'dispatch:PAYMENT.CAPTURE.REFUNDED');
+  });
+
+  it('chữ ký sai: 400 và cảnh báo WEBHOOK_ERROR', async () => {
+    provider.verifyWebhook.mockResolvedValue(false);
+    await expect(make().handle(HEADERS, body('PAYMENT.CAPTURE.COMPLETED'))).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(alerts.alert).toHaveBeenCalledWith('WEBHOOK_ERROR', expect.any(String), expect.any(String), 'signature');
+  });
+
+  it('xử lý thành công thì không phát cảnh báo', async () => {
+    orderRepo.findByOrderCode.mockResolvedValue({ id: 'o1', status: 'PAID' });
+    orders.refund.mockResolvedValue(true);
+    await make().handle(HEADERS, body('PAYMENT.CAPTURE.REFUNDED'));
+    expect(alerts.alert).not.toHaveBeenCalled();
   });
 
   it('Order REFUNDED: COMPLETED bị bỏ qua nhưng vẫn processed', async () => {

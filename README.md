@@ -130,6 +130,8 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
    - Environment `production` (có thể bật required reviewers nếu muốn duyệt trước khi deploy).
 4. Đổi `NEXT_PUBLIC_*` (host, URL media) thì phải build lại image: chạy lại workflow.
 
+**CI bắt buộc và giám sát (Story 5.3):** nên bật branch protection cho `develop` bắt buộc check `test` pass trước khi merge (Settings → Branches; thao tác thủ công). Workflow `uptime.yml` gọi web và `/health` mỗi 5 phút theo Variables `UPTIME_WEB_URL`, `UPTIME_API_URL`; fail thì GitHub gửi email. Đặt `ALERT_EMAIL` trên server để nhận email khi có đơn `review_required`, capture muộn, lỗi webhook hoặc backup thất bại. Email cảnh báo và việc backup báo lỗi qua API chỉ được nối trong `docker-compose.cloudflare.yml`, KHÔNG có trong deploy sslip.io (`docker-compose.prod.yml`). Chi tiết: [docs/cicd.md](docs/cicd.md).
+
 **Production có domain thật sau Cloudflare** (TLS, CDN, `admin.`/`api.`/`cdn.`): xem [docs/cloudflare.md](docs/cloudflare.md) (`docker-compose.cloudflare.yml`, `deploy/Caddyfile.cloudflare`); chạy song song, không thay deploy sslip.io ở trên.
 
 ## Backup và khôi phục

@@ -1,3 +1,4 @@
+import type { AlertService } from '../../src/modules/notify/alert.service';
 import type { ConfigService } from '@nestjs/config';
 import { type CreateOrderRequest, ORDER_CODE_PATTERN, type Quote } from '@piano-daily/shared';
 import { describe, expect, it, vi } from 'vitest';
@@ -115,6 +116,7 @@ function build(
       return options.emailSkipped ? false : true;
     }),
   };
+  const alerts = { alert: vi.fn(async (..._args: unknown[]) => undefined) };
   const config = {
     get: vi.fn((key: string) => (key === 'SITE_URL' ? options.siteUrl : key === 'CORS_WEB_ORIGIN' ? 'http://web.test' : undefined)),
   };
@@ -148,8 +150,9 @@ function build(
     prisma as unknown as PrismaService,
     email,
     config as unknown as ConfigService<never, true>,
+    alerts as unknown as AlertService,
   );
-  return { service, repo, pricing, settings, provider, tokens, files, prisma, email };
+  return { service, repo, pricing, settings, provider, tokens, files, prisma, email, alerts };
 }
 
 const request = (over: Partial<CreateOrderRequest> = {}): CreateOrderRequest => ({
@@ -460,10 +463,11 @@ describe('OrderService.captureOrder / fulfil', () => {
     ['amount', { ...COMPLETED, amount: '4.98' }],
     ['currency', { ...COMPLETED, currency: 'EUR' }],
   ])('lệch %s: không PAID, review_required, 503 chung', async (_n, capture) => {
-    const { service, repo, tokens } = build({ capture });
+    const { service, repo, tokens, alerts } = build({ capture });
     const err = await service.captureOrder(REQ).catch((e: unknown) => e);
     expect(err).toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
     expect(repo.markReviewRequired).toHaveBeenCalledWith('order-1');
+    expect(alerts.alert).toHaveBeenCalledWith('REVIEW_REQUIRED', expect.any(String), expect.stringContaining(ORDER.orderCode), ORDER.orderCode);
     expect(repo.markPaid).not.toHaveBeenCalled();
     expect(tokens.create).not.toHaveBeenCalled();
   });
@@ -483,10 +487,11 @@ describe('OrderService.captureOrder / fulfil', () => {
   });
 
   it('thiếu file hiện hành đã mua: không cấp token, review_required, 503 chung', async () => {
-    const { service, repo, tokens } = build({ noFiles: true });
+    const { service, repo, tokens, alerts } = build({ noFiles: true });
     await expect(service.captureOrder(REQ)).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
     expect(tokens.create).not.toHaveBeenCalled();
     expect(repo.markReviewRequired).toHaveBeenCalledWith('order-1');
+    expect(alerts.alert).toHaveBeenCalledWith('REVIEW_REQUIRED', expect.any(String), expect.any(String), ORDER.orderCode);
   });
 
   it('bị từ chối nhưng Order đã CANCELLED: giữ nguyên trạng thái', async () => {
@@ -513,8 +518,9 @@ describe('OrderService.captureOrder / fulfil', () => {
   });
 
   it.each(['CANCELLED', 'FAILED'])('trễ từ %s: vẫn PAID và cấp token', async (status) => {
-    const { service, repo, tokens } = build({ status });
+    const { service, repo, tokens, alerts } = build({ status });
     await expect(service.captureOrder(REQ)).resolves.toMatchObject({ token: 'TOKEN-1' });
+    expect(alerts.alert).toHaveBeenCalledWith('LATE_CAPTURE', expect.any(String), expect.any(String), ORDER.orderCode);
     expect(repo.markPaid).toHaveBeenCalled();
     expect(tokens.create).toHaveBeenCalled();
   });

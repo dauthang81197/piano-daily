@@ -53,6 +53,7 @@ export async function createApp(
   delete process.env.RESEND_API_KEY;
   delete process.env.EMAIL_FROM;
   delete process.env.SITE_URL;
+  delete process.env.ALERT_EMAIL;
   Object.assign(process.env, env);
   Object.assign(process.env, TEST_S3, { S3_PUBLIC_BASE_URL: TEST_S3_PUBLIC_BASE_URL });
   const { AppModule } = await import('../../src/app.module.js');

@@ -44,7 +44,9 @@ jobs:
 
       - run: pnpm lint
       - run: pnpm typecheck
-      # `turbo test` build trước rồi chạy vitest (unit + integration) của mọi package.
+      - run: pnpm build
+      # Gồm test allowlist `@Public()` (public-routes.spec.ts) và khớp enum shared/Prisma (sheet-enums.spec.ts).
+      # Bắt buộc check `test` pass trước khi merge vào `develop`: xem docs/cicd.md (branch protection).
       - run: pnpm test
         env:
           NODE_ENV: ''

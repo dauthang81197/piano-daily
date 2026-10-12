@@ -128,6 +128,18 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
    - Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (access token Docker Hub quyền Read/Write), `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` (kết quả `ssh-keyscan <host>`).
    - Variables: `SITE_HOST` (khớp `SITE_HOST` trong `.env` của server), `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`), `PAYPAL_CLIENT_ID`.
    - Environment `production` (có thể bật required reviewers nếu muốn duyệt trước khi deploy).
+**Tạo admin đầu tiên trên production** (image không có `tsx`, nên không dùng `prisma db seed`; seed còn thêm Sheet mẫu). Chạy MỘT lần trên server sau khi API đã lên; mật khẩu (≥ 12 ký tự) chỉ nằm trong lệnh bạn gõ, không lưu vào file hay GitHub:
+
+```bash
+cd /opt/piano-daily
+export DOCKERHUB_USERNAME=<username> IMAGE_TAG=latest   # compose cần hai biến này khi chạy tay
+read -rsp 'Mật khẩu admin: ' PW; echo
+docker compose -f docker-compose.prod.yml exec -e ADMIN_EMAIL=<email-của-bạn> -e ADMIN_PASSWORD="$PW" -e ADMIN_NAME="Founder" api node dist/scripts/create-admin.js
+unset PW
+```
+
+Script tạo `SUPER_ADMIN`, chạy lại với email đã có thì giữ nguyên (không đổi mật khẩu), và chỉ in email đã che. Sau đó đăng nhập tại `https://admin.<SITE_HOST>`; nên đổi mật khẩu ngay trong trang admin.
+
 4. Trong NPM (cổng 81) tạo 3 **Proxy Host**, mỗi cái bật *Block Common Exploits*, *Websockets Support* và tab SSL: *Request a new SSL Certificate* + *Force SSL*:
 
    | Domain | Forward Hostname | Port |

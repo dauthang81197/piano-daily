@@ -104,8 +104,8 @@ describe('MidiPlayer', () => {
     expect(inactive.getAttribute('class')).toContain('fill-surface-bright');
     // phím đen không đang phát dùng on-surface.
     expect(container.querySelector('rect[data-midi="61"]')!.getAttribute('class')).toContain('fill-on-surface');
-    // nốt sắp rơi (G4 ở giây 3, trong cửa sổ 2 giây khi vị trí ≥ 1) chưa hiện lúc bắt đầu.
-    expect(container.querySelector('[data-falling="G4"]')).toBeNull();
+    // nốt sắp rơi: G4 ở giây 3 nằm trong cửa sổ nhìn trước (LOOKAHEAD_SECONDS) ngay từ đầu bài.
+    expect(container.querySelector('[data-falling="G4"]')).not.toBeNull();
   });
 
   it('thanh tua: đổi vị trí và hiển thị thời gian', async () => {

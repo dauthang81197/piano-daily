@@ -78,7 +78,54 @@ function splitByPitch(notes: readonly PlayerNote[]): Hand[] {
   return out;
 }
 
-/** Tay đánh từng nốt (mảng song song với `notes`). Ưu tiên chia theo track, nếu không thì theo cao độ. */
+/** Còn ngân sau lần đánh này (giây) thì coi là đang giữ phím. */
+const HELD_EPSILON = 0.02;
+
+/**
+ * Hai tay không bao giờ chéo nhau hay cùng bấm một phím: ở mỗi lần đánh, mọi nốt tay trái phải thấp hơn hẳn mọi nốt
+ * tay phải, kể cả các nốt đang được giữ từ trước. Nếu cách chia ban đầu vi phạm thì chọn điểm cắt hợp lệ khác biệt ít
+ * nhất so với cách chia ban đầu; không có điểm cắt hợp lệ thì giữ nguyên.
+ */
+function repairCrossings(notes: readonly PlayerNote[], hands: Hand[]): Hand[] {
+  const out = [...hands];
+  let held: { end: number; midi: number; hand: Hand }[] = [];
+  for (const group of groupOnsets(notes)) {
+    const time = notes[group[0]!]!.time;
+    held = held.filter((h) => h.end > time + HELD_EPSILON);
+    const heldLeftMax = Math.max(-Infinity, ...held.filter((h) => h.hand === 'left').map((h) => h.midi));
+    const heldRightMin = Math.min(Infinity, ...held.filter((h) => h.hand === 'right').map((h) => h.midi));
+    const pitches = group.map((i) => notes[i]!.midi);
+    const m = pitches.length;
+
+    let bestK = -1;
+    let bestMismatch = Infinity;
+    for (let k = 0; k <= m; k += 1) {
+      const leftOk = k === 0 || pitches[k - 1]! < heldRightMin;
+      const rightOk = k === m || pitches[k]! > heldLeftMax;
+      const apart = k === 0 || k === m || pitches[k - 1]! < pitches[k]!;
+      if (!leftOk || !rightOk || !apart) continue;
+      let mismatch = 0;
+      group.forEach((noteIndex, j) => {
+        if ((j < k ? 'left' : 'right') !== out[noteIndex]) mismatch += 1;
+      });
+      if (mismatch < bestMismatch) {
+        bestMismatch = mismatch;
+        bestK = k;
+      }
+    }
+    if (bestK >= 0) group.forEach((noteIndex, j) => (out[noteIndex] = j < bestK ? 'left' : 'right'));
+    for (const noteIndex of group) {
+      const n = notes[noteIndex]!;
+      held.push({ end: n.time + n.duration, midi: n.midi, hand: out[noteIndex]! });
+    }
+  }
+  return out;
+}
+
+/**
+ * Tay đánh từng nốt (mảng song song với `notes`). Ưu tiên chia theo track, nếu không thì theo cao độ; sau đó sửa cho
+ * hai tay không chéo nhau.
+ */
 export function assignHands(notes: readonly PlayerNote[]): Hand[] {
-  return splitByTrack(notes) ?? splitByPitch(notes);
+  return repairCrossings(notes, splitByTrack(notes) ?? splitByPitch(notes));
 }

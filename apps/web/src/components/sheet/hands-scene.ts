@@ -21,7 +21,7 @@ import type { HandPose, HandsPose } from '@/lib/midi/hands/hand-path';
  */
 
 const PALM_Y = FALL_H + WHITE_H + 2.2;
-const PALM_W = 4.6;
+const PALM_W = 4.0;
 const PALM_H = 1.5;
 const KNUCKLE_Y = PALM_Y - PALM_H / 2;
 const WHITE_TIP_Y = FALL_H + 2.7;
@@ -89,8 +89,7 @@ function updateHand(rig: HandRig, hand: 'left' | 'right', pose: HandPose | null)
   pose.fingers.forEach((finger, i) => {
     const rig5 = rig.fingers[i]!;
     const thumb = finger.finger === 1;
-    const offset = hand === 'right' ? finger.finger - 3 : 3 - finger.finger;
-    const kx = pose.x + offset * 0.95;
+    const kx = finger.knuckleX;
     const ky = thumb ? KNUCKLE_Y + 0.9 : KNUCKLE_Y;
     const targetY = (finger.black ? BLACK_TIP_Y : WHITE_TIP_Y) + (thumb ? 0.5 : 0);
     const restY = ky - REST_REACH;
@@ -141,10 +140,10 @@ export function createHandsScene(canvas: HTMLCanvasElement, whiteKeys: number): 
   sun.position.set(-3, -4, 8);
   scene.add(sun);
 
-  // Hình học dùng chung: thân ngón có đường kính 0.66 và chiều dài 1 (kéo giãn theo trục Y).
+  // Hình học dùng chung: thân ngón có đường kính 0.8 và chiều dài 1 (kéo giãn theo trục Y).
   const shared = {
-    bone: new CylinderGeometry(0.33, 0.33, 1, 12),
-    joint: new SphereGeometry(0.33, 12, 8),
+    bone: new CylinderGeometry(0.4, 0.4, 1, 12),
+    joint: new SphereGeometry(0.4, 12, 8),
     palm: new BoxGeometry(PALM_W, PALM_H, 0.5),
   };
   const rigs = { left: buildHand('left', shared), right: buildHand('right', shared) };

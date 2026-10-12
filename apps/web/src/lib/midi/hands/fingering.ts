@@ -15,6 +15,9 @@ const REPEAT_OTHER_PITCH = 3;
 const REPOSITION_GAP = 1;
 const REPOSITION_WEIGHT = 0.3;
 const MAX_FINGERS = 5;
+/** Quãng tối đa (nửa cung) giữa hai ngón cách nhau 1, 2, 3, 4 ngón khi đánh cùng lúc. */
+const MAX_SPAN = [0, 5, 8, 10, 12] as const;
+const OVER_SPAN_PENALTY = 2;
 
 /** Mọi tập con kích thước `m` của {1..5}, mỗi tập sắp tăng dần. */
 const SUBSETS: Finger[][][] = Array.from({ length: MAX_FINGERS + 1 }, () => []);
@@ -44,6 +47,8 @@ function unaryCost(fingers: readonly Finger[], pitches: readonly number[]): numb
       const gap = Math.abs(pitches[i]! - pitches[i - 1]!);
       const reach = Math.abs(fingers[i]! - fingers[i - 1]!) * SEMITONES_PER_FINGER;
       cost += CHORD_FIT_WEIGHT * Math.min(Math.abs(gap - reach), MISMATCH_CAP);
+      const fingerGap = Math.abs(fingers[i]! - fingers[i - 1]!);
+      cost += OVER_SPAN_PENALTY * Math.max(0, gap - MAX_SPAN[fingerGap]!);
     }
   }
   // Hoà khi mọi thứ bằng nhau: ưu tiên thế tay quanh ngón giữa.

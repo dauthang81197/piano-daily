@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ErrorCode } from '@piano-daily/shared';
+import { ErrorCode, formatUsd } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
 import type { Env } from '../../config/env';
 import { AlertService } from '../notify/alert.service';
@@ -58,6 +58,10 @@ export class WebhookService {
     }
     if (PAYPAL_SIGNATURE_HEADERS.some((name) => !headers[name])) throw badRequest('Thiếu header chữ ký webhook.');
 
+    // Body phải là một event JSON hợp lệ trước khi ghép vào yêu cầu xác thực gửi PayPal.
+    const event = parseEvent(rawBody);
+    if (!event) throw badRequest('Nội dung webhook không hợp lệ.');
+
     let verified: boolean;
     try {
       verified = await this.provider.verifyWebhook(headers, rawBody);
@@ -70,9 +74,6 @@ export class WebhookService {
       void this.alerts.alert('WEBHOOK_ERROR', 'Lỗi webhook PayPal', 'Chữ ký webhook PayPal không hợp lệ.', 'signature');
       throw badRequest('Chữ ký webhook không hợp lệ.');
     }
-
-    const event = parseEvent(rawBody);
-    if (!event) throw badRequest('Nội dung webhook không hợp lệ.');
 
     const recorded = await this.events.record(event.id, event.event_type, JSON.parse(rawBody));
     if (!recorded.created && recorded.processedAt) return;
@@ -101,8 +102,19 @@ export class WebhookService {
       if (order.status === 'REFUNDED') return;
       await this.orders.fulfil(order.id, toCompletedCapture(event.resource));
     } else if (type === 'PAYMENT.CAPTURE.REFUNDED') {
-      // PayPal không đảm bảo thứ tự: REFUNDED đến trước COMPLETED thì chưa hoàn được. Báo lỗi để PayPal gửi lại sau khi đơn đã PAID.
-      if (order.status !== 'PAID' && order.status !== 'REFUNDED') throw unavailable();
+      // PayPal không đảm bảo thứ tự: REFUNDED đến trước COMPLETED (đơn còn PENDING) thì chưa hoàn được. Báo lỗi để PayPal gửi lại
+      // sau khi đơn đã PAID. Đơn FAILED/CANCELLED không có khoản tiền nào để hoàn: ghi nhận rồi bỏ qua, không bắt PayPal gửi lại.
+      if (order.status === 'PENDING') throw unavailable();
+      if (order.status !== 'PAID' && order.status !== 'REFUNDED') {
+        this.logger.warn(`Webhook ${type}: bỏ qua, đơn ở trạng thái ${order.status}.`);
+        return;
+      }
+      // Chỉ hoàn toàn phần mới thu hồi quyền tải; hoàn một phần cần admin xử lý tay (Order vẫn PAID, token giữ nguyên).
+      if (!refundCoversOrder(event.resource, order)) {
+        this.logger.warn(`Webhook ${type}: hoàn tiền không phải toàn phần cho đơn ${order.orderCode}, giữ nguyên đơn.`);
+        void this.alerts.alert('REVIEW_REQUIRED', `Đơn ${order.orderCode} được hoàn tiền một phần`, `Đơn ${order.orderCode}: PayPal báo hoàn tiền không phải toàn phần, đơn và token giữ nguyên.`, order.orderCode);
+        return;
+      }
       await this.orders.refund(order.id);
     } else {
       await this.orders.failIfPending(order.id);
@@ -120,6 +132,12 @@ export class WebhookService {
     const orderCode = str(resource.custom_id);
     return orderCode ? this.orderRepo.findByOrderCode(orderCode) : null;
   }
+}
+
+/** Số tiền của refund bằng đúng số tiền Order (cùng USD). Thiếu amount thì coi là không xác định, không hoàn. */
+function refundCoversOrder(resource: Record<string, unknown>, order: { amountCents: number; currency: string }): boolean {
+  const amount = isRecord(resource.amount) ? resource.amount : {};
+  return str(amount.value) === formatUsd(order.amountCents) && str(amount.currency_code) === order.currency;
 }
 
 function parseEvent(rawBody: string): PaypalEvent | null {

@@ -98,6 +98,21 @@ describe('Capture thanh toán và cấp DownloadToken (Story 3.4, Postgres thậ
     provider.capture.mockResolvedValue(completed());
   });
 
+  it('migration: order_id và token UNIQUE, CHECK lượt tải; trùng order_id bị DB từ chối', async () => {
+    const idx = await prisma.$queryRaw<{ indexname: string }[]>`
+      SELECT indexname FROM pg_indexes
+      WHERE indexname IN ('download_tokens_order_id_key', 'download_tokens_token_key') AND indexdef LIKE 'CREATE UNIQUE%'`;
+    expect(idx.map((r) => r.indexname).sort()).toEqual(['download_tokens_order_id_key', 'download_tokens_token_key']);
+    const checks = await prisma.$queryRaw<{ conname: string }[]>`
+      SELECT conname FROM pg_constraint WHERE conname IN ('download_tokens_max_downloads_check', 'download_tokens_used_downloads_check')`;
+    expect(checks).toHaveLength(2);
+
+    const { order } = await addOrder();
+    const row = { orderId: order.id, expiresAt: new Date(Date.now() + 86_400_000), maxDownloads: 5 };
+    await prisma.downloadToken.create({ data: { ...row, token: 'T'.repeat(43) } });
+    await expect(prisma.downloadToken.create({ data: { ...row, token: 'U'.repeat(43) } })).rejects.toThrow();
+  });
+
   it('migration: order_id UNIQUE, token_id của download_logs là FK SET NULL, file RESTRICT', async () => {
     const rows = await prisma.$queryRaw<{ conname: string; confdeltype: string }[]>`
       SELECT conname, confdeltype::text FROM pg_constraint
@@ -133,6 +148,45 @@ describe('Capture thanh toán và cấp DownloadToken (Story 3.4, Postgres thậ
     expect(token.expiresAt.getTime()).toBeLessThan(Date.now() + 3 * 86_400_000 + 1000);
     expect(token.files.map((f) => f.sheetFileId)).toEqual([files[0]!.id]);
     expect(provider.capture).toHaveBeenCalledWith('PP-1', order.orderCode);
+  });
+
+  it('thiếu file hiện hành của loại đã mua: 503, rollback thật (Order không PAID, không token), đánh dấu review_required', async () => {
+    const { order, files } = await addOrder();
+    await prisma.sheetFile.update({ where: { id: files[0]!.id }, data: { supersededAt: new Date() } });
+    const res = await post({ paypalOrderId: 'PP-1' }).expect(503);
+    expect(errorResponseSchema.parse(res.body).error.code).toBe('SERVICE_UNAVAILABLE');
+    const row = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(row).toMatchObject({ status: 'PENDING', paidAt: null, reviewRequired: true });
+    expect(await prisma.downloadToken.count({ where: { orderId: order.id } })).toBe(0);
+  });
+
+  it('Bundle nhiều loại: mỗi loại đúng một file hiện hành mới nhất, bản superseded bị bỏ, files sắp ổn định theo tên loại', async () => {
+    const { order, sheet, files } = await addOrder();
+    // PDF cũ đã bị thay: bản hiện hành mới (không superseded) mới là bản được cấp.
+    await prisma.sheetFile.update({ where: { id: files[0]!.id }, data: { supersededAt: new Date() } });
+    const newPdf = await prisma.sheetFile.create({
+      data: { sheetId: sheet.id, type: 'PDF', storageKey: `private/sheets/${sheet.id}/PDF/new.bin`, size: 1, mimeType: 'application/octet-stream' },
+    });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        amountCents: 799,
+        items: [
+          { fileType: 'MP3', priceCents: 199 },
+          { fileType: 'PDF', priceCents: 499 },
+          { fileType: 'MIDI', priceCents: 101 },
+        ],
+      },
+    });
+    provider.capture.mockResolvedValue(completed({ amount: '7.99' }));
+    const res = await post({ paypalOrderId: 'PP-1' }).expect(200);
+    const body = captureOrderResponseSchema.parse(res.body);
+    expect(body.files.map((f) => f.fileType)).toEqual(['MIDI', 'MP3', 'PDF']);
+    const token = await prisma.downloadToken.findUniqueOrThrow({ where: { orderId: order.id }, include: { files: true } });
+    expect(token.files).toHaveLength(3);
+    const ids = token.files.map((f) => f.sheetFileId);
+    expect(ids).toContain(newPdf.id);
+    expect(ids).not.toContain(files[0]!.id);
   });
 
   it('gọi lại khi đã PAID: cùng token, không gọi PayPal, không tạo token thứ hai', async () => {

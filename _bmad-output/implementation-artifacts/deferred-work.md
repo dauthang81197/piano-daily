@@ -142,3 +142,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-2-backup-hang-dem-va-kiem-tra-khoi-phuc.md`
   summary: Vòng lặp backup không chạy bù khi container/VPS tắt đúng giờ, không bắt SIGTERM, và không có healthcheck/dấu hiệu lần thành công cuối (cần cho cảnh báo Story 5.3).
   evidence: Nếu container tắt lúc `BACKUP_AT`, lần backup bị bỏ tới hôm sau không có log; service lỗi liên tục vẫn trông khoẻ dưới `restart: unless-stopped`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-8-webhook-paypal.md`
+  summary: `PAYMENT.CAPTURE.REVERSED` (chargeback) và `CUSTOMER.DISPUTE.*` rơi vào nhánh "đã xử lý"; đơn vẫn PAID và token vẫn sống. Cần chọn chính sách thu hồi và ghi alert.
+  evidence: `WebhookService.dispatch` chỉ xử lý COMPLETED, REFUNDED, DENIED rồi return; review Epic 3 (2026-10-12).
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-8-webhook-paypal.md`
+  summary: Hai delivery đồng thời của cùng event id đều chạy `dispatch` (không có lease); an toàn nhờ `fulfil`/`refund`/`failIfPending` idempotent. `rawBody` bật toàn app; `payment_events.payload` lưu vô thời hạn (có thể chứa email/địa chỉ người mua); mỗi webhook xin OAuth token mới (tối đa 2 × 15 giây).
+  evidence: `PaymentEventRepository.record` trả `created:false, processedAt:null` cho mọi bản trùng chưa xử lý; `PaypalProvider.verifyWebhook` không cache access token.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent.md`
+  summary: Capture lặp lại với đơn PAID trả token đã hết hạn/revoked/hết lượt kèm `files: []` (GC đã xoá `download_token_files`) mà vẫn 200; trang tải (3.5) và UI phải xử lý danh sách rỗng. Lost-race `fulfil` khi người thắng rollback trả 404 thay vì 503 chung.
+  evidence: `OrderService.existingFulfilment` không kiểm trạng thái token; `fulfil` ném `notFound` khi đọc lại không thấy PAID; review Epic 3 (2026-10-12).

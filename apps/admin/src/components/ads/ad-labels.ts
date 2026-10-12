@@ -1,4 +1,4 @@
-import { AdPosition } from '@piano-daily/shared';
+import { AdPlatform, AdPosition } from '@piano-daily/shared';
 
 export const POSITION_ORDER: readonly AdPosition[] = [
   AdPosition.HEADER,
@@ -19,3 +19,5 @@ export const POSITION_LABELS: Record<AdPosition, string> = {
 };
 
 export const READ_ONLY_REASON = 'Chỉ SUPER_ADMIN được thay đổi quảng cáo. Tài khoản của bạn chỉ có quyền xem.';
+
+export const PLATFORM_ORDER: readonly AdPlatform[] = [AdPlatform.SHOPEE, AdPlatform.TIKTOK, AdPlatform.LAZADA, AdPlatform.OTHER];

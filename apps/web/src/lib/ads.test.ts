@@ -13,7 +13,7 @@ describe('fetchAds', () => {
     fetchMock.mockReset();
   });
 
-  const data = [{ position: 'HEADER', htmlCode: '<b>x</b>', image: null, link: null }];
+  const data = [{ position: 'HEADER', htmlCode: '<b>x</b>', items: [] }];
 
   it('gọi /ads với tag ads và trả dữ liệu', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify(data), { status: 200 }));

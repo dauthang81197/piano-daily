@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AdImageService } from './ad-image.service';
 import { PdfProcessor } from './pdf-processor';
 import { SheetMediaService } from './sheet-media.service';
 import { SiteLogoService } from './site-logo.service';
@@ -9,7 +10,7 @@ import { StorageService } from './storage.service';
  * không sở hữu bảng nào — `catalog` ghi `SheetFile` sau khi object đã lưu xong.
  */
 @Module({
-  providers: [StorageService, PdfProcessor, SheetMediaService, SiteLogoService],
-  exports: [StorageService, SheetMediaService, SiteLogoService],
+  providers: [StorageService, PdfProcessor, SheetMediaService, SiteLogoService, AdImageService],
+  exports: [StorageService, SheetMediaService, SiteLogoService, AdImageService],
 })
 export class MediaModule {}

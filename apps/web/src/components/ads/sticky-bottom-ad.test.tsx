@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 import { StickyBottomAd } from './sticky-bottom-ad';
 
-const slots = [{ position: 'STICKY_BOTTOM' as const, htmlCode: '<p>x</p>', image: null, link: null }];
+const slots = [{ position: 'STICKY_BOTTOM' as const, htmlCode: '<p>x</p>', items: [] }];
 
 describe('StickyBottomAd', () => {
   it('thanh cố định đáy, z thấp hơn modal (z-50), nút đóng 44px, iframe sandbox', () => {

@@ -395,7 +395,7 @@ describe('SheetDetail — nút mua (Story 3.6)', () => {
 });
 
 describe('SheetDetail — quảng cáo (Story 4.6)', () => {
-  const ad = (position: 'IN_CONTENT' | 'SIDEBAR_RIGHT' | 'SIDEBAR_LEFT', htmlCode = '<p>ad</p>') => ({ position, htmlCode, image: null, link: null });
+  const ad = (position: 'IN_CONTENT' | 'SIDEBAR_RIGHT' | 'SIDEBAR_LEFT', htmlCode = '<p>ad</p>') => ({ position, htmlCode, items: [] });
   const all = [ad('IN_CONTENT'), ad('SIDEBAR_RIGHT'), ad('SIDEBAR_LEFT')];
   const ads = (c: HTMLElement) => Array.from(c.querySelectorAll('aside[aria-label="Advertisement"]'));
 

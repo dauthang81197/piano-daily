@@ -96,7 +96,13 @@
   "Ads": {
     "label": "Advertisement",
     "frameTitle": "Advertisement content",
-    "dismiss": "Close advertisement"
+    "dismiss": "Close advertisement",
+    "platform": {
+      "SHOPEE": "Shopee",
+      "TIKTOK": "TikTok",
+      "LAZADA": "Lazada",
+      "OTHER": "Other"
+    }
   },
   "Pagination": {
     "label": "Pagination",

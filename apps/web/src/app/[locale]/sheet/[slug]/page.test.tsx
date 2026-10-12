@@ -93,7 +93,7 @@ describe('SheetPage', () => {
   });
 
   it('lấy quảng cáo bằng fetchAds và truyền cho SheetDetail', async () => {
-    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_CONTENT', htmlCode: '<b>x</b>', image: null, link: null }]);
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_CONTENT', htmlCode: '<b>x</b>', items: [] }]);
     render(await run());
     expect(screen.getByRole('heading', { name: 'Für Elise' })).toHaveAttribute('data-ads', '1');
   });

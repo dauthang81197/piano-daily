@@ -67,8 +67,8 @@ describe('LocaleLayout', () => {
   it('HEADER ngay sau Header, STICKY_BOTTOM sau Footer', async () => {
     vi.mocked(fetchSiteSettings).mockResolvedValue(site);
     vi.mocked(fetchAds).mockResolvedValue([
-      { position: 'HEADER', htmlCode: 'x', image: null, link: null },
-      { position: 'STICKY_BOTTOM', htmlCode: 'y', image: null, link: null },
+      { position: 'HEADER', htmlCode: 'x', items: [] },
+      { position: 'STICKY_BOTTOM', htmlCode: 'y', items: [] },
     ]);
     const html = renderToStaticMarkup(await LocaleLayout({ children: 'nội dung', params: Promise.resolve({ locale: 'vi' }) }));
     expect(html.indexOf('[header:')).toBeLessThan(html.indexOf('[ad:HEADER]'));

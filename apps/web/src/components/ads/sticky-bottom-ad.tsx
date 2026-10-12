@@ -16,7 +16,7 @@ export function StickyBottomAd({ slots }: { slots: readonly PublicAdSlot[] | und
   if (!slot || dismissed) return null;
   return (
     <>
-      <div aria-hidden="true" className="h-36" />
+      <div aria-hidden="true" className="h-44" />
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-start justify-center gap-2 bg-surface px-margin-mobile pb-2 pt-1 md:px-margin-desktop">
         <AdFrame slot={slot} className="w-full max-w-4xl" />
         <button

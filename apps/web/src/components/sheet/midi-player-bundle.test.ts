@@ -35,7 +35,7 @@ function eagerGraph(entry: string) {
     }
   };
   visit(entry);
-  return { files: [...files].map((f) => path.relative(src, f)), packages: [...packages] };
+  return { files: [...files].map((f) => path.relative(src, f).split(path.sep).join('/')), packages: [...packages] };
 }
 
 describe('bundle ban đầu của MIDI player (NFR6)', () => {
@@ -68,10 +68,21 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
     );
   });
 
+  it('three, lớp phủ bàn tay và cảnh 3D chỉ được nạp bằng import() động khi bật công tắc', () => {
+    expect(graph.packages).not.toContain('three');
+    expect(graph.files).not.toContain('components/sheet/hands-overlay.tsx');
+    expect(graph.files).not.toContain('components/sheet/hands-scene.ts');
+    expect(graph.files).not.toContain('lib/midi/hands/hand-path.ts');
+    expect(readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8')).toContain("import('./hands-overlay')");
+    expect(readFileSync(path.join(src, 'components/sheet/hands-overlay.tsx'), 'utf8')).toContain("await import('./hands-scene')");
+  });
+
   it('bộ dò bắt được vi phạm: file giả import zod hoặc note-json thì bị phát hiện', () => {
     // Kiểm chứng chính bộ dò trên một đồ thị mà ta biết có zod: note-json.ts.
     const bad = eagerGraph(path.join(src, 'lib/midi/note-json.ts'));
     expect(bad.packages).toContain('zod');
+    // Và trên lớp phủ bàn tay: cảnh 3D kéo `three` vào đồ thị tĩnh của chính nó.
+    expect(eagerGraph(path.join(src, 'components/sheet/hands-scene.ts')).packages).toContain('three');
   });
 });
 

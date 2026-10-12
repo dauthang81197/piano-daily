@@ -173,6 +173,8 @@
     "keyboardLabel": "Phím đàn ảo cho {title}",
     "nowPlaying": "Đang phát:",
     "simulatedNote": "Đây là bản mô phỏng, chỉ để tham khảo.",
+    "handsToggle": "Hiện bàn tay",
+    "handsNote": "Bàn tay chỉ là mô phỏng gợi ý, có thể không trùng với ngón đàn của người chơi thật.",
     "unsupported": "Trình duyệt của bạn không hỗ trợ Web Audio nên không thể nghe thử bản nhạc này. Hãy thử trình duyệt mới hơn.",
     "errorLoad": "Không tải được dữ liệu nốt nhạc. Hãy kiểm tra kết nối rồi bấm lại để thử lần nữa.",
     "errorEmpty": "Bản nhạc này không có nốt nào để phát."

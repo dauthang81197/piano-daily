@@ -1,16 +1,20 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
+import { HANDS_EXTRA, layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
 import type { ParsedNotes } from '@/lib/midi/note-json';
 import { PlayerCore, PLAYBACK_RATES, type AudioPort } from '@/lib/midi/player-core';
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
+import { canShowHands } from '@/lib/midi/hands/capabilities';
 import { claimAudio } from '@/lib/midi/audio-exclusive';
 import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
 import { PianoKeyboard } from './piano-keyboard';
+
+// Lớp phủ bàn tay (kéo theo `three`) chỉ được nạp khi người dùng bật công tắc.
+const HandsOverlay = lazy(() => import('./hands-overlay'));
 
 export interface MidiPlayerDeps {
   /**
@@ -68,6 +72,8 @@ export function MidiPlayer({
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [rate, setRate] = useState(1);
+  const [handsAvailable, setHandsAvailable] = useState(false);
+  const [handsOn, setHandsOn] = useState(false);
   const mounted = useRef(true);
   const coreRef = useRef<PlayerCore | null>(null);
   /** Đang kéo thanh tua: vòng cập nhật hình không ghi đè vị trí người dùng đang chọn. */
@@ -79,6 +85,7 @@ export function MidiPlayer({
     mounted.current = true;
     // Thiếu Web Audio: chỉ biết được ở trình duyệt, nên đổi sau khi mount.
     setSupported(hasWebAudio());
+    setHandsAvailable(canShowHands());
     return () => {
       mounted.current = false;
       clearTimeout(scrubTimer.current);
@@ -209,6 +216,11 @@ export function MidiPlayer({
       setPlaying(c.state === 'playing');
     }, SEEK_COMMIT_MS);
   };
+  const getTime = useCallback(() => coreRef.current?.position() ?? 0, []);
+  const onHandsUnavailable = useCallback(() => {
+    setHandsOn(false);
+    setHandsAvailable(false);
+  }, []);
   const onRate = (value: number) => {
     setRate(value);
     coreRef.current?.setRate(value);
@@ -262,6 +274,12 @@ export function MidiPlayer({
             ))}
           </select>
         </label>
+
+        {handsAvailable && phase === 'ready' ? (
+          <button type="button" onClick={() => setHandsOn((on) => !on)} aria-pressed={handsOn} className={control}>
+            {t('handsToggle')}
+          </button>
+        ) : null}
       </div>
 
       {phase === 'error' ? (
@@ -288,7 +306,24 @@ export function MidiPlayer({
         </span>
       </div>
 
-      <PianoKeyboard layout={layout} active={activeMidi} falling={view.falling} label={t('keyboardLabel', { title })} />
+      <div
+        className="relative"
+        style={handsOn ? { paddingBottom: `${(HANDS_EXTRA / layout.whiteKeys) * 100}%` } : undefined}
+      >
+        <PianoKeyboard layout={layout} active={activeMidi} falling={view.falling} label={t('keyboardLabel', { title })} />
+        {handsOn && parsed ? (
+          <Suspense fallback={null}>
+            <HandsOverlay
+              notes={parsed.notes}
+              layout={layout}
+              playing={playing}
+              position={position}
+              getTime={getTime}
+              onUnavailable={onHandsUnavailable}
+            />
+          </Suspense>
+        ) : null}
+      </div>
 
       <p className="text-body-md text-on-surface" aria-live="off">
         <span className="text-on-surface-variant">{t('nowPlaying')}</span>{' '}
@@ -296,6 +331,7 @@ export function MidiPlayer({
       </p>
 
       <p className="text-caption text-on-surface-variant">{t('simulatedNote')}</p>
+      {handsOn ? <p className="text-caption text-on-surface-variant">{t('handsNote')}</p> : null}
     </section>
   );
 }

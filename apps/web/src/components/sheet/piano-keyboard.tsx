@@ -1,9 +1,4 @@
-import type { FallingNote, KeyboardLayout } from '@/lib/midi/keyboard-layout';
-
-/** Chiều cao (đơn vị "phím trắng = 1 rộng") của vùng nốt rơi, phím trắng và phím đen. */
-const FALL_H = 5;
-const WHITE_H = 3.4;
-const BLACK_H = 2.1;
+import { BLACK_H, FALL_H, WHITE_H, type FallingNote, type KeyboardLayout } from '@/lib/midi/keyboard-layout';
 
 /**
  * Phím đàn ảo (SVG): phím trắng `surface-bright`, phím đen `on-surface`, nốt đang phát tô brass kèm tên nốt bằng chữ

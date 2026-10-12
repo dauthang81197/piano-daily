@@ -26,6 +26,14 @@ describe('parseNoteJson', () => {
     expect(duration).toBe(2.5);
   });
 
+  it('gắn chỉ số track (không tính track gõ) vào từng nốt', () => {
+    const { notes } = parseNoteJson({ tracks: [track([n(36, 0)], true), track([n(60, 0)]), track([n(48, 1)])] });
+    expect(notes.map((x) => [x.midi, x.track])).toEqual([
+      [60, 0],
+      [48, 1],
+    ]);
+  });
+
   it('bỏ track nhạc cụ gõ', () => {
     const { notes } = parseNoteJson({ tracks: [track([n(36, 0)], true), track([n(60, 0)])] });
     expect(notes.map((x) => x.midi)).toEqual([60]);

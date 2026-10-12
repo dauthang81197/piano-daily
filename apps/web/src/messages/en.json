@@ -173,6 +173,8 @@
     "keyboardLabel": "Virtual piano keyboard for {title}",
     "nowPlaying": "Now playing:",
     "simulatedNote": "Simulated playback, for reference only.",
+    "handsToggle": "Show hands",
+    "handsNote": "The hands are a simulated suggestion and may not match the fingering of a real performance.",
     "unsupported": "Your browser does not support Web Audio, so this piece cannot be played here. Try a newer browser.",
     "errorLoad": "The note data could not be loaded. Check your connection and press the button again to retry.",
     "errorEmpty": "This piece has no notes to play."

@@ -14,6 +14,8 @@ export interface PlayerNote {
   time: number;
   duration: number;
   velocity: number;
+  /** Chỉ số track (không tính track gõ) mà nốt thuộc về; dùng để chia tay trái/phải. */
+  track?: number;
 }
 
 export interface ParsedNotes {
@@ -58,8 +60,10 @@ export function parseNoteJson(json: unknown): ParsedNotes {
   if (!root.success) throw new NoteJsonError('invalid');
 
   const notes: PlayerNote[] = [];
+  let trackIndex = -1;
   for (const track of root.data.tracks) {
     if (track.instrument?.percussion) continue;
+    trackIndex += 1;
     for (const raw of track.notes) {
       const note = noteSchema.safeParse(raw);
       if (!note.success || note.data.time >= MAX_SECONDS) continue;
@@ -70,6 +74,7 @@ export function parseNoteJson(json: unknown): ParsedNotes {
         time,
         duration: Math.min(note.data.duration, MAX_SECONDS - time),
         velocity: velocity ?? 0.8,
+        track: trackIndex,
       });
     }
   }

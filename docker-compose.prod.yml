@@ -1,7 +1,9 @@
 # Piano Daily — production trên một VPS Linux. Triển khai bằng GitHub Actions (.github/workflows/ci-cd.yml):
 # image đã build sẵn trên Docker Hub, server chỉ `pull` và `up`. Cấu hình bí mật nằm ở `.env` TRÊN SERVER (không có trong repo).
 #   cd /opt/piano-daily && IMAGE_TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
-# Chỉ Caddy mở cổng ra ngoài (80, 443, 8443, 9443). Postgres, API, web, admin chỉ nằm trong mạng nội bộ của compose.
+# Không publish cổng nào ra host: Nginx Proxy Manager (NPM) có sẵn trên server giữ 80/443 và làm TLS + reverse proxy.
+# web/admin/api tham gia thêm network của NPM (biến NPM_NETWORK trong .env) với alias piano-web / piano-admin / piano-api;
+# Postgres chỉ nằm trong mạng nội bộ của compose. Proxy Host cần tạo trong NPM: xem README mục "CI/CD và deploy".
 # Chỉ chạy MỘT instance API (rate limit và dedupe lượt xem ở bộ nhớ trong, AD-15). File lưu ở Cloudflare R2, không có SeaweedFS.
 name: piano-daily
 
@@ -32,7 +34,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-piano}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-piano_daily}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Thiếu JWT_ACCESS_SECRET trong .env}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
-      CORS_ADMIN_ORIGIN: https://${SITE_HOST:?Thiếu SITE_HOST trong .env}:8443
+      CORS_ADMIN_ORIGIN: https://admin.${SITE_HOST:?Thiếu SITE_HOST trong .env}
       CORS_WEB_ORIGIN: https://${SITE_HOST}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
       VIEW_SALT: ${VIEW_SALT:?Thiếu VIEW_SALT trong .env}
@@ -59,6 +61,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      default: {}
+      proxy:
+        aliases: [piano-api]
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
       interval: 10s
@@ -75,6 +81,10 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      default: {}
+      proxy:
+        aliases: [piano-web]
 
   admin:
     image: ${DOCKERHUB_USERNAME}/piano-daily-admin:${IMAGE_TAG:-latest}
@@ -82,27 +92,17 @@ services:
     depends_on:
       api:
         condition: service_healthy
-
-  caddy:
-    image: caddy:2.10
-    restart: unless-stopped
-    environment:
-      SITE_HOST: ${SITE_HOST}
-    ports:
-      - '80:80'
-      - '443:443'
-      - '8443:8443'
-      - '9443:9443'
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      - web
-      - admin
-      - api
+    networks:
+      default: {}
+      proxy:
+        aliases: [piano-admin]
 
 volumes:
   postgres-data:
-  caddy-data:
-  caddy-config:
+
+networks:
+  # Network có sẵn của Nginx Proxy Manager. Xem tên bằng:
+  #   docker inspect nginx-proxy-manager --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+  proxy:
+    external: true
+    name: ${NPM_NETWORK:?Thiếu NPM_NETWORK trong .env (tên network của Nginx Proxy Manager)}

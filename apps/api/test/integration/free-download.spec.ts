@@ -81,6 +81,14 @@ describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
     expect(JSON.stringify(logs)).not.toContain('203.0.113.77');
   });
 
+  it('HEAD (bot xem trước liên kết) -> 405, không log, không URL', async () => {
+    const sheet = await addSheet({ files: ['PDF'] });
+    const res = await request(app.getHttpServer()).head(`/files/${sheet.id}/pdf/download`).redirects(0);
+    expect(res.status).toBe(405);
+    expect(res.headers.location).toBeUndefined();
+    expect(await prisma.downloadLog.count()).toBe(0);
+  });
+
   it('MIDI tải với đuôi .mid, MP3 với .mp3; mỗi lượt một dòng log', async () => {
     const sheet = await addSheet();
     const midi = await download(sheet.id, 'midi').expect(302);

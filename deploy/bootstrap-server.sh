@@ -43,4 +43,4 @@ ENV
   echo "Đã tạo $APP_DIR/.env (SITE_HOST=$SITE_HOST_DEFAULT). Hãy điền các biến S3_* của R2."
 fi
 
-echo "Cổng cần mở ra internet: 80, 443, 8443, 9443 (và SSH). Docker bỏ qua ufw khi publish cổng, nên chỉ Caddy được publish cổng."
+echo "Điền thêm vào $APP_DIR/.env: các biến S3_* và NPM_NETWORK (tên network của Nginx Proxy Manager). Compose không publish cổng; NPM giữ 80/443 và cần Proxy Host cho SITE_HOST, admin.SITE_HOST, api.SITE_HOST (xem README)."

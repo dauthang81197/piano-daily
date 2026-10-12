@@ -119,16 +119,25 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
 
 `.github/workflows/ci-cd.yml`: mọi PR chạy lint, typecheck, build và toàn bộ test (kể cả integration với Postgres/SeaweedFS). Push vào `develop` còn build 3 image (`<user>/piano-daily-{api,web,admin}:sha-<7 ký tự>` và `:latest`), đẩy lên Docker Hub rồi SSH vào VPS chạy `docker compose -f docker-compose.prod.yml up -d --wait`. API tự chạy `prisma migrate deploy` khi khởi động.
 
-**Kiến trúc trên server** (`docker-compose.prod.yml`): chỉ Caddy mở cổng 80/443/8443/9443; web ở `https://<SITE_HOST>`, admin ở `:8443`, API ở `:9443`. Cùng một hostname nên cookie refresh `Secure; SameSite=Strict` giữa admin và API hoạt động. Chưa có domain thì dùng `<ip-gạch-ngang>.sslip.io` (ví dụ `144-91-120-200.sslip.io`), Caddy tự xin chứng chỉ Let's Encrypt. File lưu ở Cloudflare R2. Chỉ chạy MỘT instance API.
+**Kiến trúc trên server** (`docker-compose.prod.yml`): không publish cổng nào. **Nginx Proxy Manager (NPM)** có sẵn trên server giữ 80/443 và làm TLS (Let's Encrypt) + reverse proxy; web/admin/api tham gia thêm network của NPM (biến `NPM_NETWORK`) với alias `piano-web`, `piano-admin`, `piano-api`. Ba hostname dưới cùng một gốc: web `https://<SITE_HOST>`, admin `https://admin.<SITE_HOST>`, API `https://api.<SITE_HOST>`; cùng "site" nên cookie refresh `Secure; SameSite=Strict` giữa admin và API hoạt động (`sslip.io` nằm trong Public Suffix List nên `<ip-gạch-ngang>.sslip.io` là gốc đăng ký). Chưa có domain thì dùng `<ip-gạch-ngang>.sslip.io` (ví dụ `144-91-120-200.sslip.io`, mọi tiền tố đều trỏ về IP). File lưu ở Cloudflare R2. Chỉ chạy MỘT instance API.
 
 **Thiết lập một lần**
-1. Trên server: `ssh root@<server> 'bash -s' < deploy/bootstrap-server.sh` (cài Docker, tạo `/opt/piano-daily/.env` với secret ngẫu nhiên). Điền các biến `S3_*` của R2 vào file đó (mẫu: `deploy/.env.production.example`). Mở cổng 80, 443, 8443, 9443.
+1. Trên server: `ssh root@<server> 'bash -s' < deploy/bootstrap-server.sh` (cài Docker, tạo `/opt/piano-daily/.env` với secret ngẫu nhiên). Điền các biến `S3_*` của R2 và `NPM_NETWORK` vào file đó (mẫu: `deploy/.env.production.example`). Tên network của NPM: `docker inspect nginx-proxy-manager --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`. NPM giữ cổng 80/443 nên không mở thêm cổng nào cho Piano Daily.
 2. Tạo cặp khoá SSH riêng cho deploy, thêm khoá công khai vào `~/.ssh/authorized_keys` của user deploy trên server.
 3. GitHub → Settings → Secrets and variables → Actions:
    - Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (access token Docker Hub quyền Read/Write), `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` (kết quả `ssh-keyscan <host>`).
-   - Variables: `SITE_HOST` (khớp `SITE_HOST` trong `.env` của server), `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`).
+   - Variables: `SITE_HOST` (khớp `SITE_HOST` trong `.env` của server), `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`), `PAYPAL_CLIENT_ID`.
    - Environment `production` (có thể bật required reviewers nếu muốn duyệt trước khi deploy).
-4. Đổi `NEXT_PUBLIC_*` (host, URL media) thì phải build lại image: chạy lại workflow.
+4. Trong NPM (cổng 81) tạo 3 **Proxy Host**, mỗi cái bật *Block Common Exploits*, *Websockets Support* và tab SSL: *Request a new SSL Certificate* + *Force SSL*:
+
+   | Domain | Forward Hostname | Port |
+   |---|---|---|
+   | `<SITE_HOST>` | `piano-web` | 4100 |
+   | `admin.<SITE_HOST>` | `piano-admin` | 4101 |
+   | `api.<SITE_HOST>` | `piano-api` | 4000 |
+
+   Ở tab **Advanced** của host web và host API thêm `proxy_set_header CF-Connecting-IP $remote_addr;`. API đọc IP khách từ header này (AD-18) và không có Cloudflare phía trước, nên header phải do NPM ghi đè, nếu không client giả được để né rate limit. Cần tạo Proxy Host trước lần deploy đầu để bước kiểm tra `https://api.<SITE_HOST>/health` qua được.
+5. Đổi `NEXT_PUBLIC_*` (host, URL media) thì phải build lại image: chạy lại workflow.
 
 **CI bắt buộc và giám sát (Story 5.3):** nên bật branch protection cho `develop` bắt buộc check `test` pass trước khi merge (Settings → Branches; thao tác thủ công). Workflow `uptime.yml` gọi web và `/health` mỗi 5 phút theo Variables `UPTIME_WEB_URL`, `UPTIME_API_URL`; fail thì GitHub gửi email. Đặt `ALERT_EMAIL` trên server để nhận email khi có đơn `review_required`, capture muộn, lỗi webhook hoặc backup thất bại. Email cảnh báo và việc backup báo lỗi qua API chỉ được nối trong `docker-compose.cloudflare.yml`, KHÔNG có trong deploy sslip.io (`docker-compose.prod.yml`). Chi tiết: [docs/cicd.md](docs/cicd.md).
 

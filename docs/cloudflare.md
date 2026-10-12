@@ -1,6 +1,6 @@
 # Production sau Cloudflare (Story 5.1)
 
-Bộ cấu hình này chạy **song song** với deploy sslip.io hiện tại (`docker-compose.prod.yml`, `deploy/Caddyfile`, `.github/workflows/ci-cd.yml`) và không thay thế chúng.
+Bộ cấu hình này chạy **song song** với deploy sslip.io hiện tại (`docker-compose.prod.yml`, `.github/workflows/ci-cd.yml`) và không thay thế chúng.
 
 | File | Vai trò |
 |---|---|

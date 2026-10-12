@@ -90,7 +90,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/piano-daily-${{ matrix.app }}:${{ steps.meta.outputs.tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/piano-daily-${{ matrix.app }}:latest
           build-args: |
-            NEXT_PUBLIC_API_URL=https://${{ vars.SITE_HOST }}:9443
+            NEXT_PUBLIC_API_URL=https://api.${{ vars.SITE_HOST }}
             NEXT_PUBLIC_SITE_URL=https://${{ vars.SITE_HOST }}
             NEXT_PUBLIC_MEDIA_BASE_URL=${{ vars.MEDIA_BASE_URL }}
             NEXT_PUBLIC_CONTACT_EMAIL=${{ vars.CONTACT_EMAIL }}
@@ -123,11 +123,10 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      - name: Đồng bộ compose và Caddyfile
+      - name: Đồng bộ compose
         run: |
-          ssh $SSH_OPTS "$REMOTE" "mkdir -p $REMOTE_DIR/deploy"
+          ssh $SSH_OPTS "$REMOTE" "mkdir -p $REMOTE_DIR"
           scp $SSH_OPTS docker-compose.prod.yml "$REMOTE:$REMOTE_DIR/docker-compose.prod.yml"
-          scp $SSH_OPTS deploy/Caddyfile "$REMOTE:$REMOTE_DIR/deploy/Caddyfile"
 
       - name: Pull image và khởi động lại
         env:
@@ -151,7 +150,7 @@ jobs:
           SITE_HOST: ${{ vars.SITE_HOST }}
         run: |
           for i in 1 2 3 4 5 6; do
-            if curl -fsS "https://$SITE_HOST:9443/health" >/dev/null; then echo "API khoẻ"; exit 0; fi
+            if curl -fsS "https://api.$SITE_HOST/health" >/dev/null; then echo "API khoẻ"; exit 0; fi
             sleep 10
           done
           echo "API không phản hồi /health sau deploy" >&2

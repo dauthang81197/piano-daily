@@ -215,6 +215,36 @@ describe('Webhook PayPal (Story 3.8, Postgres thật, provider và email giả)'
     expect(row).toMatchObject({ status: 'PENDING', refundedAt: null });
   });
 
+  it('REFUNDED gửi lại với event id khác: lần hai không đổi refunded_at và revoked_at', async () => {
+    const order = await addOrder();
+    await post(event('PAYMENT.CAPTURE.COMPLETED', capture())).expect(200);
+    await post(event('PAYMENT.CAPTURE.REFUNDED', capture())).expect(200);
+    const first = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    const firstToken = await prisma.downloadToken.findUniqueOrThrow({ where: { orderId: order.id } });
+    await post(event('PAYMENT.CAPTURE.REFUNDED', capture())).expect(200);
+    const second = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    const secondToken = await prisma.downloadToken.findUniqueOrThrow({ where: { orderId: order.id } });
+    expect(second.refundedAt).toEqual(first.refundedAt);
+    expect(secondToken.revokedAt).toEqual(firstToken.revokedAt);
+  });
+
+  it('REFUNDED một phần: 200, đơn vẫn PAID và token còn hiệu lực', async () => {
+    const order = await addOrder();
+    await post(event('PAYMENT.CAPTURE.COMPLETED', capture())).expect(200);
+    await post(event('PAYMENT.CAPTURE.REFUNDED', capture({ id: 'R-1', amount: { value: '1.00', currency_code: 'USD' } }))).expect(200);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('PAID');
+    expect((await prisma.downloadToken.findUniqueOrThrow({ where: { orderId: order.id } })).revokedAt).toBeNull();
+    expect(await prisma.paymentEvent.count({ where: { processedAt: null } })).toBe(0);
+  });
+
+  it('REFUNDED khi đơn FAILED: 200 và processed, không bắt PayPal gửi lại', async () => {
+    const order = await addOrder();
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'FAILED' } });
+    await post(event('PAYMENT.CAPTURE.REFUNDED', capture())).expect(200);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('FAILED');
+    expect(await prisma.paymentEvent.count({ where: { processedAt: null } })).toBe(0);
+  });
+
   it('DENIED: Order PENDING sang FAILED', async () => {
     const order = await addOrder();
     await post(event('PAYMENT.CAPTURE.DENIED', capture())).expect(200);

@@ -46,6 +46,9 @@ const clock = (seconds: number) => {
 
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
+/** Player rộng gần hết chiều ngang cửa sổ (thoát khỏi cột nội dung, căn giữa theo cửa sổ). */
+const PLAYER_WIDTH = 'relative left-1/2 flex w-[96vw] -translate-x-1/2 flex-col gap-3';
+
 const control =
   'rounded-sm border border-outline-variant bg-surface-bright px-2 py-1 text-body-md text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
@@ -228,7 +231,7 @@ export function MidiPlayer({
 
   if (!supported) {
     return (
-      <section aria-labelledby="sheet-player" className="flex flex-col gap-3">
+      <section aria-labelledby="sheet-player" className={PLAYER_WIDTH}>
         <h2 id="sheet-player" className="font-display text-headline-sm text-on-surface">
           {t('title')}
         </h2>
@@ -244,7 +247,7 @@ export function MidiPlayer({
     phase === 'loading' ? t('loading') : phase === 'ready' ? (playing ? t('pause') : t('play')) : t('playPractice');
 
   return (
-    <section aria-labelledby="sheet-player" className="flex flex-col gap-3">
+    <section aria-labelledby="sheet-player" className={PLAYER_WIDTH}>
       <h2 id="sheet-player" className="font-display text-headline-sm text-on-surface">
         {t('title')}
       </h2>

@@ -75,6 +75,80 @@ export function SheetDetail({
         ]}
       />
 
+      <header className="flex flex-col gap-4">
+        <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">
+          {t('heading', { title: sheet.title })}
+        </h1>
+        {sheet.subtitle ? <p className="text-body-lg text-on-surface-variant">{sheet.subtitle}</p> : null}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`${badge} ${LEVEL_BADGE[sheet.level]}`}>{nav(`levels.${levelSlug as 'beginner'}`)}</span>
+          {sheet.isHot ? <span className={`${badge} bg-hot-accent`}>{t('hot')}</span> : null}
+        </div>
+
+        <dl className="grid gap-x-6 gap-y-2 text-body-md sm:grid-cols-2">
+          <div>
+            <dt className="text-caption text-on-surface-variant">{t('composer')}</dt>
+            <dd>
+              <Link href={`/composer/${encodeURIComponent(sheet.composer.slug)}`} className={link}>
+                {sheet.composer.name}
+              </Link>
+            </dd>
+          </div>
+          {sheet.series ? (
+            <div>
+              <dt className="text-caption text-on-surface-variant">{t('series')}</dt>
+              <dd>{sheet.series.name}</dd>
+            </div>
+          ) : null}
+          {sheet.difficultyScore !== null ? (
+            <div>
+              <dt className="text-caption text-on-surface-variant">{t('difficulty')}</dt>
+              <dd>
+                {t('difficultyScore', { score: sheet.difficultyScore })}
+                {sheet.difficultyNote ? ` — ${sheet.difficultyNote}` : ''}
+              </dd>
+            </div>
+          ) : null}
+          <div>
+            <dt className="text-caption text-on-surface-variant">{t('views')}</dt>
+            <dd>{format.number(sheet.viewCount)}</dd>
+          </div>
+          {sheet.pageCount > 0 ? (
+            <div>
+              <dt className="text-caption text-on-surface-variant">{t('pages')}</dt>
+              <dd>{sheet.pageCount}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt className="text-caption text-on-surface-variant">{t('updated')}</dt>
+            <dd>{format.dateTime(new Date(sheet.updatedAt), { dateStyle: 'long', timeZone: 'UTC' })}</dd>
+          </div>
+        </dl>
+
+        {sheet.genres.length > 0 ? (
+          <ul aria-label={t('genres')} className="flex flex-wrap gap-2">
+            {sheet.genres.map((genre) => (
+              <li key={genre.id}>
+                <Link href={genreHref(genre.slug)} className={tag}>
+                  {genre.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {purchase ? (
+          <PurchaseButtons variant="group" title={sheet.title} types={downloads} />
+        ) : sheet.isFree && downloads.length > 0 ? (
+          <section aria-label={t('downloadGroup')}>
+            <DownloadButtons sheetId={sheet.id} title={sheet.title} types={downloads} />
+          </section>
+        ) : null}
+      </header>
+      {/* Player rộng gần hết chiều ngang trang, nên nằm ngoài lưới hai cột bên dưới. */}
+      <PlayerSlot midi={sheet.midi} title={sheet.title} />
+
       <div
         className={`grid gap-gutter ${hasLeftAd ? 'lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[12rem_minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'}`}
       >
@@ -84,79 +158,6 @@ export function SheetDetail({
           </div>
         ) : null}
         <article className="flex min-w-0 flex-col gap-gutter">
-          <header className="flex flex-col gap-4">
-            <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">
-              {t('heading', { title: sheet.title })}
-            </h1>
-            {sheet.subtitle ? <p className="text-body-lg text-on-surface-variant">{sheet.subtitle}</p> : null}
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`${badge} ${LEVEL_BADGE[sheet.level]}`}>{nav(`levels.${levelSlug as 'beginner'}`)}</span>
-              {sheet.isHot ? <span className={`${badge} bg-hot-accent`}>{t('hot')}</span> : null}
-            </div>
-
-            <dl className="grid gap-x-6 gap-y-2 text-body-md sm:grid-cols-2">
-              <div>
-                <dt className="text-caption text-on-surface-variant">{t('composer')}</dt>
-                <dd>
-                  <Link href={`/composer/${encodeURIComponent(sheet.composer.slug)}`} className={link}>
-                    {sheet.composer.name}
-                  </Link>
-                </dd>
-              </div>
-              {sheet.series ? (
-                <div>
-                  <dt className="text-caption text-on-surface-variant">{t('series')}</dt>
-                  <dd>{sheet.series.name}</dd>
-                </div>
-              ) : null}
-              {sheet.difficultyScore !== null ? (
-                <div>
-                  <dt className="text-caption text-on-surface-variant">{t('difficulty')}</dt>
-                  <dd>
-                    {t('difficultyScore', { score: sheet.difficultyScore })}
-                    {sheet.difficultyNote ? ` — ${sheet.difficultyNote}` : ''}
-                  </dd>
-                </div>
-              ) : null}
-              <div>
-                <dt className="text-caption text-on-surface-variant">{t('views')}</dt>
-                <dd>{format.number(sheet.viewCount)}</dd>
-              </div>
-              {sheet.pageCount > 0 ? (
-                <div>
-                  <dt className="text-caption text-on-surface-variant">{t('pages')}</dt>
-                  <dd>{sheet.pageCount}</dd>
-                </div>
-              ) : null}
-              <div>
-                <dt className="text-caption text-on-surface-variant">{t('updated')}</dt>
-                <dd>{format.dateTime(new Date(sheet.updatedAt), { dateStyle: 'long', timeZone: 'UTC' })}</dd>
-              </div>
-            </dl>
-
-            {sheet.genres.length > 0 ? (
-              <ul aria-label={t('genres')} className="flex flex-wrap gap-2">
-                {sheet.genres.map((genre) => (
-                  <li key={genre.id}>
-                    <Link href={genreHref(genre.slug)} className={tag}>
-                      {genre.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {purchase ? (
-              <PurchaseButtons variant="group" title={sheet.title} types={downloads} />
-            ) : sheet.isFree && downloads.length > 0 ? (
-              <section aria-label={t('downloadGroup')}>
-                <DownloadButtons sheetId={sheet.id} title={sheet.title} types={downloads} />
-              </section>
-            ) : null}
-          </header>
-
-          <PlayerSlot midi={sheet.midi} title={sheet.title} />
 
           {sheet.pages.length > 0 ? (
             <section aria-labelledby="sheet-pages" className="flex flex-col gap-4">

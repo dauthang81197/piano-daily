@@ -2,12 +2,12 @@ import type { PlayerNote } from './note-json';
 import { noteName as noteNameOf } from './note-name';
 
 /** Nốt rơi nhìn trước bao nhiêu giây. */
-export const LOOKAHEAD_SECONDS = 2;
+export const LOOKAHEAD_SECONDS = 4;
 /** Số hình chữ nhật nốt rơi tối đa mỗi khung hình. */
-export const MAX_FALLING = 64;
+export const MAX_FALLING = 128;
 
 /** Chiều cao (đơn vị "phím trắng = 1 rộng") của vùng nốt rơi, phím trắng và phím đen trên phím đàn SVG. */
-export const FALL_H = 5;
+export const FALL_H = 20;
 export const WHITE_H = 3.4;
 export const BLACK_H = 2.1;
 /** Chiều cao thêm (cùng đơn vị) dưới mép phím cho lòng bàn tay khi bật bàn tay 3D. */

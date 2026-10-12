@@ -31,6 +31,8 @@ admin.{$ROOT_DOMAIN} {
 
 api.{$ROOT_DOMAIN} {
 	encode zstd gzip
+	# /internal/* chỉ dành cho dịch vụ trong mạng Docker (backup gọi http://api:4000), không mở ra internet.
+	respond /internal/* 404
 	reverse_proxy api:4000 {
 		header_up CF-Connecting-IP {client_ip}
 	}

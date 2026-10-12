@@ -84,7 +84,7 @@ describe('LevelPage', () => {
   });
 
   it('IN_LIST: truyền quảng cáo từ fetchAds vào AdSlotFrame, nằm sau lưới', async () => {
-    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_LIST', htmlCode: '<b>x</b>', image: null, link: null }]);
+    fetchAds.mockResolvedValue([{ id: 'a1', position: 'IN_LIST', htmlCode: '<b>x</b>', items: [] }]);
     render(await run('beginner'));
     const ad = screen.getByTestId('ad');
     expect(ad).toHaveAttribute('data-position', 'IN_LIST');

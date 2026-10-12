@@ -96,7 +96,13 @@
   "Ads": {
     "label": "Quảng cáo",
     "frameTitle": "Nội dung quảng cáo",
-    "dismiss": "Đóng quảng cáo"
+    "dismiss": "Đóng quảng cáo",
+    "platform": {
+      "SHOPEE": "Shopee",
+      "TIKTOK": "TikTok",
+      "LAZADA": "Lazada",
+      "OTHER": "Khác"
+    }
   },
   "Pagination": {
     "label": "Phân trang",

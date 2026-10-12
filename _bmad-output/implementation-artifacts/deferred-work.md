@@ -152,3 +152,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4-capture-thanh-toan-va-cap-downloadtoken-idempotent.md`
   summary: Capture lặp lại với đơn PAID trả token đã hết hạn/revoked/hết lượt kèm `files: []` (GC đã xoá `download_token_files`) mà vẫn 200; trang tải (3.5) và UI phải xử lý danh sách rỗng. Lost-race `fulfil` khi người thắng rollback trả 404 thay vì 503 chung.
   evidence: `OrderService.existingFulfilment` không kiểm trạng thái token; `fulfil` ném `notFound` khi đọc lại không thấy PAID; review Epic 3 (2026-10-12).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ads-affiliate-nhieu-san-pham.md`
+  summary: Ảnh quảng cáo đã tải lên R2 (`public/ads/<hash>.webp`) không bị xoá khi thay ảnh hoặc gỡ sản phẩm; cần cách dọn ảnh mồ côi.
+  evidence: `AdImageService.store` chỉ ghi, `AdsService.update/remove` không đụng R2 (theo Never của spec), nên bucket public chỉ lớn lên.
+- source_spec: `_bmad-output/implementation-artifacts/spec-ads-affiliate-nhieu-san-pham.md`
+  summary: Ở môi trường local (SeaweedFS, `S3_PUBLIC_BASE_URL` là `http://`), URL ảnh vừa tải lên không qua kiểm `https` của sản phẩm quảng cáo nên không lưu được slot.
+  evidence: `adItemInputSchema` và CHECK `ad_items_urls_check` yêu cầu `https://`; `StorageService.publicUrl` trả base URL cấu hình; production (R2) là https nên không ảnh hưởng.

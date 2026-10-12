@@ -16,7 +16,11 @@ import { POSITION_LABELS, POSITION_ORDER, READ_ONLY_REASON } from './ad-labels';
 
 type DialogState = { open: false } | { open: true; item: AdSlot | null };
 
-const kindOf = (s: AdSlot) => (s.htmlCode ? 'Mã HTML' : 'Ảnh + link');
+const kindOf = (s: AdSlot) => {
+  const parts = [s.items.length > 0 ? `${s.items.length} sản phẩm` : null, s.htmlCode ? 'Mã HTML' : null].filter(Boolean);
+  return parts.join(' + ') || 'Trống';
+};
+const clicks7d = (s: AdSlot) => s.items.reduce((sum, i) => sum + i.clicks7d, 0);
 const messageOf = (err: unknown) => applyServerError(err, [] as const, () => undefined);
 
 /** Trang Quảng cáo (Story 4.5): slot theo vị trí, tạo/sửa trong dialog, bật/tắt, xoá. */
@@ -96,6 +100,7 @@ export function AdTable() {
           <TableRow>
             <TableHead>Vị trí</TableHead>
             <TableHead>Nội dung</TableHead>
+            <TableHead>Lượt bấm 7 ngày</TableHead>
             <TableHead>Bật</TableHead>
             <TableHead className="text-right">Thao tác</TableHead>
           </TableRow>
@@ -105,6 +110,7 @@ export function AdTable() {
             <TableRow key={slot.id}>
               <TableCell>{POSITION_LABELS[slot.position]}</TableCell>
               <TableCell>{kindOf(slot)}</TableCell>
+              <TableCell>{slot.items.length > 0 ? clicks7d(slot) : '–'}</TableCell>
               <TableCell>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -142,7 +148,7 @@ export function AdTable() {
           ))}
           {slots && slots.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                 Chưa có quảng cáo nào. Bấm “Tạo mới” để thêm.
               </TableCell>
             </TableRow>
@@ -157,7 +163,7 @@ export function AdTable() {
               <DialogHeader>
                 <DialogTitle>{dialog.item ? 'Sửa quảng cáo' : 'Tạo quảng cáo'}</DialogTitle>
                 <DialogDescription>
-                  Cần mã HTML, hoặc cả ảnh và link (URL https). Mỗi vị trí có tối đa một quảng cáo.
+                  Thêm tối đa 12 sản phẩm (ảnh và link affiliate, chọn Shopee, TikTok, Lazada hoặc Khác) hoặc nhập mã HTML. Mỗi vị trí có một quảng cáo.
                 </DialogDescription>
               </DialogHeader>
               <AdForm

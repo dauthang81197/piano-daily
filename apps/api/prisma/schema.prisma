@@ -372,16 +372,55 @@ enum AdPosition {
 }
 
 /// Vị trí quảng cáo (Story 4.5). Chỉ module `ads` ghi. `position` UNIQUE: mỗi vị trí tối đa một slot.
-/// CHECK (migration): có `html_code` HOẶC (`image` VÀ `link`). `html_code` không bao giờ vào log.
+/// Nội dung slot: `html_code` HOẶC danh sách `items` (kiểm ở service, không có CHECK liên bảng). `html_code` không bao giờ vào log.
 model AdSlot {
   id        String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
   position  AdPosition @unique
   htmlCode  String?    @map("html_code")
-  image     String?
-  link      String?
   isActive  Boolean    @default(false) @map("is_active")
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  items AdItem[]
+
   @@map("ad_slots")
+}
+
+/// Nền tảng của sản phẩm quảng cáo; phải trùng const `AdPlatform` trong shared (có test).
+enum AdPlatform {
+  SHOPEE
+  TIKTOK
+  LAZADA
+  OTHER
+}
+
+/// Sản phẩm trong một slot (ảnh + link affiliate). Chỉ module `ads` ghi. CHECK (migration): image/link bắt đầu `https://`.
+model AdItem {
+  id        String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  slotId    String     @map("slot_id") @db.Uuid
+  platform  AdPlatform
+  image     String
+  link      String
+  label     String?
+  sortOrder Int        @map("sort_order")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  slot   AdSlot    @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  clicks AdClick[]
+
+  @@index([slotId, sortOrder])
+  @@map("ad_items")
+}
+
+/// Số lượt bấm theo sản phẩm và ngày (UTC). Không lưu IP, UA hay cookie. Chỉ module `ads` ghi.
+model AdClick {
+  itemId String   @map("item_id") @db.Uuid
+  day    DateTime @db.Date
+  count  Int      @default(0)
+
+  item AdItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, day])
+  @@map("ad_clicks")
 }

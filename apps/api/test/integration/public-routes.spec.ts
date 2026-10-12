@@ -27,6 +27,7 @@ const PUBLIC_ROUTES = ['GET /health', 'POST /auth/login', 'POST /auth/refresh', 
   'GET /levels/:level/summary',
   'GET /settings/site',
   'GET /ads',
+  'POST /ads/items/:id/click',
   'POST /internal/alerts',
 ];
 

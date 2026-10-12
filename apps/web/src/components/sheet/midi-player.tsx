@@ -46,8 +46,8 @@ const clock = (seconds: number) => {
 
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
-/** Player rộng gần hết chiều ngang cửa sổ (thoát khỏi cột nội dung, căn giữa theo cửa sổ). */
-const PLAYER_WIDTH = 'relative left-1/2 flex w-[96vw] -translate-x-1/2 flex-col gap-3';
+/** Player rộng khoảng 77% chiều ngang cửa sổ (thoát khỏi cột nội dung, căn giữa theo cửa sổ). */
+const PLAYER_WIDTH = 'relative left-1/2 flex w-[77vw] -translate-x-1/2 flex-col gap-3';
 
 const HANDS_PREF_KEY = 'piano-daily:show-hands';
 

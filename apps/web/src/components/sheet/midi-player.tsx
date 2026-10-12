@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { HANDS_EXTRA, layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
+import { layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
 import type { ParsedNotes } from '@/lib/midi/note-json';
 import { PlayerCore, PLAYBACK_RATES, type AudioPort } from '@/lib/midi/player-core';
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
@@ -13,8 +13,8 @@ import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } f
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
 import { PianoKeyboard } from './piano-keyboard';
 
-// Lớp phủ bàn tay (kéo theo `three`) chỉ được nạp khi người dùng bật công tắc.
-const HandsOverlay = lazy(() => import('./hands-overlay'));
+// Cảnh 3D (kéo theo `three` và model bàn tay) chỉ được nạp khi player đã sẵn sàng sau lần bấm Play đầu tiên.
+const PianoView = lazy(() => import('./piano-view'));
 
 export interface MidiPlayerDeps {
   /**
@@ -94,10 +94,12 @@ export function MidiPlayer({
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [rate, setRate] = useState(1);
-  const [handsAvailable, setHandsAvailable] = useState(false);
+  /** Môi trường dùng được cảnh 3D (WebGL, không giảm chuyển động) và cảnh chưa báo lỗi. */
+  const [view3dAvailable, setView3dAvailable] = useState(false);
   /** Lựa chọn của người dùng: mặc định bật, nhớ lại lần tắt gần nhất. */
   const [handsPref, setHandsPref] = useState(true);
-  const handsOn = handsAvailable && handsPref;
+  const use3d = view3dAvailable && phase === 'ready' && parsed !== null;
+  const handsOn = use3d && handsPref;
   const mounted = useRef(true);
   const coreRef = useRef<PlayerCore | null>(null);
   /** Đang kéo thanh tua: vòng cập nhật hình không ghi đè vị trí người dùng đang chọn. */
@@ -109,7 +111,7 @@ export function MidiPlayer({
     mounted.current = true;
     // Thiếu Web Audio: chỉ biết được ở trình duyệt, nên đổi sau khi mount.
     setSupported(hasWebAudio());
-    setHandsAvailable(canShowHands());
+    setView3dAvailable(canShowHands());
     setHandsPref(readHandsPref());
     return () => {
       mounted.current = false;
@@ -242,7 +244,7 @@ export function MidiPlayer({
     }, SEEK_COMMIT_MS);
   };
   const getTime = useCallback(() => coreRef.current?.position() ?? 0, []);
-  const onHandsUnavailable = useCallback(() => setHandsAvailable(false), []);
+  const onViewUnavailable = useCallback(() => setView3dAvailable(false), []);
   const onToggleHands = () => {
     const next = !handsPref;
     setHandsPref(next);
@@ -302,7 +304,7 @@ export function MidiPlayer({
           </select>
         </label>
 
-        {handsAvailable && phase === 'ready' ? (
+        {use3d ? (
           <button type="button" onClick={onToggleHands} aria-pressed={handsOn} className={control}>
             {t('handsToggle')}
           </button>
@@ -333,24 +335,22 @@ export function MidiPlayer({
         </span>
       </div>
 
-      <div
-        className="relative"
-        style={handsOn ? { paddingBottom: `${(HANDS_EXTRA / layout.whiteKeys) * 100}%` } : undefined}
-      >
+      {use3d && parsed ? (
+        <Suspense fallback={null}>
+          <PianoView
+            notes={parsed.notes}
+            layout={layout}
+            playing={playing}
+            position={position}
+            getTime={getTime}
+            showHands={handsPref}
+            label={t('keyboardLabel', { title })}
+            onUnavailable={onViewUnavailable}
+          />
+        </Suspense>
+      ) : (
         <PianoKeyboard layout={layout} active={activeMidi} falling={view.falling} label={t('keyboardLabel', { title })} />
-        {handsOn && parsed ? (
-          <Suspense fallback={null}>
-            <HandsOverlay
-              notes={parsed.notes}
-              layout={layout}
-              playing={playing}
-              position={position}
-              getTime={getTime}
-              onUnavailable={onHandsUnavailable}
-            />
-          </Suspense>
-        ) : null}
-      </div>
+      )}
 
       <p className="text-body-md text-on-surface" aria-live="off">
         <span className="text-on-surface-variant">{t('nowPlaying')}</span>{' '}

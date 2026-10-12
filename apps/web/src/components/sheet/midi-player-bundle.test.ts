@@ -68,13 +68,20 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
     );
   });
 
-  it('three, lớp phủ bàn tay và cảnh 3D chỉ được nạp bằng import() động khi bật công tắc', () => {
+  it('three, loader, model và cảnh 3D chỉ được nạp bằng import() động khi player sẵn sàng', () => {
     expect(graph.packages).not.toContain('three');
-    expect(graph.files).not.toContain('components/sheet/hands-overlay.tsx');
-    expect(graph.files).not.toContain('components/sheet/hands-scene.ts');
-    expect(graph.files).not.toContain('lib/midi/hands/hand-path.ts');
-    expect(readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8')).toContain("import('./hands-overlay')");
-    expect(readFileSync(path.join(src, 'components/sheet/hands-overlay.tsx'), 'utf8')).toContain("await import('./hands-scene')");
+    expect(graph.packages.filter((p) => p.startsWith('three'))).toEqual([]);
+    for (const heavy of [
+      'components/sheet/piano-view.tsx',
+      'components/sheet/piano-scene.ts',
+      'lib/midi/hands/hand-path.ts',
+      'lib/midi/scene3d/hand-rig.ts',
+      'lib/midi/scene3d/world.ts',
+    ]) {
+      expect(graph.files).not.toContain(heavy);
+    }
+    expect(readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8')).toContain("import('./piano-view')");
+    expect(readFileSync(path.join(src, 'components/sheet/piano-view.tsx'), 'utf8')).toContain("await import('./piano-scene')");
   });
 
   it('bộ dò bắt được vi phạm: file giả import zod hoặc note-json thì bị phát hiện', () => {
@@ -82,7 +89,7 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
     const bad = eagerGraph(path.join(src, 'lib/midi/note-json.ts'));
     expect(bad.packages).toContain('zod');
     // Và trên lớp phủ bàn tay: cảnh 3D kéo `three` vào đồ thị tĩnh của chính nó.
-    expect(eagerGraph(path.join(src, 'components/sheet/hands-scene.ts')).packages).toContain('three');
+    expect(eagerGraph(path.join(src, 'components/sheet/piano-scene.ts')).packages).toContain('three');
   });
 });
 

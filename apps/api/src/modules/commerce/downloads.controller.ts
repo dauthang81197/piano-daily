@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Param, Redirect, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, MethodNotAllowedException, Param, Redirect, Req, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { type RemovableFileType, removeFileTypeSchema } from '@piano-daily/shared';
 import { getClientIp } from '../../common/http/client-ip';
@@ -28,8 +28,10 @@ export class DownloadsController {
   async freeDownload(
     @Param('sheetId', UuidParamPipe) sheetId: string,
     @Param('fileType') fileType: string,
-    @Req() req: { headers: Record<string, string | string[] | undefined>; socket?: { remoteAddress?: string } },
+    @Req() req: { method?: string; headers: Record<string, string | string[] | undefined>; socket?: { remoteAddress?: string } },
   ): Promise<{ url: string }> {
+    // Express tự trả lời HEAD cho route GET: bot xem trước liên kết không được ghi log hay lấy signed URL.
+    if (req.method === 'HEAD') throw new MethodNotAllowedException();
     const type = parseFileType(fileType);
     const ua = req.headers['user-agent'];
     const url = await this.downloads.freeDownloadUrl(sheetId, type, getClientIp(req), Array.isArray(ua) ? ua[0] : ua);

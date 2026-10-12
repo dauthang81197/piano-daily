@@ -51,4 +51,47 @@ describe('assignHands', () => {
   it('một track duy nhất có thông tin track vẫn chia theo cao độ', () => {
     expect(assignHands([n(40, 0, 0), n(76, 0, 0)])).toEqual(['left', 'right']);
   });
+
+  it('hai track cùng một giai điệu (nhân đôi): không có phím nào do cả hai tay cùng bấm', () => {
+    const notes = [60, 62, 64, 65].flatMap((m, i) => [n(m, i * 0.5, 0), n(m, i * 0.5, 1)]);
+    const hands = assignHands(notes);
+    for (let i = 0; i < notes.length; i += 1) {
+      for (let j = i + 1; j < notes.length; j += 1) {
+        if (notes[i]!.midi === notes[j]!.midi && notes[i]!.time === notes[j]!.time) expect(hands[i]).toBe(hands[j]);
+      }
+    }
+  });
+
+  it('track tay trái đánh cao hơn tay phải: sửa để hai tay không chéo nhau', () => {
+    const notes = [n(72, 0, 0), n(60, 0, 1), n(74, 1, 0), n(64, 1, 1)];
+    const hands = assignHands(notes);
+    for (const t of [0, 1]) {
+      const at = notes.map((x, i) => ({ x, hand: hands[i]! })).filter((e) => e.x.time === t);
+      const leftMax = Math.max(...at.filter((e) => e.hand === 'left').map((e) => e.x.midi), -Infinity);
+      const rightMin = Math.min(...at.filter((e) => e.hand === 'right').map((e) => e.x.midi), Infinity);
+      expect(leftMax).toBeLessThan(rightMin);
+    }
+  });
+
+  it('nốt đang giữ của tay này cũng chặn tay kia đánh chéo qua nó', () => {
+    // Tay phải giữ C5 (72); nốt 74 sau đó không thể thuộc tay trái.
+    const notes = [n(72, 0, 0), { ...n(60, 0, 1), duration: 3 }, n(74, 1, 1)];
+    notes[0] = { ...notes[0]!, duration: 3 };
+    const hands = assignHands(notes);
+    expect(hands[2]).toBe('right');
+  });
+
+  it('ngẫu nhiên: không bao giờ có nốt tay trái ≥ nốt tay phải trong cùng lúc đánh', () => {
+    let seed = 7;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const notes = Array.from({ length: 300 }, () => n(36 + Math.floor(rand() * 48), Math.floor(rand() * 40) * 0.25, Math.floor(rand() * 3)));
+    const hands = assignHands(notes);
+    const byTime = new Map<number, { midi: number; hand: string }[]>();
+    notes.forEach((x, i) => byTime.set(x.time, [...(byTime.get(x.time) ?? []), { midi: x.midi, hand: hands[i]! }]));
+    for (const group of byTime.values()) {
+      const l = group.filter((g) => g.hand === 'left').map((g) => g.midi);
+      const r = group.filter((g) => g.hand === 'right').map((g) => g.midi);
+      if (l.length && r.length) expect(Math.max(...l)).toBeLessThan(Math.min(...r));
+    }
+  });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layoutKeyboard } from '../keyboard-layout';
 import type { PlayerNote } from '../note-json';
-import { buildHandPath, LOOKAHEAD } from './hand-path';
+import { buildHandPath, LOOKAHEAD, MIN_GAP } from './hand-path';
 
 const n = (midi: number, time: number, duration = 0.4, track?: number): PlayerNote => ({
   midi,
@@ -96,7 +96,7 @@ describe('buildHandPath', () => {
     const { left, right } = path.poseAt(0.5);
     expect(left).not.toBeNull();
     expect(right).not.toBeNull();
-    expect(right!.x - left!.x).toBeGreaterThanOrEqual(3.5 - 1e-9);
+    expect(right!.x - left!.x).toBeGreaterThanOrEqual(MIN_GAP - 1e-9);
   });
 
   it('nốt ngoài dải phím bị bỏ qua mà không ảnh hưởng tay', () => {
@@ -109,5 +109,33 @@ describe('buildHandPath', () => {
 
   it('không có nốt thì cả hai tay là null', () => {
     expect(buildHandPath([], wide).poseAt(0)).toEqual({ left: null, right: null });
+  });
+
+  it('ngẫu nhiên: ngón không bao giờ vắt chéo, hai tay không chạm nhau, cổ tay cách nhau đủ xa', () => {
+    let seed = 11;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const notes = Array.from({ length: 250 }, () =>
+      n(40 + Math.floor(rand() * 40), Math.floor(rand() * 40) * 0.25, 0.25 + rand(), Math.floor(rand() * 2)),
+    );
+    const path = buildHandPath(notes, wide);
+    for (let t = 0; t <= 11; t += 0.05) {
+      const { left, right } = path.poseAt(t);
+      for (const [hand, pose] of [['left', left], ['right', right]] as const) {
+        if (!pose) continue;
+        const xs = pose.fingers.map((f) => f.tipX);
+        const ordered = hand === 'right' ? xs : [...xs].reverse();
+        for (let i = 1; i < 5; i += 1) expect(ordered[i]! - ordered[i - 1]!).toBeGreaterThanOrEqual(0.55 - 1e-6);
+      }
+      if (left && right) {
+        expect(Math.min(...right.fingers.map((f) => f.tipX))).toBeGreaterThan(Math.max(...left.fingers.map((f) => f.tipX)));
+        expect(right.x - left.x).toBeGreaterThanOrEqual(MIN_GAP - 1e-9);
+      }
+    }
+  });
+
+  it('cổ tay đổi thế tay thay vì vươn ngón quá xa: đầu ngón không lệch quá tầm so với khớp gốc', () => {
+    const notes = [n(60, 0, 1), n(62, 0, 1), n(64, 0, 1), n(67, 0, 1), n(72, 0, 1)];
+    const { right } = buildHandPath(notes, wide).poseAt(0.5);
+    for (const f of right!.fingers) expect(Math.abs(f.tipX - f.knuckleX)).toBeLessThanOrEqual(2.2);
   });
 });

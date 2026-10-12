@@ -10,8 +10,6 @@ export const MAX_FALLING = 128;
 export const FALL_H = 11;
 export const WHITE_H = 3.4;
 export const BLACK_H = 2.1;
-/** Chiều cao thêm (cùng đơn vị) dưới mép phím cho lòng bàn tay khi bật bàn tay 3D. */
-export const HANDS_EXTRA = 4;
 
 const BLACK_PITCH_CLASSES = new Set([1, 3, 6, 8, 10]);
 const BLACK_WIDTH = 0.6;

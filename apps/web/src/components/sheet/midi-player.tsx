@@ -49,6 +49,25 @@ type Phase = 'idle' | 'loading' | 'ready' | 'error';
 /** Player rộng gần hết chiều ngang cửa sổ (thoát khỏi cột nội dung, căn giữa theo cửa sổ). */
 const PLAYER_WIDTH = 'relative left-1/2 flex w-[96vw] -translate-x-1/2 flex-col gap-3';
 
+const HANDS_PREF_KEY = 'piano-daily:show-hands';
+
+/** Bàn tay bật mặc định; chỉ khi người dùng từng tắt thì mới tắt. Bộ nhớ trình duyệt có thể bị chặn nên bọc try/catch. */
+function readHandsPref(): boolean {
+  try {
+    return localStorage.getItem(HANDS_PREF_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function writeHandsPref(on: boolean) {
+  try {
+    localStorage.setItem(HANDS_PREF_KEY, on ? 'on' : 'off');
+  } catch {
+    // Không lưu được thì thôi: lần sau vẫn bật mặc định.
+  }
+}
+
 const control =
   'rounded-sm border border-outline-variant bg-surface-bright px-2 py-1 text-body-md text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
@@ -76,7 +95,9 @@ export function MidiPlayer({
   const [position, setPosition] = useState(0);
   const [rate, setRate] = useState(1);
   const [handsAvailable, setHandsAvailable] = useState(false);
-  const [handsOn, setHandsOn] = useState(false);
+  /** Lựa chọn của người dùng: mặc định bật, nhớ lại lần tắt gần nhất. */
+  const [handsPref, setHandsPref] = useState(true);
+  const handsOn = handsAvailable && handsPref;
   const mounted = useRef(true);
   const coreRef = useRef<PlayerCore | null>(null);
   /** Đang kéo thanh tua: vòng cập nhật hình không ghi đè vị trí người dùng đang chọn. */
@@ -89,6 +110,7 @@ export function MidiPlayer({
     // Thiếu Web Audio: chỉ biết được ở trình duyệt, nên đổi sau khi mount.
     setSupported(hasWebAudio());
     setHandsAvailable(canShowHands());
+    setHandsPref(readHandsPref());
     return () => {
       mounted.current = false;
       clearTimeout(scrubTimer.current);
@@ -220,10 +242,12 @@ export function MidiPlayer({
     }, SEEK_COMMIT_MS);
   };
   const getTime = useCallback(() => coreRef.current?.position() ?? 0, []);
-  const onHandsUnavailable = useCallback(() => {
-    setHandsOn(false);
-    setHandsAvailable(false);
-  }, []);
+  const onHandsUnavailable = useCallback(() => setHandsAvailable(false), []);
+  const onToggleHands = () => {
+    const next = !handsPref;
+    setHandsPref(next);
+    writeHandsPref(next);
+  };
   const onRate = (value: number) => {
     setRate(value);
     coreRef.current?.setRate(value);
@@ -279,7 +303,7 @@ export function MidiPlayer({
         </label>
 
         {handsAvailable && phase === 'ready' ? (
-          <button type="button" onClick={() => setHandsOn((on) => !on)} aria-pressed={handsOn} className={control}>
+          <button type="button" onClick={onToggleHands} aria-pressed={handsOn} className={control}>
             {t('handsToggle')}
           </button>
         ) : null}

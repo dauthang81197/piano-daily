@@ -8,7 +8,10 @@ import {
   keyTopY,
   keyZRange,
   PRESS_DEPTH,
+  REST_TIP,
   WHITE_LENGTH,
+  WRIST_Y,
+  WRIST_Z,
 } from './world';
 
 const f = (over: Partial<Parameters<typeof fingerTarget>[0]> = {}) => ({ finger: 2 as const, tipX: 5, reach: 1, press: 0, black: false, ...over });
@@ -61,5 +64,24 @@ describe('world', () => {
     const rest = fingerTarget(f({ reach: 0 }));
     expect(rest).toEqual(fingerTarget(f({ reach: 0, black: true, press: 1 })));
     expect(rest.y).toBeGreaterThan(0);
+  });
+
+  it('ngón nghỉ ở đúng tư thế nghỉ thả lỏng (REST_TIP tính từ cổ tay), đầu ngón dài ngang mặt phím đen, ngón cái trên mặt phím', () => {
+    for (const finger of [1, 2, 3, 4, 5] as const) {
+      const rest = fingerTarget(f({ finger, reach: 0 }));
+      expect(rest.y).toBeCloseTo(WRIST_Y + REST_TIP[finger].y, 9);
+      expect(rest.z).toBeCloseTo(WRIST_Z + REST_TIP[finger].z, 9);
+      // Ngón 2–5 nghỉ ngang mặt phím đen (trong 0,02 phím); ngón cái nghỉ sát mép trước, không có phím đen ở đó.
+      expect(rest.y).toBeGreaterThanOrEqual(finger === 1 ? 0 : BLACK_RISE - 0.02);
+    }
+  });
+
+  it('blackMix nội suy liên tục giữa phím trắng và phím đen (không nhảy khi chuyển phím)', () => {
+    const white = fingerTarget({ ...f({ press: 1 }), blackMix: 0 });
+    const black = fingerTarget({ ...f({ press: 1 }), blackMix: 1 });
+    const half = fingerTarget({ ...f({ press: 1 }), blackMix: 0.5 });
+    expect(half.y).toBeCloseTo((white.y + black.y) / 2, 9);
+    expect(half.z).toBeCloseTo((white.z + black.z) / 2, 9);
+    expect(fingerTarget({ ...f({ press: 1, black: true }) })).toEqual(black);
   });
 });

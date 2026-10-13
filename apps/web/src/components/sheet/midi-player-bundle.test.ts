@@ -76,6 +76,9 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
       'components/sheet/piano-scene.ts',
       'lib/midi/hands/hand-path.ts',
       'lib/midi/scene3d/hand-rig.ts',
+      'lib/midi/scene3d/hand-animator.ts',
+      'lib/midi/scene3d/hand-driver.ts',
+      'lib/midi/scene3d/smoothing.ts',
       'lib/midi/scene3d/world.ts',
     ]) {
       expect(graph.files).not.toContain(heavy);

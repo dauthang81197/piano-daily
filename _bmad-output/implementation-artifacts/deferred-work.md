@@ -159,3 +159,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-ads-affiliate-nhieu-san-pham.md`
   summary: Ở môi trường local (SeaweedFS, `S3_PUBLIC_BASE_URL` là `http://`), URL ảnh vừa tải lên không qua kiểm `https` của sản phẩm quảng cáo nên không lưu được slot.
   evidence: `adItemInputSchema` và CHECK `ad_items_urls_check` yêu cầu `https://`; `StorageService.publicUrl` trả base URL cấu hình; production (R2) là https nên không ảnh hưởng.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tay-piano-muot-va-tu-nhien.md`
+  summary: `assignHands` chia tay theo cao độ nên quãng tám/hợp âm rộng quanh điểm chia (ví dụ C3+C4) bị tách sang hai tay thay vì một tay dang rộng.
+  evidence: Phép thử `buildHandPath` với [48, 60] cho cả hai tay mỗi tay một nốt; chỉ [36, 48] (cùng vùng) mới dùng một tay dang rộng.
+- source_spec: `_bmad-output/implementation-artifacts/spec-tay-piano-muot-va-tu-nhien.md`
+  summary: Giai đoạn 3 của bàn tay chưa làm: model GLB chi tiết hơn, vật liệu da, cẳng tay thật, và xem lại bằng mắt dáng tay trên trình duyệt (các tiêu chí hiện chỉ là số đo ở Node).
+  evidence: Môi trường làm việc không có WebGL; `hand-right.glb` 94 KB, màu da phẳng, cẳng tay là hình trụ.

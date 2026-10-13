@@ -1,30 +1,11 @@
 'use client';
 
-import type { PublicSheetDetail } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
-import { publicApiUrl } from '@/lib/public-env';
 import { downloadButtonClass } from './download-button-class';
+import { apiBase, type DownloadType, PATH } from './download-helpers';
 import { PurchaseButtons } from './purchase-buttons';
-
-type DownloadType = PublicSheetDetail['downloadTypes'][number];
-
-const PATH: Record<DownloadType, string> = { PDF: 'pdf', MIDI: 'midi', MP3: 'mp3' };
-
-/** Base URL API cho trình duyệt; thiếu cấu hình thì không có nút (không ném, như `ViewBeacon`). */
-export function apiBase(): string | null {
-  try {
-    return publicApiUrl();
-  } catch {
-    return null;
-  }
-}
-
-/** Định dạng có thật của Sheet theo thứ tự PDF → MIDI → MP3 (tải ngay nếu free, mua qua modal nếu không); rỗng khi đang preview. */
-export function availableDownloads(sheet: PublicSheetDetail, enabled: boolean): DownloadType[] {
-  return enabled ? sheet.downloadTypes : [];
-}
 
 /**
  * Nút tải Sheet miễn phí (FR7, S1 thuê bao): phải đăng nhập. Bấm nút → `POST /customer/downloads/...` (Bearer) trả signed URL

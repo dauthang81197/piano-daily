@@ -259,5 +259,63 @@
       "config": "Trang web chưa được cấu hình thanh toán trực tuyến. Vui lòng liên hệ với chúng tôi để được hỗ trợ.",
       "generic": "Không hoàn tất được thanh toán. Vui lòng thử lại; nếu vẫn lỗi, hãy liên hệ với chúng tôi kèm email bạn đã nhập."
     }
+  },
+  "Auth": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "close": "Đóng",
+    "busy": "Đang xử lý…",
+    "or": "hoặc",
+    "title": {
+      "login": "Đăng nhập",
+      "register": "Tạo tài khoản",
+      "forgot": "Quên mật khẩu",
+      "verify": "Xác minh email"
+    },
+    "downloadHint": "Đăng nhập để tải bản nhạc. Xem và nghe thử vẫn miễn phí, không cần tài khoản.",
+    "verifyHint": "Bạn cần xác minh email trước khi tải. Nhập email để nhận lại liên kết xác minh.",
+    "passwordHint": "Tối thiểu 8 ký tự.",
+    "fields": {
+      "name": "Tên của bạn",
+      "email": "Email",
+      "password": "Mật khẩu"
+    },
+    "submit": {
+      "login": "Đăng nhập",
+      "register": "Tạo tài khoản",
+      "forgot": "Gửi liên kết đặt lại",
+      "verify": "Gửi lại email xác minh"
+    },
+    "links": {
+      "toRegister": "Chưa có tài khoản? Đăng ký",
+      "toLogin": "Đã có tài khoản? Đăng nhập",
+      "toForgot": "Quên mật khẩu?"
+    },
+    "sent": {
+      "register": "Chúng tôi đã gửi email xác minh tới {email}. Hãy mở email và bấm liên kết để kích hoạt tài khoản (kiểm tra cả thư rác).",
+      "forgot": "Nếu {email} có tài khoản, chúng tôi đã gửi liên kết đặt lại mật khẩu (có hiệu lực 1 giờ).",
+      "verify": "Nếu {email} cần xác minh, chúng tôi đã gửi lại email xác minh."
+    },
+    "errors": {
+      "invalidCredentials": "Email hoặc mật khẩu không đúng.",
+      "tooMany": "Bạn thao tác quá nhanh. Vui lòng đợi một phút rồi thử lại.",
+      "network": "Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.",
+      "googleUnavailable": "Đăng nhập Google hiện không dùng được. Vui lòng dùng email và mật khẩu.",
+      "generic": "Có lỗi xảy ra. Vui lòng thử lại.",
+      "downloadFailed": "Không tải được file. Vui lòng thử lại."
+    },
+    "verifyPage": {
+      "title": "Xác minh email",
+      "working": "Đang xác minh email…",
+      "done": "Email đã được xác minh. Bây giờ bạn có thể đăng nhập và tải bản nhạc.",
+      "invalid": "Liên kết xác minh không hợp lệ hoặc đã hết hạn. Hãy đăng nhập để nhận lại email xác minh."
+    },
+    "resetPage": {
+      "title": "Đặt lại mật khẩu",
+      "newPassword": "Mật khẩu mới",
+      "submit": "Đặt mật khẩu mới",
+      "done": "Mật khẩu đã được đổi. Các thiết bị khác đã bị đăng xuất; hãy đăng nhập lại.",
+      "invalid": "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới."
+    }
   }
 }

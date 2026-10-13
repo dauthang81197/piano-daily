@@ -164,6 +164,11 @@ export const envSchema = z.object({
   EMAIL_FROM: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
   /** Địa chỉ nhận cảnh báo vận hành (Story 5.3). Tuỳ chọn, KHÔNG bắt buộc ở production: thiếu thì chỉ log `ALERT <kind>`. */
   ALERT_EMAIL: z.preprocess(emptyAsUndefined, z.email().optional()),
+  /**
+   * Đăng nhập Google của khách (module `customers`): OAuth Client ID loại Web. Tuỳ chọn: thiếu thì
+   * `POST /customer/auth/google` trả 503 và web ẩn nút Google (đăng ký bằng email vẫn chạy).
+   */
+  GOOGLE_CLIENT_ID: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
   SITE_URL: z.preprocess(
     emptyAsUndefined,
     z

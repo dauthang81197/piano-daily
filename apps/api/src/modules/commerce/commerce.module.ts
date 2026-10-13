@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AdminOrdersController } from './admin-orders.controller';
 import { AdminOrdersService } from './admin-orders.service';
 import { CatalogModule } from '../catalog/catalog.module';
+import { CustomersModule } from '../customers/customers.module';
+import { IdentityModule } from '../identity/identity.module';
 import { MediaModule } from '../media/media.module';
 import { NotifyModule } from '../notify/notify.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -24,7 +26,7 @@ import { WebhooksController } from './webhooks.controller';
 
 /** Module chủ của bảng `download_logs`, `orders`, `download_tokens`, `download_token_files` và `payment_events` (AD-1, AD-20). */
 @Module({
-  imports: [CatalogModule, MediaModule, NotifyModule, SettingsModule],
+  imports: [CatalogModule, CustomersModule, IdentityModule, MediaModule, NotifyModule, SettingsModule],
   controllers: [AdminOrdersController, DownloadsController, PaidDownloadsController, PaymentsController, WebhooksController],
   providers: [
     AdminOrdersService,

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState } from 'react';
+import { HeaderAuth } from '@/components/auth/header-auth';
 import { Link } from '@/i18n/navigation';
 import { LEVELS } from '@/lib/levels';
 import { LanguageSwitcher } from './language-switcher';
@@ -63,6 +64,7 @@ export function MobileMenu() {
           </nav>
           <SearchForm className="mt-4" />
           <LanguageSwitcher className="mt-4" />
+          <HeaderAuth className="mt-4" />
         </div>
       ) : null}
     </div>

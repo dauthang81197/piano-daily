@@ -24,7 +24,7 @@ Cập nhật: 2026-10-08. Nhánh: `chore/ci-cd-docker-hub-deploy`. Hướng dẫ
 3. **Cổng:** chỉ cần 80/443 (NPM đã mở); điền `NPM_NETWORK` vào `.env` và tạo 3 Proxy Host trong NPM (README).
 4. **GitHub:**
    - Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` (kết quả `ssh-keyscan 144.91.120.200`).
-   - Variables: `SITE_HOST=144-91-120-200.sslip.io`, `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`), `PAYPAL_CLIENT_ID` (client ID công khai của PayPal, truyền vào web thành `NEXT_PUBLIC_PAYPAL_CLIENT_ID`; trùng app với `PAYPAL_CLIENT_ID` của API, không phải secret).
+   - Variables: `SITE_HOST=144-91-120-200.sslip.io`, `MEDIA_BASE_URL` (URL công khai bucket public R2, khớp `S3_PUBLIC_BASE_URL`), `PAYPAL_CLIENT_ID` (client ID công khai của PayPal, truyền vào web thành `NEXT_PUBLIC_PAYPAL_CLIENT_ID`; trùng app với `PAYPAL_CLIENT_ID` của API, không phải secret), `GOOGLE_CLIENT_ID` (tuỳ chọn: OAuth Client ID loại Web cho đăng nhập Google của khách, truyền vào web thành `NEXT_PUBLIC_GOOGLE_CLIENT_ID`; đồng thời đặt `GOOGLE_CLIENT_ID` cùng giá trị trong `/opt/piano-daily/.env` cho API).
    - Environment `production` (có thể bật required reviewers).
 5. **Merge vào `develop`** để workflow chạy lần đầu, rồi kiểm tra `https://144-91-120-200.sslip.io`, `https://admin.144-91-120-200.sslip.io`, `https://api.144-91-120-200.sslip.io/health`.
 6. **Tạo admin đầu tiên trên production:** `node dist/scripts/create-admin.js` trong container API (hướng dẫn ở README mục "CI/CD và deploy").

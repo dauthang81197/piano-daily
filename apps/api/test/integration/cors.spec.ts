@@ -51,17 +51,17 @@ describe('CORS theo allowlist (AD-18)', () => {
     expect(res.headers['access-control-allow-credentials']).toBeUndefined();
   });
 
-  it('preflight từ origin web -> có Allow-Origin, KHÔNG có Allow-Credentials', async () => {
+  it('preflight từ origin web -> có Allow-Origin + Allow-Credentials (cookie refresh của khách)', async () => {
     const res = await preflight(TEST_CORS_WEB_ORIGIN);
     expect(res.status).toBeLessThan(300);
     expect(res.headers['access-control-allow-origin']).toBe(TEST_CORS_WEB_ORIGIN);
-    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
   });
 
-  it('request thật từ origin web -> có Allow-Origin, không có Allow-Credentials', async () => {
+  it('request thật từ origin web -> có Allow-Origin + Allow-Credentials', async () => {
     const res = await request(app.getHttpServer()).get('/health').set('Origin', TEST_CORS_WEB_ORIGIN);
     expect(res.headers['access-control-allow-origin']).toBe(TEST_CORS_WEB_ORIGIN);
-    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
   });
 
   const varyOf = (res: request.Response) =>

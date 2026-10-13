@@ -52,6 +52,69 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// ── customers ────────────────────────────────────────────────
+// Khách của web công khai, tách hẳn khỏi `User` (admin). Chỉ module `customers` ghi.
+
+model Customer {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Luôn lưu dạng chữ thường; không bao giờ ghi vào log.
+  email           String    @unique
+  /// Null với tài khoản chỉ đăng nhập bằng Google.
+  passwordHash    String?   @map("password_hash")
+  /// `sub` của tài khoản Google đã liên kết.
+  googleSub       String?   @unique @map("google_sub")
+  name            String
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  /// `vi` | `en`: ngôn ngữ email gửi cho khách.
+  locale          String    @default("vi")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  refreshTokens CustomerRefreshToken[]
+  tokens        CustomerToken[]
+  downloadLogs  DownloadLog[]
+
+  @@map("customers")
+}
+
+/// Refresh token xoay vòng của khách. Chỉ lưu sha256; bản rõ chỉ nằm trong cookie `customer_refresh`.
+model CustomerRefreshToken {
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  customerId String    @map("customer_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_refresh_tokens")
+}
+
+enum CustomerTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+/// Token một lần trong link email (xác minh email 24 giờ, đặt lại mật khẩu 1 giờ). Chỉ lưu sha256.
+model CustomerToken {
+  id         String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  customerId String               @map("customer_id") @db.Uuid
+  purpose    CustomerTokenPurpose
+  tokenHash  String               @unique @map("token_hash")
+  expiresAt  DateTime             @map("expires_at") @db.Timestamptz(6)
+  usedAt     DateTime?            @map("used_at") @db.Timestamptz(6)
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, purpose])
+  @@map("customer_tokens")
+}
+
 // ── catalog ──────────────────────────────────────────────────
 // Slug sinh từ tên lúc tạo (bỏ dấu, unique trong bảng, thêm hậu tố -2, -3… khi trùng) và không đổi khi đổi tên.
 
@@ -248,18 +311,22 @@ model SheetViewDedupe {
 /// Nhật ký mọi lượt tải thành công, miễn phí lẫn trả phí (AD-20, Story 3.2). Chỉ module `commerce` ghi.
 /// `ip_hash` = sha256(ip + VIEW_SALT) hex; không lưu IP thô. `token_id` null cho tải miễn phí (token ở Story 3.4).
 model DownloadLog {
-  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  sheetId   String   @map("sheet_id") @db.Uuid
-  fileType  FileType @map("file_type")
-  tokenId   String?  @map("token_id") @db.Uuid
-  ipHash    String   @map("ip_hash") @db.Char(64)
-  ua        String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sheetId    String   @map("sheet_id") @db.Uuid
+  fileType   FileType @map("file_type")
+  tokenId    String?  @map("token_id") @db.Uuid
+  /// Khách đã đăng nhập thực hiện lượt tải miễn phí (S1 thuê bao); null với lượt tải bằng token mua lẻ.
+  customerId String?  @map("customer_id") @db.Uuid
+  ipHash     String   @map("ip_hash") @db.Char(64)
+  ua         String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  sheet Sheet          @relation(fields: [sheetId], references: [id], onDelete: Cascade)
-  token DownloadToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  sheet    Sheet          @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  token    DownloadToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  customer Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([sheetId, createdAt])
+  @@index([customerId])
   @@map("download_logs")
 }
 

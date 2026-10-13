@@ -5,6 +5,7 @@ import type { Env } from '../../config/env';
 import { notFound } from '../catalog/catalog.helpers';
 import { FreeDownloadSource } from '../catalog/free-download-source.service';
 import { StorageService } from '../media/storage.service';
+import { CustomerAccessService } from '../customers/customer-access.service';
 import { DownloadLogRepository } from './download-log.repository';
 import { ipHash, USER_AGENT_MAX_LENGTH } from './ip-hash';
 
@@ -17,7 +18,10 @@ const FILE: Record<RemovableFileType, { type: FileType; ext: string }> = {
   mp3: { type: FileType.MP3, ext: 'mp3' },
 };
 
-/** Đường tải duy nhất cho Sheet miễn phí (AD-8): kiểm tra quyền, ghi DownloadLog (AD-20), rồi phát signed URL. */
+/**
+ * Đường tải duy nhất cho Sheet miễn phí (AD-8): khách phải đăng nhập và đã xác minh email, rồi ghi DownloadLog (AD-20)
+ * và phát signed URL.
+ */
 @Injectable()
 export class DownloadsService {
   private readonly salt: string;
@@ -26,13 +30,21 @@ export class DownloadsService {
     private readonly source: FreeDownloadSource,
     private readonly logs: DownloadLogRepository,
     private readonly storage: StorageService,
+    private readonly access: CustomerAccessService,
     config: ConfigService<Env, true>,
   ) {
     this.salt = config.get('VIEW_SALT', { infer: true });
   }
 
   /** Trả signed URL; Sheet không free/không PUBLISHED/thiếu file → 404 giống hệt nhau. */
-  async freeDownloadUrl(sheetId: string, fileType: RemovableFileType, ip: string, userAgent: string | undefined): Promise<string> {
+  async freeDownloadUrl(
+    customerId: string,
+    sheetId: string,
+    fileType: RemovableFileType,
+    ip: string,
+    userAgent: string | undefined,
+  ): Promise<string> {
+    await this.access.requireDownloadAccess(customerId);
     const { type, ext } = FILE[fileType];
     const file = await this.source.resolve(sheetId, type);
     if (!file) throw notFound('Không tìm thấy file.');
@@ -40,6 +52,7 @@ export class DownloadsService {
     await this.logs.recordFree({
       sheetId,
       fileType: type,
+      customerId,
       ipHash: ipHash(ip, this.salt),
       ua: userAgent ? userAgent.slice(0, USER_AGENT_MAX_LENGTH) : null,
     });

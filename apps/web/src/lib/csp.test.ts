@@ -41,13 +41,33 @@ describe('buildCsp', () => {
     const csp = buildCsp(env);
     expect(directive(csp, 'img-src')).toContain('https:');
     for (const name of ['script-src', 'connect-src', 'frame-src']) expect(directive(csp, name)).not.toContain('https:');
-    expect(directive(csp, 'frame-src')).toEqual(['https://www.paypal.com', 'https://*.paypal.com', 'https://www.youtube.com', 'https://www.youtube-nocookie.com']);
+    expect(directive(csp, 'frame-src')).toEqual([
+      'https://www.paypal.com',
+      'https://*.paypal.com',
+      'https://www.youtube.com',
+      'https://www.youtube-nocookie.com',
+      'https://accounts.google.com/gsi/',
+    ]);
+  });
+
+  it('đăng nhập Google: chỉ mở đúng đường dẫn GSI của accounts.google.com, không mở cả domain', () => {
+    const csp = buildCsp(env);
+    expect(directive(csp, 'script-src')).toContain('https://accounts.google.com/gsi/client');
+    expect(directive(csp, 'style-src')).toContain('https://accounts.google.com/gsi/style');
+    expect(directive(csp, 'connect-src')).toContain('https://accounts.google.com/gsi/');
+    expect(directive(csp, 'frame-src')).toContain('https://accounts.google.com/gsi/');
+    expect(csp).not.toMatch(/https:\/\/accounts\.google\.com(\s|;|$)/);
   });
 
   it('thiếu biến môi trường: bỏ qua origin, không có "undefined"; production không unsafe-eval', () => {
     const csp = buildCsp({ NODE_ENV: 'production' });
     expect(csp).not.toContain('undefined');
-    expect(directive(csp, 'connect-src')).toEqual(["'self'", 'https://www.paypal.com', 'https://*.paypal.com']);
+    expect(directive(csp, 'connect-src')).toEqual([
+      "'self'",
+      'https://www.paypal.com',
+      'https://*.paypal.com',
+      'https://accounts.google.com/gsi/',
+    ]);
     expect(csp).not.toContain('unsafe-eval');
   });
 

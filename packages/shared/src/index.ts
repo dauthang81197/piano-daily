@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './customer-auth';
 export * from './cache-tags';
 export * from './catalog';
 export * from './errors';

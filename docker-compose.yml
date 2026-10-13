@@ -91,6 +91,8 @@ services:
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+      # Đăng nhập Google của khách (tuỳ chọn): thiếu thì nút Google bị ẩn.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       # Email link tải (Story 3.7): thiếu khoá Resend thì bỏ qua việc gửi; SITE_URL trống thì dùng CORS_WEB_ORIGIN.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
@@ -134,6 +136,7 @@ services:
         NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
         # Client ID công khai của PayPal (không phải secret); để trống thì modal thanh toán báo chưa cấu hình.
         NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     environment:
       API_INTERNAL_URL: http://api:4000
       # Chỉ server đọc; không bao giờ đặt tiền tố NEXT_PUBLIC_.

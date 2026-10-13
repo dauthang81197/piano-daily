@@ -1,5 +1,9 @@
+'use client';
+
 import type { PublicSheetDetail } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { useCustomer } from '@/components/auth/auth-provider';
 import { publicApiUrl } from '@/lib/public-env';
 import { downloadButtonClass } from './download-button-class';
 import { PurchaseButtons } from './purchase-buttons';
@@ -23,8 +27,9 @@ export function availableDownloads(sheet: PublicSheetDetail, enabled: boolean): 
 }
 
 /**
- * Nút tải trực tiếp (Story 3.2, FR7): liên kết thường tới `GET /files/:sheetId/:type/download` (302 + `attachment`),
- * không modal. Chỉ render định dạng có thật; định dạng không có thì ẩn hẳn (UX-DR14).
+ * Nút tải Sheet miễn phí (FR7, S1 thuê bao): phải đăng nhập. Bấm nút → `POST /customer/downloads/...` (Bearer) trả signed URL
+ * rồi điều hướng tới file (attachment). Chưa đăng nhập thì mở modal đăng nhập thay vì tải. Chỉ render định dạng có thật;
+ * định dạng không có thì ẩn hẳn (UX-DR14).
  */
 export function DownloadButtons({
   sheetId,
@@ -38,22 +43,48 @@ export function DownloadButtons({
   className?: string;
 }) {
   const t = useTranslations('Sheet');
-  const base = apiBase();
-  if (!base || types.length === 0) return null;
+  const ta = useTranslations('Auth');
+  const auth = useCustomer();
+  const [busy, setBusy] = useState<DownloadType | null>(null);
+  const [failed, setFailed] = useState(false);
+  if (!apiBase() || types.length === 0) return null;
+
+  const onClick = async (type: DownloadType) => {
+    if (busy) return;
+    setFailed(false);
+    if (!auth) return;
+    setBusy(type);
+    try {
+      const result = await auth.download(sheetId, PATH[type]);
+      if (result === 'error') setFailed(true);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
-    <ul className={className}>
-      {types.map((type) => (
-        <li key={type}>
-          <a
-            href={`${base}/files/${encodeURIComponent(sheetId)}/${PATH[type]}/download`}
-            className={downloadButtonClass}
-            aria-label={t('downloadLabel', { format: t(`download.${type}`), title })}
-          >
-            {t(`download.${type}`)}
-          </a>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className={className}>
+        {types.map((type) => (
+          <li key={type}>
+            <button
+              type="button"
+              onClick={() => void onClick(type)}
+              disabled={busy !== null}
+              className={downloadButtonClass}
+              aria-label={t('downloadLabel', { format: t(`download.${type}`), title })}
+            >
+              {t(`download.${type}`)}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {failed ? (
+        <p role="alert" className="text-body-md text-error">
+          {ta('errors.downloadFailed')}
+        </p>
+      ) : null}
+    </>
   );
 }
 

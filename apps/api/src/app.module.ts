@@ -16,6 +16,7 @@ import { AdsModule } from './modules/ads/ads.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
+import { CustomersModule } from './modules/customers/customers.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { JwtAuthGuard } from './modules/identity/jwt-auth.guard';
 import { NotifyModule } from './modules/notify/notify.module';
@@ -53,6 +54,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     HealthModule,
     IdentityModule,
+    CustomersModule,
     CatalogModule,
     SettingsModule,
     AdsModule,

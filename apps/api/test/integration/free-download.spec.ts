@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { errorResponseSchema, publicSheetDetailSchema } from '@piano-daily/shared';
+import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -10,19 +11,28 @@ const MISSING_ID = '01920000-0000-7000-8000-000000000000';
 
 type SheetOptions = { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; isFree?: boolean; files?: ('PDF' | 'MIDI' | 'MP3')[] };
 
-describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
+describe('Tải Sheet miễn phí của khách đã đăng nhập (Story 3.2 + S1 thuê bao, Postgres thật)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let composerId: string;
   let n = 0;
   let ipSeq = 0;
 
+  let token: string;
+  let customerId: string;
+
   const get = (path: string, ip?: string) =>
     request(app.getHttpServer())
       .get(path)
       .set('CF-Connecting-IP', ip ?? `198.51.100.${(ipSeq += 1)}`)
       .set('User-Agent', 'vitest-agent');
-  const download = (sheetId: string, type: string, ip?: string) => get(`/files/${sheetId}/${type}/download`, ip);
+  const download = (sheetId: string, type: string, ip?: string, bearer: string | null = token) => {
+    const req = request(app.getHttpServer())
+      .post(`/customer/downloads/${sheetId}/${type}`)
+      .set('CF-Connecting-IP', ip ?? `198.51.100.${(ipSeq += 1)}`)
+      .set('User-Agent', 'vitest-agent');
+    return bearer ? req.set('Authorization', `Bearer ${bearer}`) : req;
+  };
   const disposition = (location: unknown) => new URL(String(location)).searchParams.get('response-content-disposition');
 
   const addSheet = async (options: SheetOptions = {}) => {
@@ -60,14 +70,21 @@ describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
     await app?.close();
   });
   beforeEach(async () => {
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE sheet_genres, sheet_files, sheets, series, composers, genres CASCADE');
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE TABLE sheet_genres, sheet_files, sheets, series, composers, genres, customers CASCADE',
+    );
     composerId = (await prisma.composer.create({ data: { name: 'Bach', slug: 'bach' } })).id;
+    const customer = await prisma.customer.create({
+      data: { email: 'khach@example.com', passwordHash: 'x', name: 'Khach', emailVerifiedAt: new Date() },
+    });
+    customerId = customer.id;
+    token = await app.get(JwtService).signAsync({ sub: customer.id, typ: 'customer' });
   });
 
-  it('Sheet free PUBLISHED: 302 tới signed URL private TTL 5 phút, ghi đúng 1 DownloadLog không token, không IP thô', async () => {
+  it('Sheet free PUBLISHED: 200 {url} signed URL private TTL 5 phút, ghi đúng 1 DownloadLog có customerId, không token, không IP thô', async () => {
     const sheet = await addSheet();
-    const res = await download(sheet.id, 'pdf', '203.0.113.77').expect(302);
-    const location = new URL(res.headers.location as string);
+    const res = await download(sheet.id, 'pdf', '203.0.113.77').expect(200);
+    const location = new URL((res.body as { url: string }).url);
     expect(location.pathname).toContain(`/private/sheets/${sheet.id}/PDF/cur.bin`);
     expect(location.searchParams.get('X-Amz-Expires')).toBe('300');
     expect(disposition(location)).toBe(`attachment; filename="${sheet.slug}.pdf"`);
@@ -76,25 +93,42 @@ describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
 
     const logs = await prisma.downloadLog.findMany();
     expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({ sheetId: sheet.id, fileType: 'PDF', tokenId: null, ua: 'vitest-agent' });
+    expect(logs[0]).toMatchObject({ sheetId: sheet.id, fileType: 'PDF', tokenId: null, customerId, ua: 'vitest-agent' });
     expect(logs[0]!.ipHash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(logs)).not.toContain('203.0.113.77');
   });
 
-  it('HEAD (bot xem trước liên kết) -> 405, không log, không URL', async () => {
+  it('route ẩn danh cũ GET /files/:id/:type/download đã gỡ -> 404, không log', async () => {
     const sheet = await addSheet({ files: ['PDF'] });
-    const res = await request(app.getHttpServer()).head(`/files/${sheet.id}/pdf/download`).redirects(0);
-    expect(res.status).toBe(405);
-    expect(res.headers.location).toBeUndefined();
+    await get(`/files/${sheet.id}/pdf/download`).expect(404);
+    expect(await prisma.downloadLog.count()).toBe(0);
+  });
+
+  it('không đăng nhập / token sai / token admin -> 401, không log', async () => {
+    const sheet = await addSheet({ files: ['PDF'] });
+    await download(sheet.id, 'pdf', undefined, null).expect(401);
+    await download(sheet.id, 'pdf', undefined, 'not-a-jwt').expect(401);
+    const adminToken = await app.get(JwtService).signAsync({ sub: customerId, role: 'SUPER_ADMIN' });
+    await download(sheet.id, 'pdf', undefined, adminToken).expect(401);
+    expect(await prisma.downloadLog.count()).toBe(0);
+  });
+
+  it('khách chưa xác minh email -> 403 EMAIL_NOT_VERIFIED; khách bị khoá -> 401; không log', async () => {
+    const sheet = await addSheet({ files: ['PDF'] });
+    await prisma.customer.update({ where: { id: customerId }, data: { emailVerifiedAt: null } });
+    const res = await download(sheet.id, 'pdf').expect(403);
+    expect(errorResponseSchema.parse(res.body).error.code).toBe('EMAIL_NOT_VERIFIED');
+    await prisma.customer.update({ where: { id: customerId }, data: { emailVerifiedAt: new Date(), isActive: false } });
+    await download(sheet.id, 'pdf').expect(401);
     expect(await prisma.downloadLog.count()).toBe(0);
   });
 
   it('MIDI tải với đuôi .mid, MP3 với .mp3; mỗi lượt một dòng log', async () => {
     const sheet = await addSheet();
-    const midi = await download(sheet.id, 'midi').expect(302);
-    expect(disposition(midi.headers.location)).toContain(`${sheet.slug}.mid"`);
-    const mp3 = await download(sheet.id, 'mp3').expect(302);
-    expect(disposition(mp3.headers.location)).toContain(`${sheet.slug}.mp3"`);
+    const midi = await download(sheet.id, 'midi').expect(200);
+    expect(disposition((midi.body as { url: string }).url)).toContain(`${sheet.slug}.mid"`);
+    const mp3 = await download(sheet.id, 'mp3').expect(200);
+    expect(disposition((mp3.body as { url: string }).url)).toContain(`${sheet.slug}.mp3"`);
     const logs = await prisma.downloadLog.findMany({ orderBy: { createdAt: 'asc' } });
     expect(logs.map((l) => l.fileType)).toEqual(['MIDI', 'MP3']);
   });
@@ -110,7 +144,7 @@ describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
     const sheet = await addSheet(options);
     const res = await download(sheet.id, type).expect(404);
     expect(errorResponseSchema.parse(res.body).error.code).toBe('NOT_FOUND');
-    expect(res.headers.location).toBeUndefined();
+    expect((res.body as { url?: string }).url).toBeUndefined();
     expect(await prisma.downloadLog.count()).toBe(0);
   });
 
@@ -134,9 +168,9 @@ describe('Tải ngay Sheet miễn phí (Story 3.2, Postgres thật)', () => {
 
   it('rate limit: 20 request/phút theo IP, request thứ 21 là 429; IP khác không bị ảnh hưởng', async () => {
     const sheet = await addSheet();
-    for (let i = 0; i < 20; i += 1) await download(sheet.id, 'pdf', '203.0.113.200').expect(302);
+    for (let i = 0; i < 20; i += 1) await download(sheet.id, 'pdf', '203.0.113.200').expect(200);
     await download(sheet.id, 'pdf', '203.0.113.200').expect(429);
-    await download(sheet.id, 'pdf', '203.0.113.201').expect(302);
+    await download(sheet.id, 'pdf', '203.0.113.201').expect(200);
   });
 
   it('chi tiết công khai: isFree và downloadTypes theo file hiện hành, không lộ storage_key/URL private', async () => {

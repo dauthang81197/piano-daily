@@ -22,23 +22,25 @@ export function buildCsp(env: CspEnv = process.env): string {
   const api = originOf(env.NEXT_PUBLIC_API_URL);
   const media = originOf(env.NEXT_PUBLIC_MEDIA_BASE_URL);
   const paypal = ['https://www.paypal.com', 'https://*.paypal.com'];
+  // Google Identity Services (đăng nhập Google của khách): script, iframe nút, kết nối và style của nút.
+  const google = 'https://accounts.google.com';
   const youtube = ['https://www.youtube.com', 'https://www.youtube-nocookie.com'];
   const list = (...parts: (string | string[] | undefined)[]) => parts.flat().filter(Boolean).join(' ');
 
   const directives: Record<string, string> = {
     'default-src': "'self'",
     // Next nhúng script inline (không dùng nonce); giữ 'unsafe-inline' thay vì bật cacheComponents/nonce.
-    'script-src': list("'self'", "'unsafe-inline'", isDev ? "'unsafe-eval'" : undefined, paypal, youtube),
-    'style-src': "'self' 'unsafe-inline'",
+    'script-src': list("'self'", "'unsafe-inline'", isDev ? "'unsafe-eval'" : undefined, paypal, youtube, `${google}/gsi/client`),
+    'style-src': list("'self'", "'unsafe-inline'", `${google}/gsi/style`),
     // Nút và logo PayPal (paypal.com, paypalobjects.com) cho modal thanh toán (Story 3.6).
     // `https:` cho ảnh quảng cáo (Story 4.6) do founder nhập URL tuỳ ý; chỉ nới ảnh, không nới script/connect/frame.
     'img-src': list("'self'", 'data:', 'https:', media, paypal, 'https://www.paypalobjects.com'),
     'media-src': list("'self'", media),
     'font-src': "'self'",
-    'connect-src': list("'self'", api, media, paypal),
+    'connect-src': list("'self'", api, media, paypal, `${google}/gsi/`),
     // Tone.js dùng Web Worker dạng blob làm bộ hẹn giờ (thiếu thì tự lùi về setTimeout, kém ổn định ở tab nền).
     'worker-src': "'self' blob:",
-    'frame-src': list(paypal, youtube),
+    'frame-src': list(paypal, youtube, `${google}/gsi/`),
     'object-src': "'none'",
     'base-uri': "'self'",
     'form-action': "'self'",

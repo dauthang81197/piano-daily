@@ -103,11 +103,11 @@ describe('Beacon lượt xem POST /sheets/:id/view (Postgres thật)', () => {
     expect(await dedupeRows()).toHaveLength(0);
   });
 
-  it('beacon từ origin web (CORS, không credentials): response POST có Allow-Origin đúng origin, không Allow-Credentials', async () => {
+  it('beacon từ origin web (CORS): response POST có Allow-Origin đúng origin (kèm Allow-Credentials cho cookie khách)', async () => {
     const sheet = await addSheet();
     const res = await view(sheet.id, nextIp()).set('Origin', TEST_CORS_WEB_ORIGIN).expect(204);
     expect(res.headers['access-control-allow-origin']).toBe(TEST_CORS_WEB_ORIGIN);
-    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
     expect(await count(sheet.id)).toBe(1);
   });
 

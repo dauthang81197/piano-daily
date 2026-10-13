@@ -42,6 +42,10 @@ export const ErrorCode = {
   ORDER_NOT_PAID: 'ORDER_NOT_PAID',
   /** PayPal từ chối hoàn tiền; lý do nằm trong `message` (422). */
   REFUND_REJECTED: 'REFUND_REJECTED',
+  /** Khách chưa xác minh email nên chưa được tải (403). */
+  EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
+  /** Token xác minh email / đặt lại mật khẩu sai, hết hạn hoặc đã dùng (400). */
+  INVALID_TOKEN: 'INVALID_TOKEN',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

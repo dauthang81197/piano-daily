@@ -1,12 +1,13 @@
-import type { FingerPose } from '../hands/hand-path';
-import type { Key } from '../keyboard-layout';
-
 /**
  * Toạ độ thế giới của cảnh 3D, đơn vị "một phím trắng = 1" (≈ 23,5 mm). Trục x chạy dọc bàn phím (cùng `Key.x`), y hướng
  * lên (mặt phím trắng là 0), z hướng về phía người chơi: mép trước của phím ở z = 0, phím kéo dài ra xa tới z = −WHITE_LENGTH.
  */
-export const KEY_UNIT_MM = 23.5;
-export const WHITE_LENGTH = 150 / KEY_UNIT_MM;
+import type { FingerPose } from '../hands/hand-path';
+import type { Key } from '../keyboard-layout';
+import { KEY_UNIT_MM, WHITE_LENGTH } from './keyboard-geometry';
+
+export { KEY_UNIT_MM, WHITE_LENGTH };
+/** Độ dài phím đen (đơn vị của cảnh): 95 mm. */
 export const BLACK_LENGTH = 95 / KEY_UNIT_MM;
 /** Độ dày phần thấy được của phím trắng (xuống dưới mặt phím). */
 export const WHITE_DEPTH = 0.9;

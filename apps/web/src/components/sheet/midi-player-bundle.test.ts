@@ -68,6 +68,12 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
     );
   });
 
+  it('cài đặt góc nhìn/màu và bảng của nó nằm trong bundle ban đầu mà không kéo three', () => {
+    expect(graph.files).toContain('lib/midi/scene3d/view-settings.ts');
+    expect(graph.files).toContain('components/sheet/view-settings-panel.tsx');
+    expect(graph.packages.filter((p) => p.startsWith('three'))).toEqual([]);
+  });
+
   it('three, loader, model và cảnh 3D chỉ được nạp bằng import() động khi player sẵn sàng', () => {
     expect(graph.packages).not.toContain('three');
     expect(graph.packages.filter((p) => p.startsWith('three'))).toEqual([]);
@@ -79,6 +85,7 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
       'lib/midi/scene3d/hand-animator.ts',
       'lib/midi/scene3d/hand-driver.ts',
       'lib/midi/scene3d/smoothing.ts',
+      'lib/midi/scene3d/view-apply.ts',
       'lib/midi/scene3d/world.ts',
     ]) {
       expect(graph.files).not.toContain(heavy);

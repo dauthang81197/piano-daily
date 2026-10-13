@@ -2,9 +2,10 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildHandPath, HAND_LEAD } from '@/lib/midi/hands/hand-path';
 import { layoutKeyboard } from '@/lib/midi/keyboard-layout';
+import { DEFAULT_VIEW_SETTINGS } from '@/lib/midi/scene3d/view-settings';
 import type { PlayerNote } from '@/lib/midi/note-json';
 
-const scene = { render: vi.fn(), resize: vi.fn(), dispose: vi.fn(), stats: vi.fn(() => null as unknown) };
+const scene = { render: vi.fn(), resize: vi.fn(), dispose: vi.fn(), stats: vi.fn(() => null as unknown), setView: vi.fn() };
 const createPianoScene = vi.fn();
 vi.mock('./piano-scene', () => ({ createPianoScene: (...args: unknown[]) => createPianoScene(...args) }));
 
@@ -44,7 +45,7 @@ describe('PianoView', () => {
   it('nạp cảnh với bố cục và model, canvas có nhãn và là role img', async () => {
     const { getByTestId } = setup({ position: 0.5 });
     await waitFor(() => expect(scene.render).toHaveBeenCalled());
-    expect(createPianoScene).toHaveBeenCalledWith(getByTestId('piano-canvas'), layout, HAND_MODEL_URL, { debug: false });
+    expect(createPianoScene).toHaveBeenCalledWith(getByTestId('piano-canvas'), layout, HAND_MODEL_URL, { debug: false, view: DEFAULT_VIEW_SETTINGS });
     expect(HAND_MODEL_URL).toBe('/models/hand-right.glb');
     expect(getByTestId('piano-canvas')).toHaveAttribute('role', 'img');
     expect(getByTestId('piano-canvas')).toHaveAttribute('aria-label', 'Phím đàn 3D');
@@ -86,7 +87,7 @@ describe('PianoView', () => {
         window.history.pushState({}, '', search);
         createPianoScene.mockClear();
         const view = setup();
-        await waitFor(() => expect(createPianoScene).toHaveBeenCalledWith(expect.anything(), layout, HAND_MODEL_URL, { debug: false }));
+        await waitFor(() => expect(createPianoScene).toHaveBeenCalledWith(expect.anything(), layout, HAND_MODEL_URL, { debug: false, view: DEFAULT_VIEW_SETTINGS }));
         view.unmount();
       }
       expect(screen.queryByTestId('hands-debug')).not.toBeInTheDocument();
@@ -103,11 +104,31 @@ describe('PianoView', () => {
     scene.stats.mockReturnValue({ frames: 10, fps: 60, renderMs: { p50: 1, p95: 2.5, max: 3 }, jointStep: { p50: 0.01, p95: 0.05, max: 0.1 } });
     try {
       setup();
-      await waitFor(() => expect(createPianoScene).toHaveBeenCalledWith(expect.anything(), layout, HAND_MODEL_URL, { debug: true }));
+      await waitFor(() => expect(createPianoScene).toHaveBeenCalledWith(expect.anything(), layout, HAND_MODEL_URL, { debug: true, view: DEFAULT_VIEW_SETTINGS }));
       expect(await screen.findByTestId('hands-debug', undefined, { timeout: 2000 })).toHaveTextContent('60 fps · xử lý p95 2.5 ms · bước khớp max 0.10 rad');
     } finally {
       window.history.pushState({}, '', '/');
     }
+  });
+
+  it('góc nhìn và màu: cảnh tạo với cài đặt hiện tại; đổi prop `view` thì setView tại chỗ rồi vẽ lại, không dựng lại cảnh', async () => {
+    const custom = { ...DEFAULT_VIEW_SETTINGS, elevation: 35, handColor: '#112233' };
+    const { rerender, onUnavailable } = setup({ view: custom });
+    await waitFor(() => expect(scene.setView).toHaveBeenCalledWith(custom));
+    expect(createPianoScene).toHaveBeenCalledWith(expect.anything(), layout, HAND_MODEL_URL, { debug: false, view: custom });
+    const renders = scene.render.mock.calls.length;
+    const next = { ...custom, zoom: 1.3, noteWhiteColor: '#3366ff' };
+    rerender(
+      <PianoView notes={notes} layout={layout} playing={false} position={0} getTime={() => 0} showHands label="x" onUnavailable={onUnavailable} view={next} />,
+    );
+    await waitFor(() => expect(scene.setView).toHaveBeenLastCalledWith(next));
+    await waitFor(() => expect(scene.render.mock.calls.length).toBeGreaterThan(renders));
+    expect(createPianoScene).toHaveBeenCalledTimes(1);
+  });
+
+  it('không truyền `view`: dùng cài đặt mặc định', async () => {
+    setup();
+    await waitFor(() => expect(scene.setView).toHaveBeenCalledWith(DEFAULT_VIEW_SETTINGS));
   });
 
   it('tắt bàn tay: vẫn vẽ phím và nốt rơi, chỉ cờ showHands tắt', async () => {

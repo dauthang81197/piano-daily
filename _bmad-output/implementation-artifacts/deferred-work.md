@@ -166,3 +166,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-tay-piano-muot-va-tu-nhien.md`
   summary: Giai đoạn 3 của bàn tay chưa làm: model GLB chi tiết hơn, vật liệu da, cẳng tay thật, và xem lại bằng mắt dáng tay trên trình duyệt (các tiêu chí hiện chỉ là số đo ở Node).
   evidence: Môi trường làm việc không có WebGL; `hand-right.glb` 94 KB, màu da phẳng, cẳng tay là hình trụ.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tuy-chinh-goc-nhin-va-mau-canh-3d.md`
+  summary: Mặc định góc nhìn và màu cho cả site chỉnh ở admin (phương án B) chưa làm; cài đặt hiện chỉ theo từng trình duyệt.
+  evidence: Founder chọn phương án A (mọi người xem, lưu `localStorage`); muốn đổi giao diện mặc định cho mọi người cần cột `site_settings`, API, form admin và web đọc mặc định.

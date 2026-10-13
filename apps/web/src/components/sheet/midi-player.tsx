@@ -9,9 +9,18 @@ import { PlayerCore, PLAYBACK_RATES, type AudioPort } from '@/lib/midi/player-co
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
 import { canShowHands } from '@/lib/midi/hands/capabilities';
 import { claimAudio } from '@/lib/midi/audio-exclusive';
+import {
+  clearViewSettings,
+  DEFAULT_VIEW_SETTINGS,
+  readViewSettings,
+  sanitizeViewSettings,
+  type ViewSettings,
+  writeViewSettings,
+} from '@/lib/midi/scene3d/view-settings';
 import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
 import { PianoKeyboard } from './piano-keyboard';
+import { ViewSettingsPanel } from './view-settings-panel';
 
 // Cảnh 3D (kéo theo `three` và model bàn tay) chỉ được nạp khi player đã sẵn sàng sau lần bấm Play đầu tiên.
 const PianoView = lazy(() => import('./piano-view'));
@@ -98,6 +107,9 @@ export function MidiPlayer({
   const [view3dAvailable, setView3dAvailable] = useState(false);
   /** Lựa chọn của người dùng: mặc định bật, nhớ lại lần tắt gần nhất. */
   const [handsPref, setHandsPref] = useState(true);
+  /** Góc nhìn và màu của cảnh 3D: mặc định, rồi đọc từ trình duyệt sau khi mount (tránh lệch hydration). */
+  const [viewSettings, setViewSettings] = useState<ViewSettings>({ ...DEFAULT_VIEW_SETTINGS });
+  const [viewOpen, setViewOpen] = useState(false);
   const use3d = view3dAvailable && phase === 'ready' && parsed !== null;
   const handsOn = use3d && handsPref;
   const mounted = useRef(true);
@@ -113,6 +125,7 @@ export function MidiPlayer({
     setSupported(hasWebAudio());
     setView3dAvailable(canShowHands());
     setHandsPref(readHandsPref());
+    setViewSettings(readViewSettings());
     return () => {
       mounted.current = false;
       clearTimeout(scrubTimer.current);
@@ -250,6 +263,15 @@ export function MidiPlayer({
     setHandsPref(next);
     writeHandsPref(next);
   };
+  const onViewChange = (next: ViewSettings) => {
+    const clean = sanitizeViewSettings(next);
+    setViewSettings(clean);
+    writeViewSettings(clean);
+  };
+  const onViewReset = () => {
+    setViewSettings({ ...DEFAULT_VIEW_SETTINGS });
+    clearViewSettings();
+  };
   const onRate = (value: number) => {
     setRate(value);
     coreRef.current?.setRate(value);
@@ -309,7 +331,23 @@ export function MidiPlayer({
             {t('handsToggle')}
           </button>
         ) : null}
+
+        {use3d ? (
+          <button
+            type="button"
+            onClick={() => setViewOpen((open) => !open)}
+            aria-expanded={viewOpen}
+            aria-controls={viewOpen ? 'view-settings-panel' : undefined}
+            className={control}
+          >
+            {t('viewSettingsToggle')}
+          </button>
+        ) : null}
       </div>
+
+      {use3d && viewOpen ? (
+        <ViewSettingsPanel id="view-settings-panel" value={viewSettings} onChange={onViewChange} onReset={onViewReset} />
+      ) : null}
 
       {phase === 'error' ? (
         <p role="alert" className="text-body-md text-error">
@@ -346,6 +384,7 @@ export function MidiPlayer({
             showHands={handsPref}
             label={t('keyboardLabel', { title })}
             onUnavailable={onViewUnavailable}
+            view={viewSettings}
           />
         </Suspense>
       ) : (

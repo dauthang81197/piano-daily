@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { StickyBottomAd } from '@/components/ads/sticky-bottom-ad';
+import { AuthProvider } from '@/components/auth/auth-provider';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { routing } from '@/i18n/routing';
@@ -42,11 +43,13 @@ export default async function LocaleLayout({ children, params }: Props) {
     <html lang={locale} className={`${playfairDisplay.variable} ${beVietnamPro.variable}`}>
       <body className="flex min-h-screen flex-col bg-surface font-sans text-body-md text-on-surface antialiased">
         <NextIntlClientProvider>
-          <Header siteName={site.siteName} logoUrl={site.logoUrl} />
-          <AdSlotFrame slots={ads} position="HEADER" />
-          <div className="flex-1">{children}</div>
-          <Footer youtubeUrl={site.youtubeUrl} />
-          <StickyBottomAd slots={ads} />
+          <AuthProvider>
+            <Header siteName={site.siteName} logoUrl={site.logoUrl} />
+            <AdSlotFrame slots={ads} position="HEADER" />
+            <div className="flex-1">{children}</div>
+            <Footer youtubeUrl={site.youtubeUrl} />
+            <StickyBottomAd slots={ads} />
+          </AuthProvider>
         </NextIntlClientProvider>
       </body>
     </html>

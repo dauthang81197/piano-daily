@@ -84,34 +84,31 @@ const view = (sheet: PublicSheetDetail, locale: 'vi' | 'en' = 'en') => render(wi
 
 describe('SheetDetail — nút tải (Story 3.2)', () => {
   const free = { ...full, isFree: true };
-  const hrefs = (links: HTMLElement[]) => links.map((a) => a.getAttribute('href'));
 
   beforeEach(() => vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.example:4000/'));
 
-  it('Sheet free đủ 3 định dạng: nhóm nút, call-out MIDI/MP3 và PDF ở sidebar, đều là liên kết tải trực tiếp', () => {
+  it('Sheet free đủ 3 định dạng: nhóm nút, call-out MIDI/MP3 và PDF ở sidebar, đều là nút tải (cần đăng nhập)', () => {
     view(free);
     const group = screen.getByRole('region', { name: 'Downloads' });
-    expect(hrefs(within(group).getAllByRole('link'))).toEqual([
-      'http://api.example:4000/files/s1/pdf/download',
-      'http://api.example:4000/files/s1/midi/download',
-      'http://api.example:4000/files/s1/mp3/download',
-    ]);
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual(['Download PDF', 'Download MIDI', 'Download MP3']);
     const callout = screen.getByRole('region', { name: 'Download MIDI and MP3' });
-    expect(within(callout).getAllByRole('link')).toHaveLength(2);
-    expect(within(callout).queryByRole('link', { name: /PDF/ })).toBeNull();
+    expect(within(callout).getAllByRole('button')).toHaveLength(2);
+    expect(within(callout).queryByRole('button', { name: /PDF/ })).toBeNull();
     const aside = screen.getByRole('complementary');
-    expect(hrefs(within(aside).getAllByRole('link', { name: /PDF/ }))).toEqual(['http://api.example:4000/files/s1/pdf/download']);
-    for (const a of within(group).getAllByRole('link')) {
-      expect(a.className).toContain('bg-secondary');
-      expect(a).not.toHaveAttribute('aria-disabled');
+    expect(within(aside).getAllByRole('button', { name: /PDF/ })).toHaveLength(1);
+    for (const b of within(group).getAllByRole('button')) {
+      expect(b.className).toContain('bg-secondary');
+      expect(b).not.toHaveAttribute('aria-disabled');
     }
-    expect(screen.queryAllByRole('button', { name: /Download/ })).toHaveLength(0);
+    // Không còn liên kết tải ẩn danh: tải luôn đi qua đăng nhập.
+    expect(screen.queryAllByRole('link', { name: /Download/ })).toHaveLength(0);
+    expect(document.querySelector('a[href*="/files/"]')).toBeNull();
   });
 
-  it('thiếu MP3: không có nút hay liên kết MP3 (ẩn hẳn, không disable)', () => {
+  it('thiếu MP3: không có nút MP3 (ẩn hẳn, không disable)', () => {
     view({ ...free, downloadTypes: ['PDF', 'MIDI'] });
-    expect(screen.queryByRole('link', { name: /MP3/ })).toBeNull();
-    expect(screen.getAllByRole('link', { name: /MIDI/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /MP3/ })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /MIDI/ }).length).toBeGreaterThan(0);
   });
 
   it('chỉ có PDF: không có call-out MIDI/MP3', () => {
@@ -139,7 +136,7 @@ describe('SheetDetail — nút tải (Story 3.2)', () => {
 
   it('tiếng Việt', () => {
     view(free, 'vi');
-    expect(within(screen.getByRole('region', { name: 'Tải về' })).getAllByRole('link', { name: /Tải PDF/ })).toHaveLength(1);
+    expect(within(screen.getByRole('region', { name: 'Tải về' })).getAllByRole('button', { name: /Tải PDF/ })).toHaveLength(1);
   });
 });
 
@@ -386,10 +383,11 @@ describe('SheetDetail — nút mua (Story 3.6)', () => {
     expect(within(screen.getByRole('region', { name: 'Downloads' })).getAllByRole('button')).toHaveLength(3);
   });
 
-  it('Sheet free vẫn là liên kết tải trực tiếp, không gọi báo giá', () => {
+  it('Sheet free vẫn là nút tải trực tiếp (không mở modal mua), không gọi báo giá', () => {
     const fetchMock = stubFetch(quote());
     view({ ...full, isFree: true });
-    expect(screen.getAllByRole('link', { name: /Download PDF/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Download PDF/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

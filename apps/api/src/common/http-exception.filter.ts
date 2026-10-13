@@ -36,6 +36,8 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   BULK_COUNT_CHANGED: 'Số Sheet khớp tiêu chí đã thay đổi. Hãy xem trước lại rồi áp dụng.',
   ORDER_NOT_PAID: 'Chỉ đơn đã thanh toán (PAID) mới thực hiện được thao tác này.',
   REFUND_REJECTED: 'PayPal từ chối hoàn tiền.',
+  EMAIL_NOT_VERIFIED: 'Vui lòng xác minh email trước khi tải.',
+  INVALID_TOKEN: 'Liên kết không hợp lệ hoặc đã hết hạn.',
   ALREADY_PURCHASED: 'Bạn đã mua bài này. Chúng tôi đã gửi lại link tải vào email của bạn.',
 };
 

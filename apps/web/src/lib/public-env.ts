@@ -11,3 +11,8 @@ export function paypalClientId(): string {
   if (!id) throw new Error('Thiếu biến môi trường NEXT_PUBLIC_PAYPAL_CLIENT_ID');
   return id;
 }
+
+/** Google OAuth Client ID cho nút đăng nhập Google của khách; `null` khi chưa cấu hình (ẩn nút, đăng ký email vẫn chạy). */
+export function googleClientId(): string | null {
+  return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || null;
+}

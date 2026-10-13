@@ -176,3 +176,13 @@
 - Tay áo cẳng tay chưa chỉnh được màu trong ViewSettings.
 - Hằng số cẳng tay (WRIST_*, FOREARM_START_Z) chưa có script đo lại khi đổi model hand-right.glb.
 - Chưa có test winding mặt cho lathe cẳng tay; tên test "cổ tay không dời" trong hand-path.test.ts cần chỉnh cho khớp khẳng định.
+
+## Tài khoản khách (feature/tai-khoan-khach)
+
+- Cooldown gửi email xác minh/đặt lại theo từng email và throttle theo tài khoản (hiện chỉ throttle theo IP).
+- Dùng lại refresh token đã thu hồi chưa thu hồi cả họ token; chưa có job dọn `customer_tokens`/`customer_refresh_tokens` hết hạn.
+- CORS `credentials: true` đang áp cho mọi route với origin web; chỉ cần cho `/customer`.
+- Chưa có: đổi mật khẩu khi đang đăng nhập, đặt mật khẩu cho tài khoản chỉ Google, xoá tài khoản, admin xem/khoá khách, chuẩn hoá alias Gmail.
+- Quota tải miễn phí theo khách (S2); link tải ẩn danh cũ `/files/.../download` giờ 404 (cân nhắc 410/redirect).
+- Google xác minh bằng `tokeninfo`; nếu lưu lượng đăng nhập tăng thì chuyển sang xác minh JWT bằng JWKS cục bộ.
+- Test P2002 của `customer register` (đăng ký đồng thời).

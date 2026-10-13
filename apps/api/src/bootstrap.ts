@@ -14,7 +14,7 @@ export const APP_OPTIONS = { rawBody: true } as const;
 export function configureApp(app: INestApplication): void {
   app.useLogger(app.get(Logger));
   app.use(helmet());
-  // CORS theo allowlist tường minh: origin admin kèm credentials (cookie refresh), origin web không credentials — AD-18.
+  // CORS theo allowlist tường minh: origin admin và origin web kèm credentials (cookie refresh của admin / của khách) — AD-18.
   // Dùng delegate thay vì `{ origin: [...] }`: gói `cors` vẫn gửi `Allow-Credentials`/`Allow-Methods`
   // cho origin không khớp; `origin: false` bỏ qua hẳn CORS nên origin lạ không nhận header `Access-Control-Allow-*`.
   // Mọi response đều `Vary: Origin` (kể cả origin bị từ chối / không có Origin), để cache trung gian không
@@ -30,7 +30,7 @@ export function configureApp(app: INestApplication): void {
   const corsDelegate: CorsOptionsDelegate<Request> = (req, callback) => {
     const origin = req.headers.origin;
     if (origin && origin === adminOrigin) return callback(null, { origin: true, credentials: true });
-    if (origin && origin === webOrigin) return callback(null, { origin: true, credentials: false });
+    if (origin && origin === webOrigin) return callback(null, { origin: true, credentials: true });
     callback(null, { origin: false });
   };
   app.enableCors(corsDelegate);

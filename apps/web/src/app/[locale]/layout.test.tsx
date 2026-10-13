@@ -11,6 +11,7 @@ vi.mock('next-intl', () => ({ hasLocale: (locales: string[], l: string) => local
 vi.mock('@/components/layout/header', () => ({
   Header: ({ siteName, logoUrl }: { siteName: string; logoUrl: string | null }) => `[header:${siteName}|${logoUrl}]`,
 }));
+vi.mock('@/components/auth/auth-provider', () => ({ AuthProvider: ({ children }: { children: unknown }) => children }));
 vi.mock('@/components/layout/footer', () => ({ Footer: ({ youtubeUrl }: { youtubeUrl: string }) => `[footer:${youtubeUrl}]` }));
 vi.mock('@/lib/site-settings', () => ({ fetchSiteSettings: vi.fn() }));
 vi.mock('@/lib/ads', () => ({ fetchAds: vi.fn() }));

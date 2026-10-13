@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { HeaderAuth } from '@/components/auth/header-auth';
 import { Link } from '@/i18n/navigation';
 import { LEVELS } from '@/lib/levels';
 import { LanguageSwitcher } from './language-switcher';
@@ -44,6 +45,7 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
         <div className="hidden items-center gap-3 md:flex">
           <SearchForm className="w-64" />
           <LanguageSwitcher />
+          <HeaderAuth />
         </div>
         <MobileMenu />
       </div>

@@ -259,5 +259,63 @@
       "config": "Online payment is not configured on this site. Please contact us for help.",
       "generic": "The payment could not be completed. Please try again; if the problem continues, contact us with the email you entered."
     }
+  },
+  "Auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "close": "Close",
+    "busy": "Working…",
+    "or": "or",
+    "title": {
+      "login": "Log in",
+      "register": "Create account",
+      "forgot": "Forgot password",
+      "verify": "Verify email"
+    },
+    "downloadHint": "Log in to download sheet music. Browsing and previews stay free, no account needed.",
+    "verifyHint": "You need to verify your email before downloading. Enter your email to get a new verification link.",
+    "passwordHint": "At least 8 characters.",
+    "fields": {
+      "name": "Your name",
+      "email": "Email",
+      "password": "Password"
+    },
+    "submit": {
+      "login": "Log in",
+      "register": "Create account",
+      "forgot": "Send reset link",
+      "verify": "Resend verification email"
+    },
+    "links": {
+      "toRegister": "No account yet? Sign up",
+      "toLogin": "Already have an account? Log in",
+      "toForgot": "Forgot password?"
+    },
+    "sent": {
+      "register": "We sent a verification email to {email}. Open it and click the link to activate your account (check spam too).",
+      "forgot": "If {email} has an account, we sent a password reset link (valid for 1 hour).",
+      "verify": "If {email} needs verification, we sent the verification email again."
+    },
+    "errors": {
+      "invalidCredentials": "Incorrect email or password.",
+      "tooMany": "Too many attempts. Please wait a minute and try again.",
+      "network": "Could not reach the server. Please check your connection and try again.",
+      "googleUnavailable": "Google sign-in is unavailable right now. Please use email and password.",
+      "generic": "Something went wrong. Please try again.",
+      "downloadFailed": "Could not download the file. Please try again."
+    },
+    "verifyPage": {
+      "title": "Verify email",
+      "working": "Verifying your email…",
+      "done": "Your email is verified. You can now log in and download sheet music.",
+      "invalid": "This verification link is invalid or has expired. Log in to get a new verification email."
+    },
+    "resetPage": {
+      "title": "Reset password",
+      "newPassword": "New password",
+      "submit": "Set new password",
+      "done": "Your password was changed. Other devices were logged out; please log in again.",
+      "invalid": "This reset link is invalid or has expired. Please request a new one."
+    }
   }
 }

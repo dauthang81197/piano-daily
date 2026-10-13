@@ -61,6 +61,9 @@ export function MobileMenu() {
                 {t(`levels.${level}`)}
               </Link>
             ))}
+            <Link href="/pricing" className={linkClass} onClick={() => setOpen(false)}>
+              {t('pricing')}
+            </Link>
           </nav>
           <SearchForm className="mt-4" />
           <LanguageSwitcher className="mt-4" />

@@ -10,6 +10,11 @@ export const MAX_TOKEN_DOWNLOADS = 1000;
 export const DEFAULT_TOKEN_DAYS = 7;
 export const DEFAULT_TOKEN_MAX_DOWNLOADS = 5;
 export const DEFAULT_SITE_NAME = 'Piano Daily';
+/** Dùng thử (S2 thuê bao): số ngày kể từ lúc xác minh email và số lượt tải miễn phí. */
+export const MAX_TRIAL_DAYS = 365;
+export const MAX_TRIAL_DOWNLOADS = 100;
+export const DEFAULT_TRIAL_DAYS = 7;
+export const DEFAULT_TRIAL_MAX_DOWNLOADS = 2;
 
 /** Logo: PNG/JPEG/WebP ≤ 2 MB, chuẩn hoá về WebP cạnh dài ≤ 512 px. */
 export const LOGO_MAX_BYTES = 2 * 1024 * 1024;
@@ -20,6 +25,8 @@ export const SITE_NAME_ERROR = `Tên site phải từ 1 đến ${SITE_NAME_MAX} 
 export const SEO_DESCRIPTION_ERROR = `Mô tả SEO tối đa ${SEO_DESCRIPTION_MAX} ký tự.`;
 export const SITE_YOUTUBE_URL_ERROR = 'Link YouTube phải để trống hoặc là URL https của youtube.com / youtu.be.';
 export const TOKEN_DAYS_ERROR = `Số ngày hiệu lực phải là số nguyên từ 1 đến ${MAX_TOKEN_DAYS}.`;
+export const TRIAL_DAYS_ERROR = `Số ngày dùng thử phải là số nguyên từ 0 đến ${MAX_TRIAL_DAYS}.`;
+export const TRIAL_DOWNLOADS_ERROR = `Số lượt tải dùng thử phải là số nguyên từ 0 đến ${MAX_TRIAL_DOWNLOADS}.`;
 export const TOKEN_DOWNLOADS_ERROR = `Số lượt tải phải là số nguyên từ 1 đến ${MAX_TOKEN_DOWNLOADS}.`;
 
 /** `true` nếu là URL https của youtube.com (kể cả www./m.) hoặc youtu.be, không có thông tin đăng nhập. */
@@ -51,6 +58,17 @@ export const tokenMaxDownloadsSchema = z
   .min(1, { error: TOKEN_DOWNLOADS_ERROR })
   .max(MAX_TOKEN_DOWNLOADS, { error: TOKEN_DOWNLOADS_ERROR });
 
+export const trialDaysSchema = z
+  .number({ error: TRIAL_DAYS_ERROR })
+  .int({ error: TRIAL_DAYS_ERROR })
+  .min(0, { error: TRIAL_DAYS_ERROR })
+  .max(MAX_TRIAL_DAYS, { error: TRIAL_DAYS_ERROR });
+export const trialMaxDownloadsSchema = z
+  .number({ error: TRIAL_DOWNLOADS_ERROR })
+  .int({ error: TRIAL_DOWNLOADS_ERROR })
+  .min(0, { error: TRIAL_DOWNLOADS_ERROR })
+  .max(MAX_TRIAL_DOWNLOADS, { error: TRIAL_DOWNLOADS_ERROR });
+
 /** Body `PUT /admin/settings`: đủ mọi trường (logo đi qua route upload riêng). */
 export const updateSettingsBodySchema = z.object({
   siteName: siteNameSchema,
@@ -59,6 +77,10 @@ export const updateSettingsBodySchema = z.object({
   paymentsEnabled: z.boolean({ error: 'Công tắc thanh toán phải là true hoặc false.' }),
   tokenDefaultDays: tokenDaysSchema,
   tokenDefaultMaxDownloads: tokenMaxDownloadsSchema,
+  /** Bật cưỡng chế dùng thử/gói khi tải (S2 thuê bao); tắt thì khách đã xác minh tải tự do như S1. */
+  subscriptionsEnabled: z.boolean({ error: 'Công tắc thuê bao phải là true hoặc false.' }),
+  trialDays: trialDaysSchema,
+  trialMaxDownloads: trialMaxDownloadsSchema,
 });
 export type UpdateSettingsBody = z.infer<typeof updateSettingsBodySchema>;
 

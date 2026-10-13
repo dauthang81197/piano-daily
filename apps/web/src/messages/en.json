@@ -15,7 +15,8 @@
       "intermediate": "Intermediate",
       "advanced": "Advanced",
       "expert": "Expert"
-    }
+    },
+    "pricing": "Pricing"
   },
   "Search": {
     "label": "Search sheet music",
@@ -316,6 +317,28 @@
       "submit": "Set new password",
       "done": "Your password was changed. Other devices were logged out; please log in again.",
       "invalid": "This reset link is invalid or has expired. Please request a new one."
+    },
+    "entitlement": {
+      "trial": "Trial: {count, plural, one {# download} other {# downloads}} left until {date}",
+      "planUnlimited": "{plan} · until {date}",
+      "planLeft": "{plan} · {count} left · until {date}",
+      "none": "Trial ended"
     }
+  },
+  "Pricing": {
+    "title": "Pricing",
+    "intro": "Pick a plan to download sheet music during the plan period. Browsing and previews are always free.",
+    "reason": {
+      "TRIAL_EXPIRED": "Your trial time or download allowance has run out. Choose a plan to keep downloading.",
+      "PLAN_REQUIRED": "Your plan has expired. Choose a plan to keep downloading.",
+      "QUOTA_EXCEEDED": "You have used all downloads of your plan. Choose another plan to keep downloading."
+    },
+    "free": "Free",
+    "duration": "{days}-day plan",
+    "unlimited": "Unlimited downloads in the period",
+    "quota": "{count} downloads per period",
+    "choose": "Coming soon",
+    "paymentSoon": "Plan payments (VietQR bank transfer in Vietnam, PayPal internationally) will open soon. Meanwhile you can still buy single sheets with PayPal.",
+    "unavailable": "Subscription plans are not open yet. You can still browse, preview and buy single sheets."
   }
 }

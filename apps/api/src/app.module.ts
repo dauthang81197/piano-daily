@@ -14,6 +14,7 @@ import type { Env } from './config/env';
 import { HealthModule } from './health/health.module';
 import { AdsModule } from './modules/ads/ads.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -55,6 +56,7 @@ import { PrismaModule } from './prisma/prisma.module';
     HealthModule,
     IdentityModule,
     CustomersModule,
+    BillingModule,
     CatalogModule,
     SettingsModule,
     AdsModule,

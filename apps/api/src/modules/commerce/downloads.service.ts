@@ -5,6 +5,8 @@ import type { Env } from '../../config/env';
 import { notFound } from '../catalog/catalog.helpers';
 import { FreeDownloadSource } from '../catalog/free-download-source.service';
 import { StorageService } from '../media/storage.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { EntitlementService } from '../billing/entitlement.service';
 import { CustomerAccessService } from '../customers/customer-access.service';
 import { DownloadLogRepository } from './download-log.repository';
 import { ipHash, USER_AGENT_MAX_LENGTH } from './ip-hash';
@@ -31,6 +33,8 @@ export class DownloadsService {
     private readonly logs: DownloadLogRepository,
     private readonly storage: StorageService,
     private readonly access: CustomerAccessService,
+    private readonly entitlement: EntitlementService,
+    private readonly prisma: PrismaService,
     config: ConfigService<Env, true>,
   ) {
     this.salt = config.get('VIEW_SALT', { infer: true });
@@ -48,13 +52,20 @@ export class DownloadsService {
     const { type, ext } = FILE[fileType];
     const file = await this.source.resolve(sheetId, type);
     if (!file) throw notFound('Không tìm thấy file.');
-    // Ghi log TRƯỚC khi sinh URL: log lỗi thì không có URL nào được phát.
-    await this.logs.recordFree({
-      sheetId,
-      fileType: type,
-      customerId,
-      ipHash: ipHash(ip, this.salt),
-      ua: userAgent ? userAgent.slice(0, USER_AGENT_MAX_LENGTH) : null,
+    // Trừ lượt (gói/dùng thử) và ghi log trong CÙNG một transaction, TRƯỚC khi sinh URL: hết quyền thì ném 402 và không
+    // có gì được ghi; log lỗi thì lượt không bị trừ và không có URL nào được phát.
+    await this.prisma.$transaction(async (tx) => {
+      await this.entitlement.consume(tx, customerId);
+      await this.logs.recordFree(
+        {
+          sheetId,
+          fileType: type,
+          customerId,
+          ipHash: ipHash(ip, this.salt),
+          ua: userAgent ? userAgent.slice(0, USER_AGENT_MAX_LENGTH) : null,
+        },
+        tx,
+      );
     });
     const base = file.slug.replace(/[^A-Za-z0-9._-]/g, '-') || 'sheet';
     return this.storage.presignPrivateUrl(file.storageKey, DOWNLOAD_URL_TTL_SECONDS, `${base}.${ext}`);

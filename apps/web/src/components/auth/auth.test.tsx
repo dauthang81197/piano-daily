@@ -2,7 +2,16 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 
+const push = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/navigate', () => ({ navigateTo: vi.fn() }));
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push }),
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 import { navigateTo } from '@/lib/navigate';
 import { DownloadButtons } from '@/components/sheet/download-buttons';
@@ -49,6 +58,7 @@ describe('Tài khoản khách (web)', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test');
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', '');
     vi.mocked(navigateTo).mockReset();
+    push.mockReset();
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -137,6 +147,83 @@ describe('Tài khoản khách (web)', () => {
     await screen.findByText('Khách');
     await new Promise((r) => setTimeout(r, 20));
     expect(calls.some((c) => c.key.includes('/customer/downloads/'))).toBe(false);
+  });
+
+  it.each(['TRIAL_EXPIRED', 'PLAN_REQUIRED', 'QUOTA_EXCEEDED'])(
+    'tải trả 402 %s: chuyển sang /pricing kèm lý do, không modal, không báo lỗi tải, không điều hướng file',
+    async (reason) => {
+      stubApi({
+        'POST /customer/auth/refresh': { body: SESSION },
+        [`POST /customer/downloads/${SHEET}/pdf`]: error(402, reason),
+      });
+      ui();
+      await screen.findByText('Khách');
+      fireEvent.click(screen.getByRole('button', { name: /Download PDF/ }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/pricing?reason=${reason}`));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(navigateTo).not.toHaveBeenCalled();
+    },
+  );
+
+  it('402 với mã lạ (không phải mã paywall): không chuyển sang /pricing, hiện lỗi tải chung', async () => {
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      [`POST /customer/downloads/${SHEET}/pdf`]: error(402, 'PAYMENT_DECLINED'),
+    });
+    ui();
+    await screen.findByText('Khách');
+    fireEvent.click(screen.getByRole('button', { name: /Download PDF/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not download the file');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('đăng nhập xong tải trạng thái dùng thử và hiện cạnh tên: còn lượt, hết dùng thử, có gói; tắt cưỡng chế thì ẩn', async () => {
+    const base = { subscriptionsEnabled: true, canDownload: true, subscription: null };
+    const trial = { active: true, endsAt: '2026-10-20T00:00:00.000Z', downloadsLeft: 1, downloadsMax: 2 };
+    let entitlement: unknown = { ...base, trial };
+    stubApi({ 'POST /customer/auth/refresh': { body: SESSION }, 'GET /customer/entitlement': () => ({ body: entitlement }) });
+    const { unmount } = ui();
+    expect(await screen.findByTestId('entitlement')).toHaveTextContent('Trial: 1 download left until Oct 20, 2026');
+    unmount();
+
+    entitlement = { ...base, canDownload: false, trial: { ...trial, active: false, downloadsLeft: 0 } };
+    const ended = ui();
+    expect(await screen.findByTestId('entitlement')).toHaveTextContent('Trial ended');
+    ended.unmount();
+
+    entitlement = {
+      ...base,
+      trial: { ...trial, active: false, downloadsLeft: 0 },
+      subscription: { planId: 'p', planName: { vi: 'Gói tháng', en: 'Monthly' }, endsAt: '2026-11-13T00:00:00.000Z', downloadsLeft: 7 },
+    };
+    const paid = ui();
+    expect(await screen.findByTestId('entitlement')).toHaveTextContent('Monthly · 7 left · until Nov 13, 2026');
+    paid.unmount();
+
+    entitlement = { ...base, subscriptionsEnabled: false, trial };
+    ui();
+    await screen.findByText('Khách');
+    await waitFor(() => expect(screen.queryByTestId('entitlement')).toBeNull());
+  });
+
+  it('tải thành công thì tải lại trạng thái dùng thử (số lượt còn lại giảm)', async () => {
+    let left = 2;
+    const { calls } = stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': () => ({
+        body: { subscriptionsEnabled: true, canDownload: true, subscription: null, trial: { active: true, endsAt: '2026-10-20T00:00:00.000Z', downloadsLeft: left, downloadsMax: 2 } },
+      }),
+      [`POST /customer/downloads/${SHEET}/pdf`]: () => {
+        left -= 1;
+        return { body: { url: 'https://r2.example/file.pdf?sig=1' } };
+      },
+    });
+    ui();
+    expect(await screen.findByTestId('entitlement')).toHaveTextContent('2 downloads left');
+    fireEvent.click(screen.getByRole('button', { name: /Download PDF/ }));
+    await waitFor(() => expect(screen.getByTestId('entitlement')).toHaveTextContent('1 download left'));
+    expect(calls.filter((c) => c.key === 'GET /customer/entitlement').length).toBeGreaterThanOrEqual(2);
   });
 
   it('đăng nhập đúng: đóng modal, header hiện tên khách và nút Đăng xuất; đăng xuất thu hồi phiên', async () => {

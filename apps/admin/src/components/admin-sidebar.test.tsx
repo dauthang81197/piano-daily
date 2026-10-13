@@ -6,7 +6,7 @@ let pathname = '/';
 vi.mock('next/navigation', () => ({ usePathname: () => pathname }));
 
 describe('AdminSidebar', () => {
-  it('hiển thị đủ 6 mục theo thứ tự, đánh dấu mục đang mở', () => {
+  it('hiển thị đủ 7 mục theo thứ tự, đánh dấu mục đang mở', () => {
     pathname = '/sheets';
     render(<AdminSidebar />);
     const nav = screen.getByRole('navigation', { name: 'Điều hướng quản trị' });
@@ -17,6 +17,7 @@ describe('AdminSidebar', () => {
       ['Composer/Genre/Series', '/taxonomy'],
       ['Quảng cáo', '/ads'],
       ['Đơn hàng', '/orders'],
+      ['Gói thuê bao', '/plans'],
       ['Cài đặt', '/settings'],
     ]);
     expect(within(nav).getByRole('link', { name: 'Sheet' })).toHaveAttribute('aria-current', 'page');

@@ -14,12 +14,13 @@ export const cacheTags = {
   sitemap: 'sitemap',
   ads: 'ads',
   settings: 'settings',
+  plans: 'plans',
 } as const;
 
 const TAG_PATTERNS = [
   /^sheet:[^\s:]+$/,
   /^list:(level|composer|genre|series):[^\s:]+$/,
-  /^(search|sitemap|ads|settings)$/,
+  /^(search|sitemap|ads|settings|plans)$/,
 ];
 
 /** `true` nếu chuỗi có đúng một dạng tag hợp lệ của `cacheTags` (web dùng để lọc body `/api/revalidate`). */

@@ -1,19 +1,22 @@
 'use client';
 
-import type { CustomerSession, CustomerUser } from '@piano-daily/shared';
+import { type CustomerSession, type CustomerUser, type Entitlement, PAYWALL_REASONS } from '@piano-daily/shared';
 import { useLocale } from 'next-intl';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { navigateTo } from '@/lib/navigate';
 import { ApiError } from '@/lib/public-api';
 import { AuthModal, type AuthTab } from './auth-modal';
 
-export type DownloadResult = 'started' | 'needsLogin' | 'needsVerification' | 'error';
+export type DownloadResult = 'started' | 'needsLogin' | 'needsVerification' | 'paywall' | 'error';
 
 type AuthState = {
   /** `loading` cho tới khi thử khôi phục phiên từ cookie refresh xong. */
   status: 'loading' | 'anonymous' | 'authenticated';
   customer: CustomerUser | null;
+  /** Trạng thái dùng thử/gói của khách đang đăng nhập; `null` khi chưa tải được hoặc chưa đăng nhập. */
+  entitlement: Entitlement | null;
   /** Mở modal đăng nhập (tab mặc định `login`). */
   openAuth: (tab?: AuthTab) => void;
   /** Nhận phiên mới sau đăng nhập; modal gọi. */
@@ -48,10 +51,13 @@ const EXPIRY_MARGIN_MS = 30_000;
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const locale = useLocale();
+  const router = useRouter();
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [status, setStatus] = useState<AuthState['status']>('loading');
   const [customer, setCustomer] = useState<CustomerUser | null>(null);
   const [modalTab, setModalTab] = useState<AuthTab | null>(null);
   const session = useRef<{ accessToken: string; expiresAt: number } | null>(null);
+  const customerIdRef = useRef<string | null>(null);
   const pendingRefresh = useRef<Promise<string | null> | null>(null);
   /** Lượt tải bị chặn vì chưa đăng nhập: tự chạy lại ngay sau khi đăng nhập xong. */
   const pendingDownload = useRef<{ sheetId: string; fileType: string } | null>(null);
@@ -66,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(() => {
     session.current = null;
     setCustomer(null);
+    setEntitlement(null);
     setStatus('anonymous');
   }, []);
 
@@ -96,6 +103,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return refresh();
   }, [refresh]);
 
+  /** Tải lại trạng thái dùng thử/gói; lỗi thì giữ giá trị cũ (chỉ là thông tin hiển thị, không quyết định quyền tải). */
+  const loadEntitlement = useCallback(async () => {
+    const token = await validToken();
+    if (!token) return;
+    const asked = customerIdRef.current;
+    try {
+      const next = await customerApi.entitlement(token);
+      // Bỏ kết quả trễ nếu trong lúc chờ đã đăng xuất hoặc đổi khách (không để trạng thái người trước hiện cho người sau).
+      if (customerIdRef.current === asked) setEntitlement(next);
+    } catch {
+      /* giữ nguyên */
+    }
+  }, [validToken]);
+
+  const customerId = customer?.id ?? null;
+  customerIdRef.current = customerId;
+  useEffect(() => {
+    if (customerId) void loadEntitlement();
+  }, [customerId, loadEntitlement]);
+
   const openAuth = useCallback((tab: AuthTab = 'login') => setModalTab(tab), []);
 
   const logout = useCallback(async () => {
@@ -117,8 +144,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { url } = await customerApi.download(token, sheetId, fileType);
         navigateTo(url);
+        void loadEntitlement();
         return 'started';
       } catch (err) {
+        // 402: hết dùng thử / hết lượt / cần gói → chuyển sang trang chọn gói kèm lý do.
+        // Chỉ ba mã paywall mới chuyển sang trang giá; 402 khác là lỗi chung (không gán nhầm thành hết dùng thử).
+        if (err instanceof ApiError && err.status === 402 && (PAYWALL_REASONS as readonly string[]).includes(err.code)) {
+          void loadEntitlement();
+          router.push(`/pricing?reason=${err.code}`);
+          return 'paywall';
+        }
         if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
           setModalTab('verify');
           return 'needsVerification';
@@ -132,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return 'error';
       }
     },
-    [clear, validToken],
+    [clear, loadEntitlement, router, validToken],
   );
 
   downloadRef.current = download;
@@ -149,8 +184,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthState>(
-    () => ({ status, customer, openAuth, acceptSession, logout, download }),
-    [status, customer, openAuth, acceptSession, logout, download],
+    () => ({ status, customer, entitlement, openAuth, acceptSession, logout, download }),
+    [status, customer, entitlement, openAuth, acceptSession, logout, download],
   );
 
   return (

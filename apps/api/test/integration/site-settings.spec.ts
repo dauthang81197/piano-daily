@@ -20,7 +20,14 @@ import { resolveTestDatabaseUrl } from './test-env';
 
 const EMAIL = 'admin@piano-daily.test';
 const PASSWORD = 'correct-horse-battery';
-const SEED: Record<string, string> = { payments_enabled: 'true', token_default_days: '7', token_default_max_downloads: '5' };
+const SEED: Record<string, string> = {
+  payments_enabled: 'true',
+  token_default_days: '7',
+  token_default_max_downloads: '5',
+  subscriptions_enabled: 'false',
+  trial_days: '7',
+  trial_max_downloads: '2',
+};
 
 const valid = {
   siteName: 'Piano Daily Studio',
@@ -29,6 +36,9 @@ const valid = {
   paymentsEnabled: true,
   tokenDefaultDays: 14,
   tokenDefaultMaxDownloads: 10,
+  subscriptionsEnabled: false,
+  trialDays: 7,
+  trialMaxDownloads: 2,
 };
 
 const completed = (): CaptureResult => ({
@@ -128,6 +138,9 @@ describe('Cài đặt site (Story 4.4, Postgres + storage thử + web giả)', (
       paymentsEnabled: true,
       tokenDefaultDays: 7,
       tokenDefaultMaxDownloads: 5,
+      subscriptionsEnabled: false,
+      trialDays: 7,
+      trialMaxDownloads: 2,
     });
   });
 
@@ -142,9 +155,12 @@ describe('Cài đặt site (Story 4.4, Postgres + storage thử + web giả)', (
       payments_enabled: 'true',
       token_default_days: '14',
       token_default_max_downloads: '10',
+      subscriptions_enabled: 'false',
+      trial_days: '7',
+      trial_max_downloads: '2',
     });
     await waitForCalls(1);
-    expect(calls[0]?.tags).toEqual(['settings']);
+    expect(calls[0]?.tags).toEqual(['settings', 'plans']);
   });
 
   it.each([
@@ -154,6 +170,10 @@ describe('Cài đặt site (Story 4.4, Postgres + storage thử + web giả)', (
     ['tokenDefaultDays', 5000],
     ['tokenDefaultMaxDownloads', 0],
     ['tokenDefaultMaxDownloads', 1001],
+    ['trialDays', 366],
+    ['trialDays', -1],
+    ['trialMaxDownloads', 101],
+    ['subscriptionsEnabled', 'true'],
     ['youtubeUrl', 'http://x.com'],
     ['youtubeUrl', 'chuoi bat ky'],
     ['siteName', ''],
@@ -164,7 +184,7 @@ describe('Cài đặt site (Story 4.4, Postgres + storage thử + web giả)', (
     const body = errorResponseSchema.parse(res.body);
     expect(body.error.code).toBe('VALIDATION_FAILED');
     expect(JSON.stringify(body.error.details)).toContain(field);
-    expect(await prisma.siteSetting.count()).toBe(3);
+    expect(await prisma.siteSetting.count()).toBe(6);
     await new Promise((r) => setTimeout(r, 200));
     expect(calls).toHaveLength(0);
   });

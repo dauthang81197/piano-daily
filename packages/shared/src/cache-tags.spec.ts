@@ -11,6 +11,7 @@ describe('cacheTags (AD-10)', () => {
     expect(cacheTags.sitemap).toBe('sitemap');
     expect(cacheTags.ads).toBe('ads');
     expect(cacheTags.settings).toBe('settings');
+    expect(cacheTags.plans).toBe('plans');
   });
 
   it('level trong tag luôn viết thường', () => {
@@ -29,6 +30,7 @@ describe('cacheTags (AD-10)', () => {
       cacheTags.sitemap,
       cacheTags.ads,
       cacheTags.settings,
+      cacheTags.plans,
     ]) {
       expect(isCacheTag(tag)).toBe(true);
     }

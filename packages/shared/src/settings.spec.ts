@@ -8,6 +8,9 @@ const valid = {
   paymentsEnabled: true,
   tokenDefaultDays: 14,
   tokenDefaultMaxDownloads: 10,
+  subscriptionsEnabled: false,
+  trialDays: 7,
+  trialMaxDownloads: 2,
 };
 
 describe('updateSettingsBodySchema', () => {
@@ -24,6 +27,19 @@ describe('updateSettingsBodySchema', () => {
 
   it.each([0, -1, '5', 1001])('từ chối số lượt %s', (v) => {
     expect(updateSettingsBodySchema.safeParse({ ...valid, tokenDefaultMaxDownloads: v }).success).toBe(false);
+  });
+
+  it.each([-1, 366, 1.5, '7', null])('từ chối số ngày dùng thử %s', (v) => {
+    expect(updateSettingsBodySchema.safeParse({ ...valid, trialDays: v }).success).toBe(false);
+  });
+
+  it.each([-1, 101, 0.5, '2'])('từ chối số lượt dùng thử %s', (v) => {
+    expect(updateSettingsBodySchema.safeParse({ ...valid, trialMaxDownloads: v }).success).toBe(false);
+  });
+
+  it('cho phép tắt dùng thử (0 ngày hoặc 0 lượt) và yêu cầu subscriptionsEnabled là boolean', () => {
+    expect(updateSettingsBodySchema.safeParse({ ...valid, trialDays: 0, trialMaxDownloads: 0 }).success).toBe(true);
+    expect(updateSettingsBodySchema.safeParse({ ...valid, subscriptionsEnabled: 'true' }).success).toBe(false);
   });
 
   it('từ chối tên rỗng/quá dài và mô tả quá dài', () => {

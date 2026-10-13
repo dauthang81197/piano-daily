@@ -5,6 +5,7 @@ import { CustomerAccessService } from './customer-access.service';
 import { CustomerAuthController } from './customer-auth.controller';
 import { CustomerAuthGuard } from './customer-auth.guard';
 import { CustomerAuthService } from './customer-auth.service';
+import { CustomerTrialRepository } from './customer-trial.repository';
 import { CustomerRefreshTokenService } from './customer-refresh-token.service';
 import { CustomerTokenService } from './customer-token.service';
 import { GoogleVerifier } from './google-verifier.service';
@@ -19,8 +20,9 @@ import { GoogleVerifier } from './google-verifier.service';
     CustomerTokenService,
     CustomerAccessService,
     CustomerAuthGuard,
+    CustomerTrialRepository,
     GoogleVerifier,
   ],
-  exports: [CustomerAuthGuard, CustomerAccessService],
+  exports: [CustomerAuthGuard, CustomerAccessService, CustomerTrialRepository],
 })
 export class CustomersModule {}

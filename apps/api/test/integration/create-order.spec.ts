@@ -89,12 +89,16 @@ describe('Tạo đơn hàng PayPal (Story 3.3, Postgres thật, provider giả)'
     provider.createOrder.mockClear();
   });
 
-  it('migration: site_settings có ba khoá seed và orders.sheet_id là FK RESTRICT', async () => {
+  it('migration: site_settings có các khoá seed (thanh toán, token, thuê bao) và orders.sheet_id là FK RESTRICT', async () => {
     const keys = await prisma.siteSetting.findMany({ orderBy: { key: 'asc' } });
-    expect(Object.fromEntries(keys.map((k) => [k.key, k.value]))).toEqual({
+    // Các test khác có thể để lại khoá site (tên, logo…): chỉ kiểm các khoá do migration seed.
+    expect(Object.fromEntries(keys.map((k) => [k.key, k.value]))).toMatchObject({
       payments_enabled: 'true',
       token_default_days: '7',
       token_default_max_downloads: '5',
+      subscriptions_enabled: 'false',
+      trial_days: '7',
+      trial_max_downloads: '2',
     });
     const fk = await prisma.$queryRaw<{ confdeltype: string }[]>`
       SELECT confdeltype::text FROM pg_constraint WHERE conname = 'orders_sheet_id_fkey'`;

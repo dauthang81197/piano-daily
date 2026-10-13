@@ -56,22 +56,25 @@ model RefreshToken {
 // Khách của web công khai, tách hẳn khỏi `User` (admin). Chỉ module `customers` ghi.
 
 model Customer {
-  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   /// Luôn lưu dạng chữ thường; không bao giờ ghi vào log.
-  email           String    @unique
+  email              String    @unique
   /// Null với tài khoản chỉ đăng nhập bằng Google.
-  passwordHash    String?   @map("password_hash")
+  passwordHash       String?   @map("password_hash")
   /// `sub` của tài khoản Google đã liên kết.
-  googleSub       String?   @unique @map("google_sub")
-  name            String
-  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  googleSub          String?   @unique @map("google_sub")
+  name               String
+  emailVerifiedAt    DateTime? @map("email_verified_at") @db.Timestamptz(6)
   /// `vi` | `en`: ngôn ngữ email gửi cho khách.
-  locale          String    @default("vi")
-  isActive        Boolean   @default(true) @map("is_active")
-  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(6)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  locale             String    @default("vi")
+  isActive           Boolean   @default(true) @map("is_active")
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(6)
+  /// Số lượt tải đã dùng trong dùng thử (S2 thuê bao). Hạn dùng thử = `email_verified_at` + `trial_days`.
+  trialDownloadsUsed Int       @default(0) @map("trial_downloads_used")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  subscriptions Subscription[]
   refreshTokens CustomerRefreshToken[]
   tokens        CustomerToken[]
   downloadLogs  DownloadLog[]
@@ -113,6 +116,60 @@ model CustomerToken {
 
   @@index([customerId, purpose])
   @@map("customer_tokens")
+}
+
+// ── subscriptions ────────────────────────────────────────────
+// Gói thuê bao (S2). Chỉ module `billing` ghi `plans` và `subscriptions`.
+
+/// Gói do admin cấu hình. `download_quota` null = không giới hạn lượt tải mỗi kỳ. Giá VND nguyên, USD tính bằng cent.
+model Plan {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  nameVi        String   @map("name_vi")
+  nameEn        String   @map("name_en")
+  descriptionVi String   @default("") @map("description_vi")
+  descriptionEn String   @default("") @map("description_en")
+  priceVnd      Int      @map("price_vnd")
+  priceUsdCents Int      @map("price_usd_cents")
+  durationDays  Int      @map("duration_days")
+  downloadQuota Int?     @map("download_quota")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subscriptions Subscription[]
+
+  @@index([isActive, sortOrder])
+  @@map("plans")
+}
+
+/// Phải trùng enum `SubscriptionStatus` trong packages/shared (có test kiểm tra).
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+/// Gói của một khách. Hết hạn tính lười theo `current_period_end` (không cần cron). Mỗi khách tối đa một dòng ACTIVE
+/// (unique một phần ở migration). `provider`: ADMIN (cấp tay), VIETQR/PAYPAL (S3/S4).
+model Subscription {
+  id                    String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  customerId            String             @map("customer_id") @db.Uuid
+  planId                String             @map("plan_id") @db.Uuid
+  status                SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart    DateTime           @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd      DateTime           @map("current_period_end") @db.Timestamptz(6)
+  downloadsUsedInPeriod Int                @default(0) @map("downloads_used_in_period")
+  provider              String?
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  plan     Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, status])
+  @@index([planId])
+  @@map("subscriptions")
 }
 
 // ── catalog ──────────────────────────────────────────────────

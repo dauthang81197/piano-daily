@@ -17,6 +17,9 @@ const SETTINGS = {
   paymentsEnabled: true,
   tokenDefaultDays: 7,
   tokenDefaultMaxDownloads: 5,
+  subscriptionsEnabled: false,
+  trialDays: 7,
+  trialMaxDownloads: 2,
 };
 
 type Handler = (url: URL, init: RequestInit) => Response | undefined;
@@ -47,6 +50,30 @@ describe('Trang /settings', () => {
     expect(screen.getByLabelText('Bật thanh toán')).toBeChecked();
     expect(screen.getByLabelText('Số ngày hiệu lực mặc định')).toHaveValue('7');
     expect(screen.getByLabelText('Số lượt tải mặc định')).toHaveValue('5');
+    expect(screen.getByLabelText('Bật giới hạn dùng thử và gói khi tải')).not.toBeChecked();
+    expect(screen.getByLabelText('Số ngày dùng thử')).toHaveValue('7');
+    expect(screen.getByLabelText('Số lượt tải dùng thử')).toHaveValue('2');
+  });
+
+  it('bật thuê bao và đổi dùng thử: PUT gửi đúng 3 trường mới; giá trị sai bị chặn ở client', async () => {
+    const fetchMock = await signIn((url, init) => {
+      if (init.method === 'PUT') return jsonResponse(200, { ...JSON.parse(String(init.body)), logoUrl: null });
+      return loadHandler(url, init);
+    });
+    render(<SettingsPage />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByLabelText('Bật giới hạn dùng thử và gói khi tải'));
+    const days = screen.getByLabelText('Số ngày dùng thử');
+    await user.clear(days);
+    await user.type(days, '400');
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }));
+    expect(await screen.findByText(/Số ngày dùng thử phải là số nguyên từ 0 đến 365/)).toBeInTheDocument();
+    expect(puts(fetchMock)).toHaveLength(0);
+    await user.clear(days);
+    await user.type(days, '14');
+    await user.click(screen.getByRole('button', { name: 'Lưu cài đặt' }));
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(1));
+    expect(JSON.parse(String(puts(fetchMock)[0]![1]!.body))).toMatchObject({ subscriptionsEnabled: true, trialDays: 14, trialMaxDownloads: 2 });
   });
 
   it('lưu hợp lệ: PUT đủ trường, hiện thông báo đã lưu', async () => {
@@ -74,6 +101,9 @@ describe('Trang /settings', () => {
       paymentsEnabled: false,
       tokenDefaultDays: 30,
       tokenDefaultMaxDownloads: 5,
+      subscriptionsEnabled: false,
+      trialDays: 7,
+      trialMaxDownloads: 2,
     });
     expect(await screen.findByText('Đã lưu cài đặt.')).toBeInTheDocument();
   });

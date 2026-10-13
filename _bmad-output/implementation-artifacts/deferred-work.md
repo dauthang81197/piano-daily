@@ -186,3 +186,13 @@
 - Quota tải miễn phí theo khách (S2); link tải ẩn danh cũ `/files/.../download` giờ 404 (cân nhắc 410/redirect).
 - Google xác minh bằng `tokeninfo`; nếu lưu lượng đăng nhập tăng thì chuyển sang xác minh JWT bằng JWKS cục bộ.
 - Test P2002 của `customer register` (đăng ký đồng thời).
+
+## Gói thuê bao, dùng thử và paywall (feature/goi-thue-bao-dung-thu)
+
+- Thanh toán gói (PayPal subscription S3, VietQR S4) chưa có: nút chọn gói ở `/pricing` là placeholder; cưỡng chế mặc định tắt.
+- Gia hạn tự động và job chuyển `ACTIVE` quá hạn sang `EXPIRED` chưa có (hết hạn đang tính lười theo `current_period_end`).
+- Chưa có trang tài khoản/lịch sử thanh toán, danh sách khách ở admin (S5) và chống tạo nhiều tài khoản để lấy thêm dùng thử (S6).
+- Lượt dùng thử/gói đã trừ không được hoàn nếu ký URL tải thất bại sau khi commit (ký URL là tính toán cục bộ, hầu như không lỗi).
+- (S2 review) Quota theo kỳ chưa tự đặt lại, `EXPIRED` chưa được ghi, Subscription chưa chụp giá/quota/thời hạn lúc mua: giải quyết cùng gia hạn ở S3/S4.
+- (S2 review) Chưa có cửa sổ chống trùng/hoàn lượt khi tải lại cùng file hoặc nhấp đúp; chưa ghi người cấp gói; cấp gói chưa có chế độ gia hạn (đang thay gói cũ).
+- (S2 review) Cân nhắc bắt đầu dùng thử từ lúc bật cưỡng chế cho khách cũ; từ chối bật cưỡng chế khi chưa có gói; cảnh báo sắp hết dùng thử; throttle `GET /plans` và `/customer/entitlement`.

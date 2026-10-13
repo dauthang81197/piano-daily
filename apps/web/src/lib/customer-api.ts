@@ -7,6 +7,8 @@ import {
   type CustomerRegisterRequest,
   type CustomerSession,
   customerSessionSchema,
+  type Entitlement,
+  entitlementSchema,
 } from '@piano-daily/shared';
 import type { z } from 'zod';
 import { ApiError, toApiError } from '@/lib/public-api';
@@ -70,6 +72,9 @@ export const customerApi = {
   },
   async resetPassword(token: string, newPassword: string): Promise<void> {
     await call('/customer/auth/reset-password', post({ token, newPassword }));
+  },
+  async entitlement(accessToken: string): Promise<Entitlement> {
+    return parsed(await call('/customer/entitlement', { method: 'GET' }, accessToken), entitlementSchema);
   },
   async download(accessToken: string, sheetId: string, fileType: string): Promise<CustomerDownloadResponse> {
     const res = await call(

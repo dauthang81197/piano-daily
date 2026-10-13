@@ -47,6 +47,9 @@ const body = {
   paymentsEnabled: false,
   tokenDefaultDays: 30,
   tokenDefaultMaxDownloads: 9,
+  subscriptionsEnabled: true,
+  trialDays: 14,
+  trialMaxDownloads: 3,
 };
 
 describe('SettingsService: cài đặt site', () => {
@@ -67,15 +70,35 @@ describe('SettingsService: cài đặt site', () => {
     expect(Object.keys(site).sort()).toEqual(['logoUrl', 'seoDescription', 'siteName', 'youtubeUrl']);
   });
 
-  it('updateAll: lưu 6 khoá dạng chuỗi, revalidate tag settings', async () => {
+  it('updateAll: lưu 9 khoá dạng chuỗi, revalidate tag settings và plans', async () => {
     const { service, rows, cache } = build();
     const result = await service.updateAll(body);
     expect(rows.get('payments_enabled')).toBe('false');
     expect(rows.get('token_default_days')).toBe('30');
     expect(rows.get('token_default_max_downloads')).toBe('9');
     expect(rows.get('site_name')).toBe('Tên mới');
-    expect(result).toMatchObject({ siteName: 'Tên mới', paymentsEnabled: false, tokenDefaultDays: 30 });
-    expect(cache.notify).toHaveBeenCalledWith(['settings']);
+    expect(rows.get('subscriptions_enabled')).toBe('true');
+    expect(rows.get('trial_days')).toBe('14');
+    expect(rows.get('trial_max_downloads')).toBe('3');
+    expect(result).toMatchObject({
+      siteName: 'Tên mới',
+      paymentsEnabled: false,
+      tokenDefaultDays: 30,
+      subscriptionsEnabled: true,
+      trialDays: 14,
+      trialMaxDownloads: 3,
+    });
+    expect(cache.notify).toHaveBeenCalledWith(['settings', 'plans']);
+  });
+
+  it('subscriptionConfig: thiếu khoá -> tắt cưỡng chế, mặc định 7 ngày / 2 lượt; 0 được giữ (tắt dùng thử); rác dùng mặc định; chặn trần', async () => {
+    await expect(build().service.subscriptionConfig()).resolves.toEqual({ enabled: false, trialDays: 7, trialMaxDownloads: 2 });
+    const zero = build({ subscriptions_enabled: 'TRUE', trial_days: '0', trial_max_downloads: '0' });
+    await expect(zero.service.subscriptionConfig()).resolves.toEqual({ enabled: true, trialDays: 0, trialMaxDownloads: 0 });
+    const junk = build({ subscriptions_enabled: 'yes', trial_days: '-3', trial_max_downloads: 'abc' });
+    await expect(junk.service.subscriptionConfig()).resolves.toEqual({ enabled: false, trialDays: 7, trialMaxDownloads: 2 });
+    const huge = build({ trial_days: '99999', trial_max_downloads: '99999' });
+    await expect(huge.service.subscriptionConfig()).resolves.toMatchObject({ trialDays: 365, trialMaxDownloads: 100 });
   });
 
   it('updateAll lỗi DB: không revalidate', async () => {

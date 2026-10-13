@@ -46,6 +46,12 @@ export const ErrorCode = {
   EMAIL_NOT_VERIFIED: 'EMAIL_NOT_VERIFIED',
   /** Token xác minh email / đặt lại mật khẩu sai, hết hạn hoặc đã dùng (400). */
   INVALID_TOKEN: 'INVALID_TOKEN',
+  /** Hết dùng thử (chưa từng có gói) (402, `details.reason`). */
+  TRIAL_EXPIRED: 'TRIAL_EXPIRED',
+  /** Có gói nhưng hết lượt tải của kỳ và dùng thử đã hết (402). */
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  /** Từng có gói nay đã hết hạn/huỷ và dùng thử đã hết (402). */
+  PLAN_REQUIRED: 'PLAN_REQUIRED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

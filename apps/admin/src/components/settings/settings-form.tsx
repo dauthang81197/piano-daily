@@ -6,6 +6,8 @@ import {
   LOGO_MIME_TYPES,
   MAX_TOKEN_DAYS,
   MAX_TOKEN_DOWNLOADS,
+  MAX_TRIAL_DAYS,
+  MAX_TRIAL_DOWNLOADS,
   SEO_DESCRIPTION_MAX,
   type UpdateSettingsBody,
   updateSettingsBodySchema,
@@ -30,6 +32,9 @@ type Values = {
   paymentsEnabled: boolean;
   tokenDefaultDays: string;
   tokenDefaultMaxDownloads: string;
+  subscriptionsEnabled: boolean;
+  trialDays: string;
+  trialMaxDownloads: string;
 };
 type FieldErrors = Partial<Record<FieldName, string>>;
 
@@ -40,6 +45,9 @@ const toValues = (s: AdminSettings): Values => ({
   paymentsEnabled: s.paymentsEnabled,
   tokenDefaultDays: String(s.tokenDefaultDays),
   tokenDefaultMaxDownloads: String(s.tokenDefaultMaxDownloads),
+  subscriptionsEnabled: s.subscriptionsEnabled,
+  trialDays: String(s.trialDays),
+  trialMaxDownloads: String(s.trialMaxDownloads),
 });
 
 /** Chuỗi số -> number; rỗng/không phải số thành NaN để schema từ chối bằng thông điệp của trường. */
@@ -52,6 +60,9 @@ const FIELD_NAMES: readonly string[] = [
   'paymentsEnabled',
   'tokenDefaultDays',
   'tokenDefaultMaxDownloads',
+  'subscriptionsEnabled',
+  'trialDays',
+  'trialMaxDownloads',
 ];
 
 /** Lỗi theo trường từ `details` của 400 (`path` là tên trường hoặc mảng đường dẫn). */
@@ -117,6 +128,9 @@ export function SettingsForm() {
       paymentsEnabled: values.paymentsEnabled,
       tokenDefaultDays: toNumber(values.tokenDefaultDays),
       tokenDefaultMaxDownloads: toNumber(values.tokenDefaultMaxDownloads),
+      subscriptionsEnabled: values.subscriptionsEnabled,
+      trialDays: toNumber(values.trialDays),
+      trialMaxDownloads: toNumber(values.trialMaxDownloads),
     });
     if (!parsed.success) {
       const next: FieldErrors = {};
@@ -267,6 +281,46 @@ export function SettingsForm() {
           />
         </div>
         <p className="text-caption text-muted-foreground">Chỉ áp dụng cho link tải phát sau khi lưu; link cũ giữ nguyên giá trị đã phát.</p>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-4 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Thuê bao và dùng thử</legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={values.subscriptionsEnabled}
+            onChange={(e) => set('subscriptionsEnabled', e.target.checked)}
+          />
+          Bật giới hạn dùng thử và gói khi tải
+        </label>
+        <p className="text-caption text-muted-foreground">
+          Tắt: khách đã xác minh email tải Sheet miễn phí không giới hạn. Bật: khách cần còn dùng thử hoặc có gói còn lượt, hết thì web
+          chuyển sang trang chọn gói. Chỉ bật khi đã có cách thanh toán gói; mua lẻ từng Sheet không bị ảnh hưởng.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            id="settings-trial-days"
+            label="Số ngày dùng thử"
+            inputMode="numeric"
+            placeholder={`0 đến ${MAX_TRIAL_DAYS}`}
+            value={values.trialDays}
+            onChange={(e) => set('trialDays', e.target.value)}
+            error={errors.trialDays}
+          />
+          <FormField
+            id="settings-trial-downloads"
+            label="Số lượt tải dùng thử"
+            inputMode="numeric"
+            placeholder={`0 đến ${MAX_TRIAL_DOWNLOADS}`}
+            value={values.trialMaxDownloads}
+            onChange={(e) => set('trialMaxDownloads', e.target.value)}
+            error={errors.trialMaxDownloads}
+          />
+        </div>
+        <p className="text-caption text-muted-foreground">
+          Dùng thử tính từ lúc khách xác minh email và hết khi hết ngày HOẶC hết lượt, cái nào đến trước. Đặt 0 để tắt dùng thử. Lưu ý: khách đã xác minh từ trước hơn số ngày này sẽ hết dùng thử ngay khi bạn bật; đổi số ngày/lượt áp dụng cho mọi khách.
+        </p>
       </fieldset>
 
       <FormError>{formError}</FormError>

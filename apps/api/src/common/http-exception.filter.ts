@@ -38,6 +38,9 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   REFUND_REJECTED: 'PayPal từ chối hoàn tiền.',
   EMAIL_NOT_VERIFIED: 'Vui lòng xác minh email trước khi tải.',
   INVALID_TOKEN: 'Liên kết không hợp lệ hoặc đã hết hạn.',
+  TRIAL_EXPIRED: 'Thời gian hoặc số lượt dùng thử đã hết. Vui lòng chọn một gói để tiếp tục tải.',
+  QUOTA_EXCEEDED: 'Bạn đã dùng hết lượt tải của gói. Vui lòng chọn gói khác để tiếp tục tải.',
+  PLAN_REQUIRED: 'Gói của bạn đã hết hạn. Vui lòng chọn gói để tiếp tục tải.',
   ALREADY_PURCHASED: 'Bạn đã mua bài này. Chúng tôi đã gửi lại link tải vào email của bạn.',
 };
 

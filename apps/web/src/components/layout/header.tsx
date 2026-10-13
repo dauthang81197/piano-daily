@@ -41,6 +41,9 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
               {t(`levels.${level}`)}
             </Link>
           ))}
+          <Link href="/pricing" className={navLink}>
+            {t('pricing')}
+          </Link>
         </nav>
         <div className="hidden items-center gap-3 md:flex">
           <SearchForm className="w-64" />

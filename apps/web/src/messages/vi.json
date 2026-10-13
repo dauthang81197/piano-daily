@@ -15,7 +15,8 @@
       "intermediate": "Trung cấp",
       "advanced": "Nâng cao",
       "expert": "Chuyên nghiệp"
-    }
+    },
+    "pricing": "Bảng giá"
   },
   "Search": {
     "label": "Tìm kiếm bản nhạc",
@@ -316,6 +317,28 @@
       "submit": "Đặt mật khẩu mới",
       "done": "Mật khẩu đã được đổi. Các thiết bị khác đã bị đăng xuất; hãy đăng nhập lại.",
       "invalid": "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới."
+    },
+    "entitlement": {
+      "trial": "Dùng thử: còn {count} lượt đến {date}",
+      "planUnlimited": "{plan} · đến {date}",
+      "planLeft": "{plan} · còn {count} lượt · đến {date}",
+      "none": "Hết dùng thử"
     }
+  },
+  "Pricing": {
+    "title": "Bảng giá",
+    "intro": "Chọn gói để tải bản nhạc trong thời gian của gói. Xem và nghe thử luôn miễn phí.",
+    "reason": {
+      "TRIAL_EXPIRED": "Bạn đã dùng hết thời gian hoặc số lượt tải dùng thử. Hãy chọn một gói để tiếp tục tải.",
+      "PLAN_REQUIRED": "Gói của bạn đã hết hạn. Hãy chọn một gói để tiếp tục tải.",
+      "QUOTA_EXCEEDED": "Bạn đã dùng hết lượt tải của gói. Hãy chọn gói khác để tiếp tục tải."
+    },
+    "free": "Miễn phí",
+    "duration": "Thời hạn {days} ngày",
+    "unlimited": "Tải không giới hạn trong kỳ",
+    "quota": "{count} lượt tải mỗi kỳ",
+    "choose": "Sắp có",
+    "paymentSoon": "Thanh toán gói (chuyển khoản VietQR trong nước, PayPal quốc tế) sẽ sớm được mở. Trong lúc chờ, bạn vẫn có thể mua lẻ từng bản nhạc bằng PayPal.",
+    "unavailable": "Các gói thuê bao chưa được mở. Bạn vẫn có thể xem, nghe thử và mua lẻ từng bản nhạc."
   }
 }

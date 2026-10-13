@@ -1,19 +1,20 @@
 'use client';
 
-import { FileMusic, LayoutDashboard, type LucideIcon, Megaphone, Receipt, Settings, Tags } from 'lucide-react';
+import { CreditCard, FileMusic, LayoutDashboard, type LucideIcon, Megaphone, Receipt, Settings, Tags } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 export type AdminNavItem = { href: string; label: string; icon: LucideIcon };
 
-/** 6 mục điều hướng của khu quản trị (UX: sidebar admin). */
+/** 7 mục điều hướng của khu quản trị (UX: sidebar admin). */
 export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/sheets', label: 'Sheet', icon: FileMusic },
   { href: '/taxonomy', label: 'Composer/Genre/Series', icon: Tags },
   { href: '/ads', label: 'Quảng cáo', icon: Megaphone },
   { href: '/orders', label: 'Đơn hàng', icon: Receipt },
+  { href: '/plans', label: 'Gói thuê bao', icon: CreditCard },
   { href: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 

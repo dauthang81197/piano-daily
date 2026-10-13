@@ -94,8 +94,19 @@ interface HandTrack {
   fingers: FingerEvent[][];
 }
 
-/** Độ lệch ngang của ngón so với cổ tay (phím trắng); tay phải ngón cái ở bên trái, tay trái ngược lại. */
-const fingerOffset = (hand: Hand, finger: number) => (hand === 'right' ? finger - 3 : 3 - finger) * FINGER_SPACING;
+/**
+ * Vị trí nghỉ theo trục ngang của từng ngón so với cổ tay (phím trắng), tay phải: ngón cái ở bên trái, út bên phải. Ngón
+ * 2–5 cách nhau `FINGER_SPACING`; ngón cái nằm xa hơn một chút (−2,0) vì tư thế nghỉ tự nhiên của nó chĩa ra ngoài, không
+ * cuộn vào dưới lòng bàn tay (xem `REST_PARAMS.thumb`).
+ */
+export const FINGER_REST_OFFSET: Readonly<Record<Finger, number>> = {
+  1: -2.0,
+  2: -FINGER_SPACING,
+  3: 0,
+  4: FINGER_SPACING,
+  5: 2 * FINGER_SPACING,
+};
+const fingerOffset = (hand: Hand, finger: Finger) => (hand === 'right' ? 1 : -1) * FINGER_REST_OFFSET[finger];
 const smooth = (w: number) => w * w * (3 - 2 * w);
 /** Đường đi "jerk tối thiểu" (smootherstep): vận tốc và gia tốc bằng 0 ở hai đầu. */
 const minJerk = (w: number) => w * w * w * (w * (w * 6 - 15) + 10);

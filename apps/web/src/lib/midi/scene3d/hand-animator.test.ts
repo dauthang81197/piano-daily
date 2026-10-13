@@ -4,7 +4,7 @@ import path from 'node:path';
 import { Object3D, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildHandPath, type HandPose } from '../hands/hand-path';
+import { buildHandPath, FINGER_REST_OFFSET, type HandPose } from '../hands/hand-path';
 import { layoutKeyboard } from '../keyboard-layout';
 import type { PlayerNote } from '../note-json';
 import { HAND_LEAD, HandAnimator, type HandId, MAX_DT, shouldSnap, SNAP_GAP } from './hand-animator';
@@ -245,7 +245,7 @@ function pose(x: number, over: Partial<Record<1 | 2 | 3 | 4 | 5, { reach?: numbe
     x,
     fingers: ([1, 2, 3, 4, 5] as const).map((finger) => {
       const o = over[finger] ?? {};
-      const knuckleX = x + (finger - 3) * 0.8;
+      const knuckleX = x + FINGER_REST_OFFSET[finger];
       return { finger, knuckleX, tipX: knuckleX + (o.dev ?? 0), reach: o.reach ?? 0, press: o.press ?? 0, black: false, blackMix: 0 };
     }),
   };
@@ -289,7 +289,7 @@ describe('HandAnimator: cổ tay xoay và nghiêng theo ngón', () => {
     const leftPose: HandPose = {
       x: 10,
       fingers: ([1, 2, 3, 4, 5] as const).map((finger) => {
-        const knuckleX = 10 + (3 - finger) * 0.8;
+        const knuckleX = 10 - FINGER_REST_OFFSET[finger];
         return { finger, knuckleX, tipX: knuckleX, reach: finger === 5 ? 1 : 0, press: finger === 5 ? 1 : 0, black: false, blackMix: 0 };
       }),
     };

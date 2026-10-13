@@ -1,11 +1,12 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { Mesh, MeshStandardMaterial, Object3D, PerspectiveCamera, Scene, SkinnedMesh } from 'three';
+import type { BufferGeometry, Mesh, MeshStandardMaterial, Object3D, PerspectiveCamera, Scene, SkinnedMesh } from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildHandPath } from '@/lib/midi/hands/hand-path';
 import { layoutKeyboard } from '@/lib/midi/keyboard-layout';
 import type { PlayerNote } from '@/lib/midi/note-json';
+import { FOREARM_ASPECT, FOREARM_END_HALF_WIDTH, FOREARM_END_Z, FOREARM_START_Z, SLEEVE_START_Z } from '@/lib/midi/scene3d/forearm';
 import { cameraPlacement, DEFAULT_VIEW_SETTINGS, type ViewSettings } from '@/lib/midi/scene3d/view-settings';
 
 /** `WebGLRenderer` giả (không cần WebGL) ghi lại cảnh và camera của lần vẽ cuối. */
@@ -146,5 +147,72 @@ describe('createPianoScene: góc nhìn và màu', () => {
     scene.render(frame);
     expect(last().camera.position.toArray().every(Number.isFinite)).toBe(true);
     expect(palette(last().scene).bars).toContain('#b8893a');
+  });
+});
+
+describe('createPianoScene: cẳng tay và tay áo', () => {
+  const limbs = (root: Object3D) => meshes(root).filter((m) => m.geometry.type === 'LatheGeometry');
+  const isSleeve = (m: Mesh, skinHex: string) => hex(material(m)) !== skinHex;
+
+  it('mỗi tay có một cẳng tay (vật liệu da) và một tay áo (vật liệu vải riêng)', async () => {
+    const { last } = await setup(CUSTOM);
+    const found = limbs(last().scene);
+    expect(found).toHaveLength(4);
+    const forearms = found.filter((m) => !isSleeve(m, '#112233'));
+    const sleeves = found.filter((m) => isSleeve(m, '#112233'));
+    expect(forearms).toHaveLength(2);
+    expect(sleeves).toHaveLength(2);
+    // Cẳng tay dùng chung vật liệu da với bàn tay; tay áo là vật liệu khác.
+    const hand = meshes(last().scene).find((m) => (m as SkinnedMesh).isSkinnedMesh)!;
+    for (const f of forearms) expect(f.material).toBe(hand.material);
+    for (const sl of sleeves) expect(sl.material).not.toBe(hand.material);
+  });
+
+  it('đổi màu bàn tay đổi cẳng tay nhưng không đổi màu tay áo', async () => {
+    const { scene, last } = await setup();
+    const sleeveColor = () => limbs(last().scene).map((m) => hex(material(m))).filter((c) => c !== '#dcae8c' && c !== '#112233');
+    const before = sleeveColor();
+    expect(before.length).toBeGreaterThan(0);
+    scene.setView(CUSTOM);
+    scene.render(frame);
+    expect(limbs(last().scene).filter((m) => hex(material(m)) === '#112233')).toHaveLength(2);
+    expect(sleeveColor()).toEqual(before);
+  });
+
+  it('cẳng tay đi từ cổ tay về phía người chơi (z tăng), nở dần, mặt cắt elip theo tỉ lệ của model', async () => {
+    const { last } = await setup();
+    const forearm = limbs(last().scene).find((m) => hex(material(m)) === '#dcae8c')!;
+    const geometry = forearm.geometry as BufferGeometry;
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox!;
+    expect(box.min.z).toBeCloseTo(FOREARM_START_Z, 6);
+    expect(box.max.z).toBeCloseTo(FOREARM_END_Z, 6);
+    expect(box.max.x - box.min.x).toBeCloseTo(2 * FOREARM_END_HALF_WIDTH, 6);
+    expect((box.max.y - box.min.y) / (box.max.x - box.min.x)).toBeCloseTo(FOREARM_ASPECT, 6);
+  });
+
+  it('mặt hướng ra ngoài (pháp tuyến cùng chiều bán kính), không bị lộn trong ra ngoài', async () => {
+    const { last } = await setup();
+    const forearm = limbs(last().scene).find((m) => hex(material(m)) === '#dcae8c')!;
+    const position = forearm.geometry.attributes.position!;
+    const normal = forearm.geometry.attributes.normal!;
+    let checked = 0;
+    for (let i = 0; i < position.count; i += 1) {
+      const z = position.getZ(i);
+      if (z < 2 || z > 8) continue;
+      const x = position.getX(i) - 0.05;
+      const y = position.getY(i) + 0.1;
+      if (Math.hypot(x, y) < 0.5) continue;
+      expect(x * normal.getX(i) + y * normal.getY(i), `đỉnh ${i}`).toBeGreaterThan(0);
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(50);
+  });
+
+  it('tay áo bắt đầu sau cổ tay, cách đầu cẳng tay đúng SLEEVE_START_Z', async () => {
+    const { last } = await setup();
+    const sleeve = limbs(last().scene).find((m) => hex(material(m)) !== '#dcae8c')!;
+    sleeve.geometry.computeBoundingBox();
+    expect(sleeve.geometry.boundingBox!.min.z).toBeCloseTo(SLEEVE_START_Z, 6);
   });
 });

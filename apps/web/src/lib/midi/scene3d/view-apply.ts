@@ -1,18 +1,26 @@
-import type { MeshStandardMaterial, PerspectiveCamera } from 'three';
+import { Color, type MeshPhysicalMaterial, type MeshStandardMaterial, type PerspectiveCamera } from 'three';
 import { cameraPlacement, type ViewSettings } from './view-settings';
 
 /** Vật liệu bị `ViewSettings` điều khiển màu. Không cần WebGL nên test được ở Node. */
 export interface ViewMaterials {
-  skin: MeshStandardMaterial;
+  /** Da: vật liệu có sheen và ánh ấm nhẹ (emissive cùng tông) cho giống da thật hơn màu phẳng. */
+  skin: MeshPhysicalMaterial;
   barWhite: MeshStandardMaterial;
   barBlack: MeshStandardMaterial;
   /** Phím đang bấm: theo màu nốt rơi phím trắng để thanh chạm phím cùng một màu. */
   activeKey: MeshStandardMaterial;
 }
 
+/** Màu viền sáng (sheen) của da: màu da pha thêm trắng. */
+export function skinSheenColor(handColor: string): Color {
+  return new Color(handColor).lerp(new Color('#ffffff'), 0.35);
+}
+
 /** Đổi màu tại chỗ (cả `color` lẫn `emissive` của nốt rơi và phím đang bấm); không dựng lại vật liệu. */
 export function applyViewColors(materials: ViewMaterials, view: ViewSettings): void {
   materials.skin.color.set(view.handColor);
+  materials.skin.emissive.set(view.handColor);
+  materials.skin.sheenColor.copy(skinSheenColor(view.handColor));
   for (const [material, color] of [
     [materials.barWhite, view.noteWhiteColor],
     [materials.barBlack, view.noteBlackColor],

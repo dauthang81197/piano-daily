@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Finger } from '../hands/fingering';
 import { applySolution, FINGER_CHAINS, HandSolver, MODEL_SCALE, modelToHandMatrix, REQUIRED_BONES, REST_PARAMS, reparentSkeleton } from './hand-rig';
+import { FINGER_REST_OFFSET } from '../hands/hand-path';
 import { fingerTarget, REST_TIP, WRIST_Y, WRIST_Z } from './world';
 
 const modelPath = path.resolve(process.cwd(), 'public/models/hand-right.glb');
@@ -161,23 +162,37 @@ describe('HandSolver: khởi động nóng và tư thế nghỉ', () => {
     }
   });
 
-  it('mục tiêu ở tư thế nghỉ (ngón nghỉ, đặt đúng khoảng cách khớp 0,8 phím): sai số IK dưới 2 mm', () => {
+  it('mục tiêu ở tư thế nghỉ (đúng vị trí nghỉ ngang của từng ngón): ngón 2–5 sai số IK dưới 2 mm, ngón cái dưới 5 mm', () => {
     const { solver, inverse } = setup();
-    for (const finger of [2, 3, 4, 5] as Finger[]) {
-      const t = fingerTarget({ finger, tipX: (finger - 3) * 0.8, reach: 0, press: 0, black: false });
+    for (const finger of [1, 2, 3, 4, 5] as Finger[]) {
+      const t = fingerTarget({ finger, tipX: FINGER_REST_OFFSET[finger], reach: 0, press: 0, black: false });
       const solution = solver.solve(finger, toModel(inverse, t.x, t.y, t.z));
-      expect(solution.error * 1000, `ngón ${finger}`).toBeLessThan(2);
+      expect(solution.error * 1000, `ngón ${finger}`).toBeLessThan(finger === 1 ? 5 : 2);
+      if (finger === 1) continue;
       // Góc khớp ở tư thế nghỉ nằm trong khoảng tự nhiên (không co gắt).
       expect(deg(solution.params[0]!), `khớp gốc ngón ${finger}`).toBeLessThan(40);
       expect(deg(solution.params[1]!), `khớp giữa ngón ${finger}`).toBeLessThan(50);
     }
   });
 
+  it('ngón cái nghỉ nằm ngang, chĩa ra ngoài và ra trước, không buông xuống hay cuộn về phía người chơi', () => {
+    const { solver, m } = setup();
+    const tip = solver.tipAt(1, REST_PARAMS.thumb).applyMatrix4(m);
+    const knuckle = solver.tipAt(1, [0, 0, 0]).applyMatrix4(m); // tư thế gốc: tham chiếu hướng ra ngoài/ra trước
+    expect(tip.x, 'ra ngoài').toBeLessThanOrEqual(-1.9);
+    expect(tip.z, 'ra trước (xa người chơi)').toBeLessThanOrEqual(-3.9);
+    expect(tip.y, 'không thấp hơn các ngón khác ở tư thế nghỉ').toBeGreaterThanOrEqual(-2.7);
+    // Gần tư thế gốc của model (ngón cái duỗi tự nhiên): lệch dưới 1,5 phím.
+    expect(tip.distanceTo(knuckle)).toBeLessThan(1.5);
+    // Khớp thả lỏng: không gập sâu.
+    for (const p of REST_PARAMS.thumb) expect(Math.abs(deg(p))).toBeLessThan(40);
+  });
+
   it('ngón cái chạm phím trắng trong tầm tay: sai số dưới 10 mm và không chạm giới hạn khớp', () => {
     const { solver, inverse } = setup();
     for (const press of [0, 1]) {
       for (const dev of [-0.5, 0, 0.5]) {
-        const t = fingerTarget({ finger: 1, tipX: -1.6 + dev, reach: 1, press, black: false });
+        const t = fingerTarget({ finger: 1, tipX: FINGER_REST_OFFSET[1] + dev, reach: 1, press, black: false });
         const solution = solver.solve(1, toModel(inverse, t.x, t.y, t.z));
         expect(solution.error * 1000, `ép ${press} lệch ${dev}`).toBeLessThan(10);
       }
@@ -190,7 +205,7 @@ describe('HandSolver: khởi động nóng và tư thế nghỉ', () => {
       for (const black of [false, true]) {
         for (const dev of [-0.5, 0, 0.5]) {
           for (const press of [0, 1]) {
-            const t = fingerTarget({ finger, tipX: (finger - 3) * 0.8 + dev, reach: 1, press, black });
+            const t = fingerTarget({ finger, tipX: FINGER_REST_OFFSET[finger] + dev, reach: 1, press, black });
             const solution = solver.solve(finger, toModel(inverse, t.x, t.y, t.z));
             expect(solution.error * 1000, `ngón ${finger} ${black ? 'đen' : 'trắng'} lệch ${dev} ép ${press}`).toBeLessThan(10);
           }

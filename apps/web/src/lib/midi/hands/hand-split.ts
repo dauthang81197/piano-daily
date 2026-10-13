@@ -13,6 +13,11 @@ const CROSS_PENALTY = 0.5;
 /** Một tay với quá một quãng tám thì bị phạt. */
 const SPAN_LIMIT = 12;
 const SPAN_PENALTY = 2;
+/**
+ * Phạt vừa phải (≈ 2,5 cung) khi tách một lần đánh còn vừa một tay (≤ `SPAN_LIMIT`): quãng tám và hợp âm quanh ranh giới C4 (ví dụ C3+C4)
+ * thường do một tay đánh, nhưng giai điệu cao kèm bè thấp (xa hơn một quãng tám) vẫn chia hai tay vì phạt khoảng cách lớn hơn.
+ */
+const SPLIT_PENALTY = 5;
 const MAX_PER_HAND = 5;
 
 const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -62,8 +67,10 @@ function splitByPitch(notes: readonly PlayerNote[]): Hand[] {
     if (lo > hi) [lo, hi] = [0, m];
     let bestK = lo;
     let bestCost = Infinity;
+    const fitsOneHand = Math.max(...pitches) - Math.min(...pitches) <= SPAN_LIMIT;
     for (let k = lo; k <= hi; k += 1) {
-      const cost = handCost(pitches.slice(0, k), 'left', lastLeft) + handCost(pitches.slice(k), 'right', lastRight);
+      const split = k > 0 && k < m && fitsOneHand ? SPLIT_PENALTY : 0;
+      const cost = handCost(pitches.slice(0, k), 'left', lastLeft) + handCost(pitches.slice(k), 'right', lastRight) + split;
       if (cost < bestCost) {
         bestCost = cost;
         bestK = k;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layoutKeyboard } from '../keyboard-layout';
 import type { PlayerNote } from '../note-json';
-import { buildHandPath, FINGER_SPACING, HAND_LEAD, LOOKAHEAD, MIN_GAP } from './hand-path';
+import { buildHandPath, FINGER_REST_OFFSET, FINGER_SPACING, HAND_LEAD, LOOKAHEAD, MIN_GAP } from './hand-path';
 
 const n = (midi: number, time: number, duration = 0.4, track?: number): PlayerNote => ({
   midi,
@@ -275,5 +275,46 @@ describe('buildHandPath: quãng tám và hợp âm rộng cùng một tay', () =
       const limit = f.finger === 1 || f.finger === 5 ? 1.9 : 0.9;
       expect(Math.abs(f.tipX - f.knuckleX)).toBeLessThanOrEqual(limit + 1e-9);
     }
+  });
+});
+
+describe('buildHandPath: vị trí nghỉ ngang của từng ngón', () => {
+  it('bảng vị trí nghỉ: ngón cái −2,0 (chĩa ra ngoài), ngón 2–5 cách nhau FINGER_SPACING', () => {
+    expect(FINGER_REST_OFFSET[1]).toBe(-2);
+    expect(FINGER_REST_OFFSET[3]).toBe(0);
+    expect(FINGER_REST_OFFSET[4] - FINGER_REST_OFFSET[3]).toBeCloseTo(FINGER_SPACING, 9);
+    expect(FINGER_REST_OFFSET[5] - FINGER_REST_OFFSET[4]).toBeCloseTo(FINGER_SPACING, 9);
+    expect(FINGER_REST_OFFSET[3] - FINGER_REST_OFFSET[2]).toBeCloseTo(FINGER_SPACING, 9);
+  });
+
+  it('ngón nghỉ nằm đúng vị trí nghỉ so với cổ tay; tay trái đối xứng gương với tay phải', () => {
+    const right = buildHandPath([n(72, 0, 1)], layoutKeyboard([n(72, 0)])).poseAt(0.5).right!;
+    const left = buildHandPath([n(48, 0, 1)], layoutKeyboard([n(48, 0)])).poseAt(0.5).left!;
+    for (const f of [1, 2, 3, 4, 5] as const) {
+      expect(right.fingers[f - 1]!.knuckleX - right.x).toBeCloseTo(FINGER_REST_OFFSET[f], 9);
+      expect(left.fingers[f - 1]!.knuckleX - left.x).toBeCloseTo(-FINGER_REST_OFFSET[f], 9);
+    }
+  });
+
+  it('thế năm ngón C D E F G rồi ngược lại: cổ tay không dời (ngón nào cũng lệch ≤ 0,5 phím so với vị trí nghỉ)', () => {
+    const seq = [60, 62, 64, 65, 67, 65, 64, 62, 60].map((m, i) => n(m, i * 0.4, 0.35));
+    const layout = layoutKeyboard(seq);
+    const path = buildHandPath(seq, layout);
+    const x0 = path.poseAt(0).right!.x;
+    for (let t = 0; t <= 3.6; t += 0.05) expect(path.poseAt(t).right!.x, `t=${t.toFixed(2)}`).toBeCloseTo(x0, 6);
+  });
+});
+
+describe('buildHandPath: quãng tám quanh ranh giới C4', () => {
+  it('C3+C4 đồng thời: cùng về tay trái, hai ngón (cái và út) đè hai phím; tay phải không có', () => {
+    const notes = [n(48, 0, 1), n(60, 0, 1)];
+    const layout = layoutKeyboard(notes);
+    const pose = buildHandPath(notes, layout).poseAt(0.5);
+    expect(pose.right).toBeNull();
+    const pressing = pose.left!.fingers.filter((f) => f.reach > 0.99);
+    expect(pressing.map((f) => f.finger).sort()).toEqual([1, 5]);
+    const keyX = (m: number) => layout.byMidi.get(m)!.x + layout.byMidi.get(m)!.width / 2;
+    expect(pressing.map((f) => f.tipX).sort((a, b) => a - b)[0]).toBeCloseTo(keyX(48), 1);
+    expect(pressing.map((f) => f.tipX).sort((a, b) => a - b)[1]).toBeCloseTo(keyX(60), 1);
   });
 });

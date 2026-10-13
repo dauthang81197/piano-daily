@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layoutKeyboard } from '../keyboard-layout';
 import type { PlayerNote } from '../note-json';
-import { buildHandPath, LOOKAHEAD, MIN_GAP } from './hand-path';
+import { buildHandPath, FINGER_SPACING, HAND_LEAD, LOOKAHEAD, MIN_GAP } from './hand-path';
 
 const n = (midi: number, time: number, duration = 0.4, track?: number): PlayerNote => ({
   midi,
@@ -137,5 +137,143 @@ describe('buildHandPath', () => {
     const notes = [n(60, 0, 1), n(62, 0, 1), n(64, 0, 1), n(67, 0, 1), n(72, 0, 1)];
     const { right } = buildHandPath(notes, wide).poseAt(0.5);
     for (const f of right!.fingers) expect(Math.abs(f.tipX - f.knuckleX)).toBeLessThanOrEqual(2.2);
+  });
+});
+
+describe('buildHandPath: liên tục theo thời gian (không nhảy bước)', () => {
+  const MAJOR = [0, 2, 4, 5, 7, 9, 11, 12];
+  const scale = Array.from({ length: 24 }, (_, i) => n(60 + MAJOR[i % 8]! + 12 * Math.floor(i / 8), i * 0.12, 0.1));
+  const fixtures: Record<string, PlayerNote[]> = {
+    'gam nhanh': scale,
+    'nốt lặp chồng nhả/vươn': [n(60, 0, 0.1), n(67, 0.2, 0.1), n(60, 0.3, 0.1), n(67, 0.4, 0.1), n(64, 0.5, 0.1)],
+    'phím trắng xen đen': [60, 61, 62, 63, 64, 65, 66, 67].map((m, i) => n(m, i * 0.2, 0.18)),
+  };
+
+  it.each(Object.entries(fixtures))('%s: tipX, reach, press, blackMix biến thiên liên tục ở 120 fps', (_name, notes) => {
+    const path = buildHandPath(notes, layoutKeyboard(notes));
+    const end = Math.max(...notes.map((x) => x.time + x.duration)) + 0.5;
+    let prev = path.poseAt(0);
+    for (let t = 1 / 120; t <= end; t += 1 / 120) {
+      const cur = path.poseAt(t);
+      for (const hand of ['left', 'right'] as const) {
+        const a = prev[hand];
+        const b = cur[hand];
+        if (!a || !b) continue;
+        b.fingers.forEach((f, i) => {
+          const p = a.fingers[i]!;
+          const where = `${_name} ${hand} ngón ${f.finger} t=${t.toFixed(3)}`;
+          expect(Math.abs(f.reach - p.reach), `reach ${where}`).toBeLessThanOrEqual(0.12);
+          expect(Math.abs(f.press - p.press), `press ${where}`).toBeLessThanOrEqual(0.25);
+          expect(Math.abs(f.blackMix - p.blackMix), `blackMix ${where}`).toBeLessThanOrEqual(0.12);
+          // Đầu ngón chỉ đổi theo cổ tay (liên tục) cộng độ vươn: không nhảy quá 0,5 phím mỗi khung 1/120 giây (bản cũ nhảy 1,35).
+          expect(Math.abs(f.tipX - p.tipX - (b.x - a.x)), `tipX ${where}`).toBeLessThanOrEqual(0.5);
+        });
+      }
+      prev = cur;
+    }
+  });
+
+  it('chuyển từ nốt này sang nốt kia của cùng một ngón đi qua các giá trị trung gian (không chọn một trong hai)', () => {
+    // Một ngón đánh C4 rồi G4: ở giữa khoảng vươn, tipX phải đi dần từ phím này tới phím kia, không nhảy.
+    const notes = [n(60, 0, 0.1), n(67, 0.25, 0.1)];
+    const path = buildHandPath(notes, wide);
+    const finger = path.poseAt(0.3).right!.fingers.find((f) => f.press > 0.9)!.finger;
+    const seen: number[] = [];
+    for (let t = 0.1; t <= 0.25; t += 1 / 240) {
+      const p = path.poseAt(t).right!;
+      seen.push(p.fingers[finger - 1]!.tipX - p.x);
+    }
+    for (let i = 1; i < seen.length; i += 1) expect(Math.abs(seen[i]! - seen[i - 1]!)).toBeLessThan(0.1);
+    expect(Math.max(...seen) - Math.min(...seen)).toBeGreaterThan(0.2);
+  });
+
+  it('thứ tự ngón được giữ và liên tục kể cả khi ngón cái luồn qua (gam)', () => {
+    const MAJOR2 = [0, 2, 4, 5, 7, 9, 11, 12];
+    const notes = Array.from({ length: 24 }, (_, i) => n(60 + MAJOR2[i % 8]! + 12 * Math.floor(i / 8), i * 0.12, 0.1));
+    const path = buildHandPath(notes, layoutKeyboard(notes));
+    for (let t = 0; t <= 3; t += 1 / 120) {
+      const fingers = path.poseAt(t).right!.fingers;
+      for (let i = 1; i < fingers.length; i += 1) {
+        expect(fingers[i]!.tipX - fingers[i - 1]!.tipX, `t=${t.toFixed(3)} ngón ${i}-${i + 1}`).toBeGreaterThanOrEqual(0.55 - 1e-9);
+      }
+    }
+  });
+
+  it('blackMix chuyển dần giữa phím trắng và phím đen, black là blackMix >= 0,5', () => {
+    const notes = [n(60, 0, 0.1), n(61, 0.2, 0.1)];
+    const path = buildHandPath(notes, layoutKeyboard(notes));
+    const mixes: number[] = [];
+    for (let t = 0; t <= 0.4; t += 1 / 240) {
+      for (const f of path.poseAt(t).right!.fingers) {
+        expect(f.black).toBe(f.blackMix >= 0.5);
+        if (f.reach > 0.5) mixes.push(f.blackMix);
+      }
+    }
+    expect(Math.max(...mixes)).toBe(1);
+    expect(mixes.some((m) => m > 0 && m < 1)).toBe(true);
+  });
+
+  it('cổ tay đi theo đường jerk tối thiểu: gần hai đầu gần như đứng yên, chính giữa là trung điểm', () => {
+    const notes = [n(60, 0, 0.1), n(84, 3, 0.1)];
+    const path = buildHandPath(notes, wide);
+    const from = path.poseAt(0).right!.x;
+    const to = path.poseAt(3).right!.x;
+    const duration = LOOKAHEAD; // quãng xa: dời hết thời gian nhìn trước
+    const start = 3 - duration;
+    const fraction = (t: number) => (path.poseAt(t).right!.x - from) / (to - from);
+    // smoothstep đã đi 0,7% ở 5% đầu; jerk tối thiểu chỉ đi khoảng 0,12%.
+    expect(fraction(start + duration * 0.05)).toBeLessThan(0.003);
+    expect(fraction(start + duration * 0.5)).toBeCloseTo(0.5, 3);
+    expect(1 - fraction(start + duration * 0.95)).toBeLessThan(0.003);
+  });
+
+  it('quãng xa bắt đầu dời sớm hơn bản cũ: trong cửa sổ nhìn trước 0,5 giây', () => {
+    expect(LOOKAHEAD).toBe(0.5);
+    const path = buildHandPath([n(60, 0), n(84, 3)], wide);
+    const before = path.poseAt(0).right!.x;
+    expect(path.poseAt(3 - LOOKAHEAD - 0.01).right!.x).toBeCloseTo(before, 6);
+    expect(path.poseAt(3 - 0.4).right!.x).toBeGreaterThan(before);
+  });
+
+  it('khoảng cách khớp ngón theo tỉ lệ model và HAND_LEAD là hằng số dương nhỏ', () => {
+    expect(FINGER_SPACING).toBe(0.8);
+    expect(HAND_LEAD).toBeGreaterThan(0);
+    expect(HAND_LEAD).toBeLessThan(0.15);
+  });
+});
+
+describe('buildHandPath: quãng tám và hợp âm rộng cùng một tay', () => {
+  const chord = (midis: number[]) => {
+    const notes = midis.map((m) => n(m, 0, 1));
+    const layout = layoutKeyboard(notes);
+    return { pose: buildHandPath(notes, layout).poseAt(0.5), key: (m: number) => layout.byMidi.get(m)!.x + layout.byMidi.get(m)!.width / 2 };
+  };
+
+  it('quãng tám tay trái: ngón cái và ngón út với tới đúng hai phím (không kẹt ở giới hạn lệch của ngón giữa)', () => {
+    const { pose, key } = chord([36, 48]);
+    const fingers = pose.left!.fingers;
+    const pressing = fingers.filter((f) => f.reach > 0.99);
+    expect(pressing.map((f) => f.finger).sort()).toEqual([1, 5]);
+    const tips = pressing.map((f) => f.tipX).sort((a, b) => a - b);
+    expect(tips[0]).toBeCloseTo(key(36), 1);
+    expect(tips[1]).toBeCloseTo(key(48), 1);
+  });
+
+  it('quãng tám cộng quãng năm: cả ba ngón nhấn đúng phím và thứ tự ngón được giữ', () => {
+    const { pose, key } = chord([36, 43, 48]);
+    const fingers = pose.left!.fingers;
+    for (const f of fingers.filter((x) => x.reach > 0.99)) {
+      expect([key(36), key(43), key(48)].some((k) => Math.abs(k - f.tipX) < 0.3), `ngón ${f.finger} tại ${f.tipX.toFixed(2)}`).toBe(true);
+    }
+    // Tay trái: ngón 5 ở ngoài cùng bên trái, ngón 1 bên phải.
+    for (let i = 1; i < fingers.length; i += 1) expect(fingers[i - 1]!.tipX).toBeGreaterThan(fingers[i]!.tipX);
+  });
+
+  it('ba ngón giữa vẫn bị giới hạn tầm lệch, chỉ ngón cái và ngón út được dang rộng', () => {
+    const { pose } = chord([36, 48]);
+    for (const f of pose.left!.fingers) {
+      const limit = f.finger === 1 || f.finger === 5 ? 1.9 : 0.9;
+      expect(Math.abs(f.tipX - f.knuckleX)).toBeLessThanOrEqual(limit + 1e-9);
+    }
   });
 });

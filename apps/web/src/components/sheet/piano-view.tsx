@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildHandPath } from '@/lib/midi/hands/hand-path';
+import { buildHandPath, HAND_LEAD } from '@/lib/midi/hands/hand-path';
 import { NoteIndex, type KeyboardLayout } from '@/lib/midi/keyboard-layout';
 import type { PlayerNote } from '@/lib/midi/note-json';
+import { HandMetrics, handsDebugEnabled } from '@/lib/midi/scene3d/hand-metrics';
 import type { PianoScene } from './piano-scene';
 
 /** Model bàn tay (MIT, xem `public/models/LICENSE-hand.md`). */
@@ -40,14 +41,16 @@ export default function PianoView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<PianoScene | null>(null);
   const [ready, setReady] = useState(false);
+  const [debugText, setDebugText] = useState<string | null>(null);
   const index = useMemo(() => new NoteIndex(notes), [notes]);
   const path = useMemo(() => buildHandPath(notes, layout), [notes, layout]);
-  const latest = useRef({ index, path, showHands, time: position, onUnavailable });
+  const latest = useRef({ index, path, showHands, playing, time: position, onUnavailable });
 
   useEffect(() => {
     latest.current.index = index;
     latest.current.path = path;
     latest.current.showHands = showHands;
+    latest.current.playing = playing;
     latest.current.onUnavailable = onUnavailable;
   });
 
@@ -58,7 +61,9 @@ export default function PianoView({
     sceneRef.current?.render({
       active: new Set(view.active.map((n) => n.midi)),
       falling: view.falling,
-      pose: p.poseAt(t),
+      pose: p.poseAt(t + HAND_LEAD),
+      time: t,
+      still: !latest.current.playing,
       showHands: hands,
     });
   });
@@ -76,7 +81,8 @@ export default function PianoView({
     (async () => {
       try {
         const { createPianoScene } = await import('./piano-scene');
-        const created = await createPianoScene(canvas, layout, HAND_MODEL_URL);
+        const debug = handsDebugEnabled(window.location.search);
+        const created = await createPianoScene(canvas, layout, HAND_MODEL_URL, { debug });
         if (cancelled) {
           created.dispose();
           return;
@@ -101,6 +107,16 @@ export default function PianoView({
     };
   }, [layout]);
 
+  // Lớp phủ số liệu chuyển động của tay: chỉ khi URL có `?handsDebug=1`; mặc định không thu và không hiện gì.
+  useEffect(() => {
+    if (!ready || !handsDebugEnabled(window.location.search)) return;
+    const id = setInterval(() => setDebugText(HandMetrics.format(sceneRef.current?.stats() ?? null)), 500);
+    return () => {
+      clearInterval(id);
+      setDebugText(null);
+    };
+  }, [ready]);
+
   // Khi dừng/tua/đổi bài/bật tắt tay: vẽ lại đúng vị trí.
   useEffect(() => {
     if (ready && !playing) draw.current(position);
@@ -121,6 +137,11 @@ export default function PianoView({
   return (
     <div className="relative w-full overflow-hidden rounded-md border border-outline-variant bg-surface-container-low" style={{ aspectRatio: VIEW_ASPECT }}>
       <canvas ref={canvasRef} role="img" aria-label={label} data-testid="piano-canvas" className="absolute inset-0 h-full w-full" />
+      {debugText && (
+        <div data-testid="hands-debug" aria-hidden="true" className="absolute left-1 top-1 rounded-sm bg-black/60 px-2 py-0.5 text-caption text-white">
+          {debugText}
+        </div>
+      )}
     </div>
   );
 }

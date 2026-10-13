@@ -4,22 +4,33 @@ import { assignFingers, type Finger } from './fingering';
 import { assignHands, type Hand } from './hand-split';
 import { groupOnsets } from './onset-groups';
 
+/**
+ * Thời gian (giây) lấy tư thế sớm hơn đồng hồ phát: bộ lọc làm tay chậm cỡ nửa-đời nên phải nhìn trước chừng đó để đầu
+ * ngón chạm phím đúng lúc nốt vang. Nằm ở đây (không kéo `three`) để `PianoView` dùng mà không nạp thư viện 3D.
+ */
+export const HAND_LEAD = 0.05;
 /** Cổ tay bắt đầu dời tối đa chừng này giây trước lần đánh cần nó. */
-export const LOOKAHEAD = 0.35;
+export const LOOKAHEAD = 0.5;
 /** Tốc độ cổ tay mong muốn (phím trắng/giây) để ước thời gian dời; thời gian bị chặn trong [MIN_MOVE, LOOKAHEAD]. */
-const MAX_SPEED = 24;
-const MIN_MOVE = 0.08;
-/** Khoảng cách ngang giữa hai ngón liền kề khi tay ở thế nghỉ (phím trắng): năm ngón phủ C–G. */
-export const FINGER_SPACING = 1;
+const MAX_SPEED = 14;
+const MIN_MOVE = 0.12;
+/** Khoảng cách ngang giữa hai khớp gốc ngón liền kề (phím trắng), theo tỉ lệ bàn tay của model (xem `hand-animator.test.ts`). */
+export const FINGER_SPACING = 0.8;
 /**
  * Ngón được phép lệch tối đa chừng này so với vị trí nghỉ của nó khi cổ tay đứng yên (thế tay "cố định"); vượt quá thì
  * cổ tay phải dời sang thế tay mới (như người chơi đổi thế tay) thay vì vươn ngón.
  */
-const STRETCH = 1.1;
-/** Giới hạn cứng: đầu ngón không bao giờ lệch quá chừng này so với khớp gốc, kể cả khi dữ liệu không thể đạt thế tay. */
-const MAX_TIP_DEVIATION = 1.6;
+const STRETCH = 0.5;
+/**
+ * Giới hạn cứng: đầu ngón không bao giờ lệch quá chừng này so với khớp gốc, kể cả khi dữ liệu không thể đạt thế tay.
+ * Ngón cái và ngón út dang rộng được nhất (quãng tám cùng một tay cần cả hai lệch ≈ 1,9 phím so với khớp gốc); ba ngón
+ * giữa chỉ lệch ít.
+ */
+const MAX_TIP_DEVIATION: Record<Finger, number> = { 1: 1.9, 2: 0.9, 3: 0.9, 4: 0.9, 5: 1.9 };
 /** Hai ngón liền kề của cùng một tay luôn cách nhau ít nhất chừng này, và không bao giờ đổi thứ tự. */
 const MIN_FINGER_GAP = 0.55;
+/** Trọng số tối thiểu của một ngón khi gỡ chồng (ngón nghỉ vẫn có tiếng nói nhỏ; ngón vươn thêm `reach²`). */
+const FINGER_PRIORITY_FLOOR = 0.02;
 /** Ngón vươn tới phím trước lần đánh, và nhả sau lần đánh, chừng này giây. */
 const APPROACH = 0.15;
 const RELEASE = 0.15;
@@ -39,8 +50,10 @@ export interface FingerPose {
   reach: number;
   /** 0 = nhấc, 1 = đang nhấn hết cỡ. */
   press: number;
-  /** Phím đang hướng tới là phím đen. */
+  /** Phím đang hướng tới là phím đen (`blackMix >= 0,5`). */
   black: boolean;
+  /** 0 = phím trắng, 1 = phím đen; liên tục theo thời gian để mục tiêu không nhảy khi ngón chuyển giữa phím trắng và đen. */
+  blackMix: number;
 }
 
 export interface HandPose {
@@ -84,6 +97,8 @@ interface HandTrack {
 /** Độ lệch ngang của ngón so với cổ tay (phím trắng); tay phải ngón cái ở bên trái, tay trái ngược lại. */
 const fingerOffset = (hand: Hand, finger: number) => (hand === 'right' ? finger - 3 : 3 - finger) * FINGER_SPACING;
 const smooth = (w: number) => w * w * (3 - 2 * w);
+/** Đường đi "jerk tối thiểu" (smootherstep): vận tốc và gia tốc bằng 0 ở hai đầu. */
+const minJerk = (w: number) => w * w * w * (w * (w * 6 - 15) + 10);
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
 /** Vị trí cuối cùng có `pick(item) <= value` (tìm nhị phân); -1 nếu không có. */
@@ -136,47 +151,90 @@ function wristAt(track: HandTrack, t: number): number {
   if (j < 0) return track.initial;
   const m = track.moves[j]!;
   if (t >= m.end) return m.to;
-  return m.from + (m.to - m.from) * smooth((t - m.start) / (m.end - m.start));
+  return m.from + (m.to - m.from) * minJerk((t - m.start) / (m.end - m.start));
 }
+
+/**
+ * Đường bao liên tục của một sự kiện theo thời gian: tăng (smoothstep) trong `APPROACH` trước lúc đánh, bằng 1 khi ngón
+ * đang đè, giảm trong `RELEASE` sau khi nhả. Liên tục theo `t` nên mục tiêu của ngón không bao giờ nhảy bước.
+ */
+function envelope(e: FingerEvent, t: number): number {
+  if (t < e.time) return smooth(clamp01(1 - (e.time - t) / APPROACH));
+  if (t < e.end) return 1;
+  return smooth(clamp01(1 - (t - e.end) / RELEASE));
+}
+
+/** Số sự kiện lùi/tiến quanh `t` được xét khi trộn (đủ cho nốt lặp rất nhanh của một ngón). */
+const WINDOW_BACK = 3;
+const WINDOW_AHEAD = 2;
 
 function fingerAt(hand: Hand, track: HandTrack, finger: Finger, wrist: number, t: number): FingerPose {
   const list = track.fingers[finger - 1]!;
   const knuckleX = wrist + fingerOffset(hand, finger);
   const idx = lastAtOrBefore(list, t, (e) => e.time);
-  const cur = idx >= 0 ? list[idx]! : undefined;
-  const next = list[idx + 1];
-  const down = cur !== undefined && t < cur.end;
-  const wCur = cur ? (down ? 1 : clamp01(1 - (t - cur.end) / RELEASE)) : 0;
-  const wNext = next ? clamp01(1 - (next.time - t) / APPROACH) : 0;
 
-  const toward = (target: number, reach: number, press: number, black: boolean): FingerPose => {
-    // Đầu ngón không lệch quá MAX_TIP_DEVIATION so với khớp gốc: ngón thật không vươn ngang quá xa.
-    const wanted = knuckleX + (target - knuckleX) * reach;
-    const tipX = Math.min(knuckleX + MAX_TIP_DEVIATION, Math.max(knuckleX - MAX_TIP_DEVIATION, wanted));
-    return { finger, knuckleX, tipX, reach, press, black };
-  };
-  if (cur && wCur > 0 && wCur >= wNext) {
-    return toward(cur.x, smooth(wCur), down ? clamp01((t - cur.time) / ATTACK) : wCur, cur.black);
+  // Trộn mục tiêu của các sự kiện lân cận theo đường bao; phần còn lại (nếu tổng < 1) là vị trí nghỉ.
+  let total = 0;
+  let sumX = 0;
+  let sumPress = 0;
+  let sumBlack = 0;
+  const lo = Math.max(0, idx - WINDOW_BACK);
+  const hi = Math.min(list.length - 1, idx + WINDOW_AHEAD);
+  for (let j = lo; j <= hi; j += 1) {
+    const e = list[j]!;
+    const w = envelope(e, t);
+    if (w <= 0) continue;
+    // Nhấn hết cỡ khi đè (sau ATTACK), đang nhả thì nhấc lên theo đường bao, chưa tới lúc đánh thì chưa nhấn.
+    const press = t < e.time ? 0 : t < e.end ? clamp01((t - e.time) / ATTACK) : w;
+    total += w;
+    sumX += w * e.x;
+    sumPress += w * press;
+    sumBlack += w * (e.black ? 1 : 0);
   }
-  if (next && wNext > 0) return toward(next.x, smooth(wNext), 0, next.black);
-  return toward(knuckleX, 0, 0, false);
+  const norm = Math.max(1, total);
+  const rest = Math.max(0, 1 - total / norm);
+  const target = total > 0 ? (sumX + rest * norm * knuckleX) / norm : knuckleX;
+  const reach = clamp01(total);
+  // Đầu ngón không lệch quá MAX_TIP_DEVIATION so với khớp gốc: ngón thật không vươn ngang quá xa.
+  const limit = MAX_TIP_DEVIATION[finger];
+  const tipX = Math.min(knuckleX + limit, Math.max(knuckleX - limit, target));
+  // Trộn theo cùng trọng số với vị trí (phần nghỉ là phím trắng) nên không nhảy khi độ vươn gần 0.
+  const blackMix = sumBlack / norm;
+  return { finger, knuckleX, tipX, reach, press: total > 0 ? sumPress / norm : 0, black: blackMix >= 0.5, blackMix };
 }
 
 /**
- * Giữ thứ tự và khoảng cách tối thiểu giữa các ngón của một tay: ngón không bao giờ vắt qua ngón bên cạnh. Khi hai ngón
- * va nhau, ngón đang vươn tới phím được giữ nguyên, ngón còn lại nhường.
+ * Giữ thứ tự và khoảng cách tối thiểu giữa các ngón của một tay: ngón không bao giờ vắt qua ngón bên cạnh. Là bài toán
+ * hồi quy đơn điệu có trọng số (PAVA): vị trí gần nhất với mong muốn thoả `p[i+1] − p[i] ≥ MIN_FINGER_GAP`, trong đó ngón
+ * đang vươn/nhấn có trọng số lớn nên giữ gần như nguyên chỗ, ngón nghỉ nhường. Nghiệm liên tục theo đầu vào nên tay không
+ * nhảy khi hai ngón đổi vai (khác với quy tắc "ngón nào vươn nhiều hơn thì giữ").
  */
 function untangle(hand: Hand, fingers: FingerPose[]): void {
   // Thứ tự từ trái sang phải trên bàn phím.
   const ordered = hand === 'right' ? [...fingers] : [...fingers].reverse();
-  const squeeze = (a: FingerPose, b: FingerPose) => {
-    const overlap = MIN_FINGER_GAP - (b.tipX - a.tipX);
-    if (overlap <= 0) return;
-    if (b.reach > a.reach) a.tipX -= overlap;
-    else b.tipX += overlap;
-  };
-  for (let i = 1; i < ordered.length; i += 1) squeeze(ordered[i - 1]!, ordered[i]!);
-  for (let i = ordered.length - 1; i >= 1; i -= 1) squeeze(ordered[i - 1]!, ordered[i]!);
+  // Đặt q[i] = tipX[i] − i·gap: ràng buộc khoảng cách thành "q không giảm".
+  const blocks: { sum: number; weight: number; count: number }[] = [];
+  ordered.forEach((f, i) => {
+    const weight = FINGER_PRIORITY_FLOOR + f.reach * f.reach;
+    blocks.push({ sum: (f.tipX - i * MIN_FINGER_GAP) * weight, weight, count: 1 });
+    while (blocks.length > 1) {
+      const last = blocks[blocks.length - 1]!;
+      const prev = blocks[blocks.length - 2]!;
+      if (prev.sum / prev.weight <= last.sum / last.weight) break;
+      prev.sum += last.sum;
+      prev.weight += last.weight;
+      prev.count += last.count;
+      blocks.pop();
+    }
+  });
+  let k = 0;
+  for (const block of blocks) {
+    const value = block.sum / block.weight;
+    for (let c = 0; c < block.count; c += 1) {
+      ordered[k]!.tipX = value + k * MIN_FINGER_GAP;
+      k += 1;
+    }
+  }
 }
 
 /**

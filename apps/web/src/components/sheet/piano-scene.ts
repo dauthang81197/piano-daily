@@ -21,10 +21,12 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { HandPose, HandsPose } from '@/lib/midi/hands/hand-path';
+import type { HandsPose } from '@/lib/midi/hands/hand-path';
 import { MAX_FALLING, type FallingNote, type KeyboardLayout } from '@/lib/midi/keyboard-layout';
+import { HandAnimator, type HandId } from '@/lib/midi/scene3d/hand-animator';
+import { applyHandFrame, HandFrameDriver } from '@/lib/midi/scene3d/hand-driver';
+import { HandMetrics, type HandStats } from '@/lib/midi/scene3d/hand-metrics';
 import {
-  applySolution,
   HandSolver,
   modelToHandMatrix,
   REQUIRED_BONES,
@@ -35,13 +37,10 @@ import {
   BLACK_RISE,
   fallZ,
   FALL_LENGTH,
-  fingerTarget,
   keyTopY,
   PRESS_DEPTH,
   WHITE_DEPTH,
   WHITE_LENGTH,
-  WRIST_Y,
-  WRIST_Z,
 } from '@/lib/midi/scene3d/world';
 
 /** Tỉ lệ khung hình (rộng : cao) của cảnh. */
@@ -57,7 +56,12 @@ export interface SceneFrame {
   /** Số nốt MIDI đang phát. */
   active: ReadonlySet<number>;
   falling: readonly FallingNote[];
+  /** Tư thế hai tay (đã lấy sớm `HAND_LEAD` so với `time` để bù độ trễ của bộ lọc). */
   pose: HandsPose;
+  /** Thời gian phát (giây) của khung này: dùng nhận biết tua/đổi bài để đặt thẳng tư thế tay. */
+  time: number;
+  /** Không đang phát: vẽ lại đúng tư thế (đặt thẳng) thay vì tiến một bước của bộ lọc rồi dừng giữa chừng. */
+  still: boolean;
   showHands: boolean;
 }
 
@@ -66,6 +70,15 @@ export interface PianoScene {
   /** Đặt kích thước vẽ theo pixel CSS của canvas. */
   resize(width: number, height: number): void;
   dispose(): void;
+  /** Số liệu chuyển động của tay (chỉ khi tạo với `debug`); `null` nếu không bật hoặc chưa có khung. */
+  stats(): HandStats | null;
+}
+
+export interface PianoSceneOptions {
+  /** Thu số liệu fps, thời gian xử lý, bước khớp (lớp phủ `?handsDebug=1`). Mặc định tắt. */
+  debug?: boolean;
+  /** Đồng hồ thực (giây); tiêm được để test. */
+  now?: () => number;
 }
 
 interface KeyView {
@@ -93,7 +106,12 @@ function collectBones(root: Object3D): Map<string, Object3D> {
  * Tạo cảnh 3D nhìn nghiêng từ phía người chơi: phím đàn, nốt rơi trên mặt đàn phía xa và hai bàn tay từ model GLB.
  * Ném lỗi nếu không tạo được WebGL hoặc model thiếu/hỏng (người gọi quay về phím SVG).
  */
-export async function createPianoScene(canvas: HTMLCanvasElement, layout: KeyboardLayout, modelUrl: string): Promise<PianoScene> {
+export async function createPianoScene(
+  canvas: HTMLCanvasElement,
+  layout: KeyboardLayout,
+  modelUrl: string,
+  options: PianoSceneOptions = {},
+): Promise<PianoScene> {
   const gltf = await new GLTFLoader().loadAsync(modelUrl);
   const missing = REQUIRED_BONES.filter((name) => !collectBones(gltf.scene).has(name));
   if (missing.length > 0) throw new Error(`Model bàn tay thiếu xương: ${missing.join(', ')}`);
@@ -227,19 +245,9 @@ export async function createPianoScene(canvas: HTMLCanvasElement, layout: Keyboa
   }
   fitCamera(VIEW_ASPECT);
 
-  const scratch = new Vector3();
-  function poseHand(view: HandView, pose: HandPose | null, visible: boolean) {
-    view.group.visible = visible && pose !== null;
-    if (!pose || !visible) return;
-    view.group.position.set(pose.x, WRIST_Y, WRIST_Z);
-    view.group.updateMatrixWorld(true);
-    const inverse = view.model.matrixWorld.clone().invert();
-    for (const finger of pose.fingers) {
-      const t = fingerTarget(finger);
-      scratch.set(t.x, t.y, t.z).applyMatrix4(inverse);
-      applySolution(view.bones, solver.solve(finger.finger, scratch));
-    }
-  }
+  const driver = new HandFrameDriver(new HandAnimator(solver, modelMatrix), options.now ?? (() => performance.now() / 1000));
+  const metrics = options.debug ? new HandMetrics() : null;
+  const clock = options.now ?? (() => performance.now() / 1000);
 
   return {
     render(frame) {
@@ -264,10 +272,14 @@ export async function createPianoScene(canvas: HTMLCanvasElement, layout: Keyboa
         bar.scale.set(key.width - inset * 2, 0.35, length);
         bar.position.set(key.x + key.width / 2, 0.18 + keyTopY(key) * 0.4, (near + far) / 2);
       });
-      poseHand(hands.left, frame.pose.left, frame.showHands);
-      poseHand(hands.right, frame.pose.right, frame.showHands);
+      const started = clock();
+      const step = driver.step(frame);
+      for (const id of ['left', 'right'] as HandId[]) applyHandFrame(hands[id].group, hands[id].bones, step.frames[id]);
       renderer.render(scene, camera);
+      // Khung đặt thẳng (khung đầu, tua, đứng yên) có dt không phản ánh nhịp vẽ nên không đưa vào số liệu.
+      if (!step.snap && step.realDt > 0) metrics?.record(step.realDt, (clock() - started) * 1000, step.jointStep);
     },
+    stats: () => metrics?.snapshot() ?? null,
     resize(w, h) {
       const cw = Math.max(1, w);
       const ch = Math.max(1, h);

@@ -170,3 +170,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-tuy-chinh-goc-nhin-va-mau-canh-3d.md`
   summary: Mặc định góc nhìn và màu cho cả site chỉnh ở admin (phương án B) chưa làm; cài đặt hiện chỉ theo từng trình duyệt.
   evidence: Founder chọn phương án A (mọi người xem, lưu `localStorage`); muốn đổi giao diện mặc định cho mọi người cần cột `site_settings`, API, form admin và web đọc mặc định.
+
+## Hoàn thiện bàn tay (feature/hoan-thien-ban-tay)
+
+- Tay áo cẳng tay chưa chỉnh được màu trong ViewSettings.
+- Hằng số cẳng tay (WRIST_*, FOREARM_START_Z) chưa có script đo lại khi đổi model hand-right.glb.
+- Chưa có test winding mặt cho lathe cẳng tay; tên test "cổ tay không dời" trong hand-path.test.ts cần chỉnh cho khớp khẳng định.

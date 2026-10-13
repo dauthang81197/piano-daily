@@ -43,7 +43,7 @@ export const fallZ = (v: number) => -WHITE_LENGTH - (1 - v) * FALL_LENGTH;
  * bị kéo tới một điểm tuỳ ý rồi co gắt.
  */
 export const REST_TIP: Record<1 | 2 | 3 | 4 | 5, { y: number; z: number }> = {
-  1: { y: -3.17, z: -2.61 },
+  1: { y: -2.53, z: -4.33 },
   2: { y: -2.68, z: -5.95 },
   3: { y: -2.71, z: -6.18 },
   4: { y: -2.75, z: -5.64 },

@@ -1,7 +1,6 @@
 import {
   AmbientLight,
   BoxGeometry,
-  CylinderGeometry,
   Color,
   DirectionalLight,
   Group,
@@ -11,7 +10,10 @@ import {
   BufferGeometry,
   Float32BufferAttribute,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
+  LatheGeometry,
+  Vector2,
   PerspectiveCamera,
   Scene,
   WebGLRenderer,
@@ -25,7 +27,8 @@ import { MAX_FALLING, type FallingNote, type KeyboardLayout } from '@/lib/midi/k
 import { HandAnimator, type HandId } from '@/lib/midi/scene3d/hand-animator';
 import { applyHandFrame, HandFrameDriver } from '@/lib/midi/scene3d/hand-driver';
 import { HandMetrics, type HandStats } from '@/lib/midi/scene3d/hand-metrics';
-import { applyViewCamera, applyViewColors } from '@/lib/midi/scene3d/view-apply';
+import { FOREARM_ASPECT, forearmProfile, sleeveProfile, WRIST_CENTER, type ProfilePoint } from '@/lib/midi/scene3d/forearm';
+import { applyViewCamera, applyViewColors, skinSheenColor } from '@/lib/midi/scene3d/view-apply';
 import { sanitizeViewSettings, type ViewSettings } from '@/lib/midi/scene3d/view-settings';
 import {
   HandSolver,
@@ -48,6 +51,8 @@ import {
 export const VIEW_ASPECT = 2;
 
 const STAGE = 0x26211d;
+/** Màu tay áo (vải tối, trung tính: không trùng nền sân khấu và không theo màu bàn tay). */
+const SLEEVE_COLOR = 0x4a443e;
 const GAP = 0.06;
 
 export interface SceneFrame {
@@ -192,8 +197,29 @@ export async function createPianoScene(
   }
 
   // Bàn tay.
-  const skin = own(new MeshStandardMaterial({ color: view.handColor, roughness: 0.55 }));
-  const forearmGeo = own(new CylinderGeometry(1.5, 1.05, 9.5, 20));
+  const skin = own(
+    new MeshPhysicalMaterial({
+      color: view.handColor,
+      roughness: 0.55,
+      sheen: 0.6,
+      sheenRoughness: 0.5,
+      sheenColor: skinSheenColor(view.handColor),
+      emissive: view.handColor,
+      emissiveIntensity: 0.06,
+    }),
+  );
+  /** Tay áo vải trung tính, không theo màu bàn tay. */
+  const sleeve = own(new MeshStandardMaterial({ color: SLEEVE_COLOR, roughness: 0.9 }));
+  /** Mặt tròn xoay elip dọc theo trục z (cổ tay ở gốc, đi về phía người chơi). */
+  const limb = (profile: readonly ProfilePoint[]) => {
+    const geometry = new LatheGeometry(profile.map((p) => new Vector2(p.radius, p.z)), 32);
+    geometry.scale(1, 1, FOREARM_ASPECT);
+    geometry.rotateX(Math.PI / 2);
+    geometry.translate(WRIST_CENTER.x, WRIST_CENTER.y, 0);
+    return own(geometry);
+  };
+  const forearmGeo = limb(forearmProfile());
+  const sleeveGeo = limb(sleeveProfile());
   const solver = new HandSolver(
     (() => {
       const probe = cloneSkinned(gltf.scene);
@@ -224,12 +250,9 @@ export async function createPianoScene(
     mirror.scale.x = mirrored ? -1 : 1;
     mirror.add(model);
     const group = new Group();
+    // Cẳng tay thon (mặt cắt elip khớp cổ tay model) và tay áo nằm trong `mirror` để tay trái lệch tâm đối xứng với cổ tay.
+    mirror.add(new Mesh(forearmGeo, skin), new Mesh(sleeveGeo, sleeve));
     group.add(mirror);
-    // Cẳng tay đơn giản nối từ cổ tay về phía người chơi, để không lộ mặt cắt cổ tay của model.
-    const forearm = new Mesh(forearmGeo, skin);
-    forearm.rotation.x = Math.PI / 2;
-    forearm.position.set(0, 0.5, 4.9);
-    group.add(forearm);
     group.visible = false;
     scene.add(group);
     return { group, mirror, model, bones };

@@ -55,9 +55,9 @@ const LIMITS = {
 const DISTAL_COUPLING = 0.7;
 /**
  * Tư thế nghỉ thả lỏng (điểm xuất phát của IK khi chưa có nghiệm khung trước): ngón 2–5 cong nhẹ như tay thật — khớp gốc
- * ≈ 25°, khớp giữa ≈ 35° (khớp xa theo `DISTAL_COUPLING` ≈ 25°); ngón cái khép nhẹ.
+ * ≈ 25°, khớp giữa ≈ 35° (khớp xa theo `DISTAL_COUPLING` ≈ 25°); ngón cái nằm ngang, chĩa ra ngoài và ra trước (gần tư thế gốc của model) thay vì buông xuống.
  */
-export const REST_PARAMS = { finger: [0.44, 0.61, 0], thumb: [0.2, 0.1, 0.4] } as const;
+export const REST_PARAMS = { finger: [0.44, 0.61, 0], thumb: [-0.14, -0.45, 0.3] } as const;
 const SEEDS = REST_PARAMS;
 /** Số vòng lặp IK khi giải từ đầu và khi có nghiệm khung trước làm điểm xuất phát (nghiệm liên tục nên cần ít hơn). */
 const ITERATIONS = 10;

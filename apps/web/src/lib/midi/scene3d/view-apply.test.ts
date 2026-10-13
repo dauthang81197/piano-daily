@@ -1,16 +1,31 @@
 // @vitest-environment node
-import { Color, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
+import { Color, MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { applyViewCamera, applyViewColors, type ViewMaterials } from './view-apply';
+import { applyViewCamera, applyViewColors, skinSheenColor, type ViewMaterials } from './view-apply';
 import { cameraPlacement, DEFAULT_VIEW_SETTINGS } from './view-settings';
 
 const materials = (): ViewMaterials => ({
-  skin: new MeshStandardMaterial(),
+  skin: new MeshPhysicalMaterial(),
   barWhite: new MeshStandardMaterial(),
   barBlack: new MeshStandardMaterial(),
   activeKey: new MeshStandardMaterial(),
 });
 const hex = (c: Color) => `#${c.getHexString()}`;
+
+describe('da', () => {
+  it('emissive và sheen đổi theo màu bàn tay; viền sheen sáng hơn màu da', () => {
+    const m = materials();
+    applyViewColors(m, { ...DEFAULT_VIEW_SETTINGS, handColor: '#8a5a3c' });
+    expect(`#${m.skin.emissive.getHexString()}`).toBe('#8a5a3c');
+    const sheen = m.skin.sheenColor;
+    const base = new Color('#8a5a3c');
+    expect(sheen.r).toBeGreaterThan(base.r);
+    expect(sheen.g).toBeGreaterThan(base.g);
+    expect(sheen.b).toBeGreaterThan(base.b);
+    expect(skinSheenColor('#000000').getHexString()).not.toBe('000000');
+    expect(skinSheenColor('#ffffff').getHexString()).toBe('ffffff');
+  });
+});
 
 describe('applyViewColors', () => {
   it('đặt màu bàn tay, nốt rơi phím trắng/đen và cả emissive của nốt rơi', () => {

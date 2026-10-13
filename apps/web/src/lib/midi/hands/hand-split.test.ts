@@ -42,6 +42,27 @@ describe('assignHands', () => {
     expect(hands.filter((h) => h === 'right').length).toBeLessThanOrEqual(5);
   });
 
+  it('quãng tám quanh ranh giới (C3+C4) đánh cùng lúc: cả hai nốt về một tay (trái), không tách hai tay', () => {
+    expect(assignHands([n(48, 0), n(60, 0)])).toEqual(['left', 'left']);
+    expect(assignHands([n(48, 0), n(60, 0), n(50, 1), n(62, 1)])).toEqual(['left', 'left', 'left', 'left']);
+  });
+
+  it('quãng tám ở vùng cao hay vùng thấp vẫn đúng một tay', () => {
+    expect(assignHands([n(72, 0), n(84, 0)])).toEqual(['right', 'right']);
+    expect(assignHands([n(36, 0), n(48, 0)])).toEqual(['left', 'left']);
+  });
+
+  it('giai điệu cao kèm bè thấp (xa hơn một quãng tám) vẫn chia hai tay; quãng mười hai (C3 và C5) cũng vậy', () => {
+    expect(assignHands([n(48, 0), n(72, 0)])).toEqual(['left', 'right']);
+    expect(assignHands([n(48, 0), n(55, 0), n(76, 0), n(79, 0)])).toEqual(['left', 'left', 'right', 'right']);
+  });
+
+  it('hợp âm hẹp một tay vẫn một tay, và quãng tám đánh nối nhau không làm đổi tay liên tục', () => {
+    expect(assignHands([n(48, 0), n(52, 0), n(55, 0)])).toEqual(['left', 'left', 'left']);
+    const run = assignHands([n(48, 0), n(60, 0), n(50, 0.5), n(62, 0.5), n(52, 1), n(64, 1)]);
+    expect(new Set(run).size).toBe(1);
+  });
+
   it('kết quả song song với đầu vào, kể cả khi không có nốt', () => {
     expect(assignHands([])).toEqual([]);
     const notes = [n(60, 2), n(40, 0)];

@@ -14,7 +14,6 @@ import {
   MeshStandardMaterial,
   PerspectiveCamera,
   Scene,
-  Vector3,
   WebGLRenderer,
   type Object3D,
   type SkinnedMesh,
@@ -26,6 +25,8 @@ import { MAX_FALLING, type FallingNote, type KeyboardLayout } from '@/lib/midi/k
 import { HandAnimator, type HandId } from '@/lib/midi/scene3d/hand-animator';
 import { applyHandFrame, HandFrameDriver } from '@/lib/midi/scene3d/hand-driver';
 import { HandMetrics, type HandStats } from '@/lib/midi/scene3d/hand-metrics';
+import { applyViewCamera, applyViewColors } from '@/lib/midi/scene3d/view-apply';
+import { sanitizeViewSettings, type ViewSettings } from '@/lib/midi/scene3d/view-settings';
 import {
   HandSolver,
   modelToHandMatrix,
@@ -46,9 +47,6 @@ import {
 /** Tỉ lệ khung hình (rộng : cao) của cảnh. */
 export const VIEW_ASPECT = 2;
 
-const BRASS = 0xb8893a;
-const BRASS_DARK = 0x8c6a2c;
-const SKIN = 0xdcae8c;
 const STAGE = 0x26211d;
 const GAP = 0.06;
 
@@ -72,6 +70,8 @@ export interface PianoScene {
   dispose(): void;
   /** Số liệu chuyển động của tay (chỉ khi tạo với `debug`); `null` nếu không bật hoặc chưa có khung. */
   stats(): HandStats | null;
+  /** Đổi góc nhìn và màu tại chỗ (không dựng lại cảnh); cần vẽ lại một khung để thấy. */
+  setView(settings: ViewSettings): void;
 }
 
 export interface PianoSceneOptions {
@@ -79,6 +79,8 @@ export interface PianoSceneOptions {
   debug?: boolean;
   /** Đồng hồ thực (giây); tiêm được để test. */
   now?: () => number;
+  /** Góc nhìn và màu ban đầu (mặc định theo `DEFAULT_VIEW_SETTINGS`). */
+  view?: ViewSettings;
 }
 
 interface KeyView {
@@ -112,6 +114,8 @@ export async function createPianoScene(
   modelUrl: string,
   options: PianoSceneOptions = {},
 ): Promise<PianoScene> {
+  // Làm sạch cả cài đặt ban đầu: thiếu/undefined/ngoài giới hạn không bao giờ làm camera hay màu thành NaN.
+  let view: ViewSettings = sanitizeViewSettings(options.view);
   const gltf = await new GLTFLoader().loadAsync(modelUrl);
   const missing = REQUIRED_BONES.filter((name) => !collectBones(gltf.scene).has(name));
   if (missing.length > 0) throw new Error(`Model bàn tay thiếu xương: ${missing.join(', ')}`);
@@ -140,7 +144,7 @@ export async function createPianoScene(
   const blackGeo = own(new BoxGeometry(0.55, BLACK_RISE + 0.45, blackLen));
   const whiteMat = own(new MeshStandardMaterial({ color: 0xfaf7f0, roughness: 0.5 }));
   const blackMat = own(new MeshStandardMaterial({ color: 0x1b1816, roughness: 0.4 }));
-  const activeMat = own(new MeshStandardMaterial({ color: BRASS, roughness: 0.4, emissive: BRASS, emissiveIntensity: 0.35 }));
+  const activeMat = own(new MeshStandardMaterial({ color: view.noteWhiteColor, roughness: 0.4, emissive: view.noteWhiteColor, emissiveIntensity: 0.35 }));
   const keys = new Map<number, KeyView>();
   const keyGroup = new Group();
   for (const key of layout.keys) {
@@ -177,8 +181,8 @@ export async function createPianoScene(
 
   // Nốt rơi: dùng lại một bể thanh hộp.
   const barGeo = own(new BoxGeometry(1, 1, 1));
-  const barWhite = own(new MeshStandardMaterial({ color: BRASS, roughness: 0.5, emissive: BRASS, emissiveIntensity: 0.25 }));
-  const barBlack = own(new MeshStandardMaterial({ color: BRASS_DARK, roughness: 0.5, emissive: BRASS_DARK, emissiveIntensity: 0.25 }));
+  const barWhite = own(new MeshStandardMaterial({ color: view.noteWhiteColor, roughness: 0.5, emissive: view.noteWhiteColor, emissiveIntensity: 0.25 }));
+  const barBlack = own(new MeshStandardMaterial({ color: view.noteBlackColor, roughness: 0.5, emissive: view.noteBlackColor, emissiveIntensity: 0.25 }));
   const bars: Mesh[] = [];
   for (let i = 0; i < MAX_FALLING; i += 1) {
     const bar = new Mesh(barGeo, barWhite);
@@ -188,7 +192,7 @@ export async function createPianoScene(
   }
 
   // Bàn tay.
-  const skin = own(new MeshStandardMaterial({ color: SKIN, roughness: 0.55 }));
+  const skin = own(new MeshStandardMaterial({ color: view.handColor, roughness: 0.55 }));
   const forearmGeo = own(new CylinderGeometry(1.5, 1.05, 9.5, 20));
   const solver = new HandSolver(
     (() => {
@@ -232,16 +236,11 @@ export async function createPianoScene(
   }
 
   const camera = new PerspectiveCamera(45, VIEW_ASPECT, 0.5, 400);
-  function fitCamera(aspect: number) {
-    camera.aspect = aspect;
-    // Vừa khít bề ngang bàn phím (cộng lề), nhìn xuống chừng 48° vào giữa phím và mặt nốt rơi.
-    const hfov = 2 * Math.atan(Math.tan((camera.fov * Math.PI) / 360) * aspect);
-    const dist = (width * 1.08) / 2 / Math.tan(hfov / 2);
-    const elevation = (54 * Math.PI) / 180;
-    const target = new Vector3(width / 2, 0, -4.5);
-    camera.position.set(target.x, target.y + dist * Math.sin(elevation), target.z + dist * Math.cos(elevation));
-    camera.lookAt(target);
-    camera.updateProjectionMatrix();
+  let aspect = VIEW_ASPECT;
+  /** Đặt camera theo cài đặt hiện tại: vừa khít bề ngang bàn phím, nâng/xoay/gần theo `view` (xem `cameraPlacement`). */
+  function fitCamera(nextAspect: number) {
+    aspect = nextAspect;
+    applyViewCamera(camera, view, aspect, width);
   }
   fitCamera(VIEW_ASPECT);
 
@@ -280,6 +279,11 @@ export async function createPianoScene(
       if (!step.snap && step.realDt > 0) metrics?.record(step.realDt, (clock() - started) * 1000, step.jointStep);
     },
     stats: () => metrics?.snapshot() ?? null,
+    setView(settings) {
+      view = sanitizeViewSettings(settings);
+      applyViewColors({ skin, barWhite, barBlack, activeKey: activeMat }, view);
+      fitCamera(aspect);
+    },
     resize(w, h) {
       const cw = Math.max(1, w);
       const ch = Math.max(1, h);

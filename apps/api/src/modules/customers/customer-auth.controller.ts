@@ -97,15 +97,11 @@ export class CustomerAuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<CustomerSession> {
+    // Không xoá cookie khi refresh lỗi: hai tab refresh đồng thời thì tab thua (token vừa bị xoay) không được xoá cookie
+    // mới mà tab thắng vừa nhận. Cookie hỏng/hết hạn tự hết hạn và bị ghi đè ở lần đăng nhập sau.
     const token = readCookie(req);
-    try {
-      if (!token) throw new AppException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
-      return this.respond(await this.auth.refresh(token), res);
-    } catch (err) {
-      // Không xoá cookie khi refresh lỗi: hai tab refresh đồng thời thì tab thua (token vừa bị xoay) không được xoá cookie
-      // mới mà tab thắng vừa nhận. Cookie hỏng/hết hạn tự hết hạn và bị ghi đè ở lần đăng nhập sau.
-      throw err;
-    }
+    if (!token) throw new AppException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+    return this.respond(await this.auth.refresh(token), res);
   }
 
   @Post('logout')

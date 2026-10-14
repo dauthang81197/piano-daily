@@ -180,6 +180,61 @@ describe('Trang /plans', () => {
     expect(rows[2]).toHaveTextContent('Cần xem xét');
   });
 
+  it('VietQR đang chờ có nút xác nhận thủ công: POST confirm rồi tải lại danh sách; PayPal/đã trả không có nút', async () => {
+    let confirmed = false;
+    const vietqr = { ...PAYMENT, id: '0192a000-0000-7000-8000-0000000000b2', code: 'PS-XYZ789', provider: 'VIETQR', currency: 'VND', amount: 99000, status: 'PENDING', paidAt: null };
+    const fetchMock = await signIn('SUPER_ADMIN', (url, init) => {
+      if (url.pathname === `/admin/subscription-payments/${vietqr.id}/confirm`) {
+        confirmed = true;
+        return jsonResponse(200, { status: 'PAID' });
+      }
+      return listHandler([plan()], [PAYMENT, confirmed ? { ...vietqr, status: 'PAID' } : vietqr])(url, init);
+    });
+    renderPage();
+    const user = userEvent.setup();
+    expect(await screen.findAllByRole('button', { name: /Xác nhận đã nhận tiền/ })).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Xác nhận đã nhận tiền PS-XYZ789' }));
+    // Bấm lần đầu chỉ hỏi lại, chưa gọi API.
+    expect(calls(fetchMock, 'POST', `/admin/subscription-payments/${vietqr.id}/confirm`)).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: 'Chắc chắn đã nhận tiền PS-XYZ789' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Đã xác nhận thanh toán PS-XYZ789');
+    expect(calls(fetchMock, 'POST', `/admin/subscription-payments/${vietqr.id}/confirm`)).toHaveLength(1);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Xác nhận đã nhận tiền/ })).toBeNull());
+  });
+
+  it('hộp hỏi lại có nút Huỷ: bấm Huỷ thì không gọi API', async () => {
+    const vietqr = { ...PAYMENT, id: '0192a000-0000-7000-8000-0000000000b2', code: 'PS-XYZ789', provider: 'VIETQR', currency: 'VND', amount: 99000, status: 'PENDING', paidAt: null };
+    const fetchMock = await signIn('SUPER_ADMIN', listHandler([plan()], [vietqr]));
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Xác nhận đã nhận tiền PS-XYZ789' }));
+    await user.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.getByRole('button', { name: 'Xác nhận đã nhận tiền PS-XYZ789' })).toBeInTheDocument();
+    expect(calls(fetchMock, 'POST', `/admin/subscription-payments/${vietqr.id}/confirm`)).toHaveLength(0);
+  });
+
+  it('xác nhận thủ công lỗi 409: hiện thông báo từ API', async () => {
+    const vietqr = { ...PAYMENT, id: '0192a000-0000-7000-8000-0000000000b2', code: 'PS-XYZ789', provider: 'VIETQR', currency: 'VND', amount: 99000, status: 'PENDING', paidAt: null };
+    await signIn('SUPER_ADMIN', (url, init) =>
+      url.pathname.endsWith('/confirm')
+        ? jsonResponse(409, errorBody('ORDER_NOT_PAID', 'Chỉ xác nhận thủ công được thanh toán VietQR đang chờ hoặc thất bại.'))
+        : listHandler([plan()], [vietqr])(url, init),
+    );
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Xác nhận đã nhận tiền PS-XYZ789' }));
+    await user.click(screen.getByRole('button', { name: 'Chắc chắn đã nhận tiền PS-XYZ789' }));
+    expect(await screen.findByText(/Chỉ xác nhận thủ công được thanh toán VietQR/)).toBeInTheDocument();
+  });
+
+  it('EDITOR không thấy nút xác nhận thủ công', async () => {
+    await signIn('EDITOR', listHandler([plan()], [{ ...PAYMENT, provider: 'VIETQR', currency: 'VND', amount: 99000, status: 'PENDING', paidAt: null }]));
+    renderPage();
+    await screen.findByRole('table', { name: 'Danh sách thanh toán gói' });
+    await screen.findByText('PS-ABC234');
+    expect(screen.queryByRole('button', { name: /Xác nhận đã nhận tiền/ })).toBeNull();
+  });
+
   it('EDITOR chỉ xem: không có nút tạo/xoá, checkbox bị khoá, form cấp gói bị vô hiệu', async () => {
     await signIn('EDITOR', listHandler([plan()]));
     renderPage();

@@ -242,3 +242,180 @@ describe('Mua gói bằng PayPal (web)', () => {
     expect(within(dialog).getByLabelText('Chuyển khoản VietQR (sắp có)')).toBeDisabled();
   });
 });
+
+describe('Mua gói bằng VietQR (web)', () => {
+  const INFO = {
+    paymentCode: 'PS-ABC234',
+    transferContent: 'PSABC234',
+    amount: 99000,
+    currency: 'VND',
+    qrUrl: 'https://qr.sepay.vn/img?acc=0123456789&bank=Vietcombank&amount=99000&des=PSABC234',
+    bankAccount: '0123456789',
+    bankName: 'Vietcombank',
+    accountHolder: 'NGUYEN VAN A',
+  };
+  const PAID = { status: 'PAID', entitlement: ENTITLED };
+
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test');
+    vi.stubEnv('NEXT_PUBLIC_PAYPAL_CLIENT_ID', 'sb-client');
+    vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', '');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  const uiVi = (vietqrEnabled: boolean) =>
+    render(
+      withIntl(
+        <AuthProvider>
+          <HeaderAuth />
+          <PlanChooseButton plan={PLAN} vietqrEnabled={vietqrEnabled} />
+        </AuthProvider>,
+        'vi',
+      ),
+    );
+  const openModal = async () => {
+    await screen.findByText('Khách');
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn gói' }));
+    return screen.findByRole('dialog');
+  };
+
+  it('chưa cấu hình VietQR: lựa chọn bị vô hiệu ghi "sắp có"', async () => {
+    stubApi({ 'POST /customer/auth/refresh': { body: SESSION }, 'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } } });
+    uiVi(false);
+    const dialog = await openModal();
+    expect(within(dialog).getByLabelText('Chuyển khoản VietQR (sắp có)')).toBeDisabled();
+  });
+
+  it('khách tiếng Anh không thấy lựa chọn VietQR dù đã cấu hình', async () => {
+    stubApi({ 'POST /customer/auth/refresh': { body: SESSION }, 'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } } });
+    render(
+      withIntl(
+        <AuthProvider>
+          <PlanChooseButton plan={PLAN} vietqrEnabled />
+        </AuthProvider>,
+      ),
+    );
+    await screen.findByRole('button', { name: 'Choose plan' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose plan' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Choose plan' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByLabelText(/VietQR/)).toBeNull();
+  });
+
+  it('chọn VietQR: gọi create với planId + Bearer, hiện QR, số tiền VND, tài khoản và nội dung; ẩn nút PayPal', async () => {
+    const calls = stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } },
+      'POST /customer/subscriptions/vietqr/create': { status: 201, body: INFO },
+      'GET /customer/subscriptions/payments/PS-ABC234': { body: { status: 'PENDING', entitlement: null } },
+    });
+    uiVi(true);
+    const dialog = await openModal();
+    expect(within(dialog).getByTestId('paypal')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    expect(await within(dialog).findByAltText('Mã QR chuyển khoản')).toHaveAttribute('src', INFO.qrUrl);
+    expect(dialog).toHaveTextContent('Vietcombank');
+    expect(dialog).toHaveTextContent('0123456789');
+    expect(dialog).toHaveTextContent('NGUYEN VAN A');
+    expect(dialog).toHaveTextContent(/99\.000\s*₫/);
+    expect(dialog).toHaveTextContent('PSABC234');
+    expect(within(dialog).queryByTestId('paypal')).toBeNull();
+    expect(within(dialog).queryByText(/PayPal thu tiền bằng USD/)).toBeNull();
+    const create = calls.find((c) => c.key.endsWith('/vietqr/create'))!;
+    expect(JSON.parse(create.init.body as string)).toEqual({ planId: PLAN.id });
+    expect((create.init.headers as Record<string, string>).Authorization).toBe('Bearer access-1');
+  });
+
+  it('polling: khi server báo PAID thì hiện thành công và cập nhật header', async () => {
+    let paid = false;
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } },
+      'POST /customer/subscriptions/vietqr/create': { status: 201, body: INFO },
+      'GET /customer/subscriptions/payments/PS-ABC234': () => ({ body: paid ? PAID : { status: 'PENDING', entitlement: null } }),
+    });
+    uiVi(true);
+    const dialog = await openModal();
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    await within(dialog).findByAltText('Mã QR chuyển khoản');
+    expect(dialog).toHaveTextContent('Đang chờ nhận tiền');
+    paid = true;
+    expect(await screen.findByText(/Thanh toán thành công/, undefined, { timeout: 8000 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('entitlement')).toHaveTextContent('Gói tháng'));
+  }, 15000);
+
+  it('lỗi 503 (SePay chưa cấu hình ở server): hiện thông báo dùng PayPal; có nút thử lại khi lỗi mạng', async () => {
+    let reply: Reply = error(503, 'SERVICE_UNAVAILABLE');
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } },
+      'POST /customer/subscriptions/vietqr/create': () => reply,
+    });
+    uiVi(true);
+    const dialog = await openModal();
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('VietQR chưa khả dụng');
+    // Quay lại PayPal vẫn dùng được.
+    fireEvent.click(within(dialog).getByLabelText(/^PayPal/));
+    expect(await within(dialog).findByTestId('paypal')).toBeInTheDocument();
+    reply = { status: 201, body: INFO };
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    expect(await within(dialog).findByAltText('Mã QR chuyển khoản')).toBeInTheDocument();
+  });
+
+  it('hết thời gian chờ: gợi ý liên hệ kèm mã thanh toán, không báo thành công', async () => {
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } },
+      'POST /customer/subscriptions/vietqr/create': { status: 201, body: INFO },
+      'GET /customer/subscriptions/payments/PS-ABC234': { body: { status: 'PENDING', entitlement: null } },
+    });
+    uiVi(true);
+    const dialog = await openModal();
+    const now = Date.now();
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    await within(dialog).findByAltText('Mã QR chuyển khoản');
+    vi.spyOn(Date, 'now').mockReturnValue(now + 16 * 60 * 1000);
+    expect(await screen.findByText(/Chưa thấy tiền về sau 15 phút/, undefined, { timeout: 8000 })).toHaveTextContent('PS-ABC234');
+    expect(screen.queryByText(/Thanh toán thành công/)).toBeNull();
+    vi.restoreAllMocks();
+  }, 15000);
+
+  it('sau hết thời gian chờ vẫn tiếp tục hỏi: tiền về muộn thì vẫn báo thành công', async () => {
+    let paid = false;
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } },
+      'POST /customer/subscriptions/vietqr/create': { status: 201, body: INFO },
+      'GET /customer/subscriptions/payments/PS-ABC234': () => ({ body: paid ? PAID : { status: 'PENDING', entitlement: null } }),
+    });
+    uiVi(true);
+    const dialog = await openModal();
+    const now = Date.now();
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    await within(dialog).findByAltText('Mã QR chuyển khoản');
+    vi.spyOn(Date, 'now').mockReturnValue(now + 16 * 60 * 1000);
+    expect(await screen.findByText(/Chưa thấy tiền về sau 15 phút/, undefined, { timeout: 8000 })).toBeInTheDocument();
+    paid = true;
+    expect(await screen.findByText(/Thanh toán thành công/, undefined, { timeout: 30000 })).toBeInTheDocument();
+  }, 45000);
+
+  it('thanh toán đã hoàn tiền/huỷ: dừng hỏi và báo rõ, không báo thành công', async () => {
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      'GET /customer/entitlement': { body: { ...ENTITLED, subscription: null } },
+      'POST /customer/subscriptions/vietqr/create': { status: 201, body: INFO },
+      'GET /customer/subscriptions/payments/PS-ABC234': { body: { status: 'REFUNDED', entitlement: null } },
+    });
+    uiVi(true);
+    const dialog = await openModal();
+    fireEvent.click(within(dialog).getByLabelText('Chuyển khoản VietQR (ngân hàng trong nước)'));
+    await within(dialog).findByAltText('Mã QR chuyển khoản');
+    expect(await screen.findByText(/đã được hoàn tiền hoặc huỷ/, undefined, { timeout: 8000 })).toHaveTextContent('PS-ABC234');
+    expect(screen.queryByText(/Thanh toán thành công/)).toBeNull();
+  }, 15000);
+});

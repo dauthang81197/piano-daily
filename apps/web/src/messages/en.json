@@ -364,7 +364,34 @@
         "verify": "You need to verify your email before buying a plan.",
         "generic": "The payment could not be completed. Please try again; if it keeps failing, contact us with your account email."
       },
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "vietqrLabel": "VietQR bank transfer (Vietnam)",
+      "vietqrPanel": {
+        "loading": "Creating payment code…",
+        "retry": "Try again",
+        "instructions": "Scan the QR code with your banking app, or transfer the exact amount with the content below.",
+        "qrAlt": "Bank transfer QR code",
+        "bank": "Bank",
+        "account": "Account number",
+        "holder": "Account holder",
+        "amount": "Amount",
+        "content": "Transfer content",
+        "copy": "Copy {field}",
+        "copied": "Copied",
+        "contentWarning": "Keep the transfer content unchanged so the system can match your payment. Your plan activates automatically once the money arrives (usually seconds to minutes).",
+        "waiting": "Waiting for payment…",
+        "timedOut": "We have not seen the payment after 15 minutes. If you already transferred, do not transfer again; contact us with code {code} and a screenshot. This page keeps checking and will update as soon as the money arrives.",
+        "errors": {
+          "unavailable": "VietQR is not available right now. Please use PayPal or try later.",
+          "paymentsDisabled": "Online payments are temporarily unavailable. Please try again later.",
+          "network": "Could not reach the server. Please check your connection.",
+          "tooMany": "Too many attempts. Please wait a minute and try again.",
+          "verify": "You need to verify your email before buying a plan.",
+          "generic": "Could not create the payment code. Please try again."
+        },
+        "closed": "Payment {code} was refunded or cancelled. If you still want the plan, create a new payment.",
+        "sessionLost": "Your session expired so we cannot update the status. If you already transferred, your plan still activates automatically; log in again to check. Payment code: {code}."
+      }
     }
   }
 }

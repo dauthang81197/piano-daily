@@ -84,6 +84,8 @@ export class SubscriptionActivationService {
         where: { id: payment.id },
         data: {
           status: 'PAID',
+          // Đã có tiền/được admin xác nhận thì không còn "cần xem xét".
+          reviewRequired: false,
           paidAt: now,
           subscriptionId,
           ...(info.paypalCaptureId ? { paypalCaptureId: info.paypalCaptureId } : {}),

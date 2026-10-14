@@ -1,10 +1,14 @@
-import { Body, Controller, Header, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   type CapturePlanOrderRequest,
   capturePlanOrderRequestSchema,
   type CreatePlanOrderRequest,
   type CreatePlanOrderResponse,
+  type CreateVietqrRequest,
+  type CreateVietqrResponse,
+  createVietqrRequestSchema,
+  type PaymentStatusResponse,
   createPlanOrderRequestSchema,
   type Entitlement,
 } from '@piano-daily/shared';
@@ -45,5 +49,33 @@ export class PlanPaymentsController {
     @Body({ schema: capturePlanOrderRequestSchema }) body: CapturePlanOrderRequest,
   ): Promise<Entitlement> {
     return this.plans.capturePaypalOrder(customer.id, body);
+  }
+}
+
+/** Thanh toán gói bằng VietQR (S4) và hỏi trạng thái thanh toán của chính khách (web polling). */
+@Public()
+@Controller('customer/subscriptions')
+export class VietqrPaymentsController {
+  constructor(private readonly plans: PlanPaymentService) {}
+
+  @UseGuards(ThrottlerGuard, CustomerAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Header('Cache-Control', 'no-store')
+  @HttpCode(201)
+  @Post('vietqr/create')
+  create(
+    @CurrentCustomer() customer: AuthenticatedCustomer,
+    @Body({ schema: createVietqrRequestSchema }) body: CreateVietqrRequest,
+  ): Promise<CreateVietqrResponse> {
+    return this.plans.createVietqr(customer.id, body.planId);
+  }
+
+  /** Polling nhẹ: giới hạn rộng hơn các route tạo đơn. */
+  @UseGuards(ThrottlerGuard, CustomerAuthGuard)
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Header('Cache-Control', 'no-store')
+  @Get('payments/:code')
+  status(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('code') code: string): Promise<PaymentStatusResponse> {
+    return this.plans.paymentStatus(customer.id, code);
   }
 }

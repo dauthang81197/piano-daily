@@ -47,7 +47,7 @@ function build(fail?: 'update' | 'delete-p2003' | 'delete-p2025') {
     subscription: { count: vi.fn(async () => 0) },
   };
   const cache = { notify: vi.fn(async () => undefined) };
-  const service = new PlansService(prisma as never, {} as never, cache as never);
+  const service = new PlansService(prisma as never, {} as never, cache as never, { get: () => undefined } as never);
   return { service, cache };
 }
 

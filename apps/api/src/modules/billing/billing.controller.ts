@@ -15,6 +15,7 @@ import {
 import { UuidParamPipe } from '../catalog/catalog.helpers';
 import { type AuthenticatedCustomer, CustomerAuthGuard } from '../customers/customer-auth.guard';
 import { CurrentCustomer } from '../customers/current-customer.decorator';
+import { type AuthenticatedUser, CurrentUser } from '../identity/current-user.decorator';
 import { Public } from '../identity/public.decorator';
 import { BillingSuperAdminGuard } from './super-admin.guard';
 import { EntitlementService } from './entitlement.service';
@@ -77,11 +78,22 @@ export class AdminSubscriptionsController {
 /** Danh sách thanh toán gói (chỉ đọc, mọi admin). Hoàn tiền gói từ admin để sau. */
 @Controller('admin/subscription-payments')
 export class AdminSubscriptionPaymentsController {
-  constructor(private readonly payments: SubscriptionPaymentService) {}
+  constructor(
+    private readonly payments: SubscriptionPaymentService,
+    private readonly subscriptions: SubscriptionsService,
+  ) {}
 
   @Get()
   list(): Promise<SubscriptionPayment[]> {
     return this.payments.listForAdmin();
+  }
+
+  /** Xác nhận thủ công đã nhận tiền VietQR (khách ghi sai nội dung chuyển khoản). Chỉ SUPER_ADMIN. */
+  @Post(':id/confirm')
+  @UseGuards(BillingSuperAdminGuard)
+  @HttpCode(HttpStatus.OK)
+  confirm(@Param('id', UuidParamPipe) id: string, @CurrentUser() admin: AuthenticatedUser): Promise<{ status: 'PAID' }> {
+    return this.subscriptions.confirmVietqr(id, admin.id);
   }
 }
 

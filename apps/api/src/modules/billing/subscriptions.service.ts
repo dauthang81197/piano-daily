@@ -1,7 +1,9 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ErrorCode, type GrantPlanBody, type GrantPlanResponse } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionActivationService } from './subscription-activation.service';
+import { SubscriptionPaymentService } from './subscription-payment.service';
 import { notFound } from '../catalog/catalog.helpers';
 
 const DAY_MS = 86_400_000;
@@ -9,7 +11,33 @@ const DAY_MS = 86_400_000;
 /** Nơi DUY NHẤT ghi bảng `subscriptions`. S2 chỉ có cấp tay (`provider=ADMIN`); S3/S4 thêm thanh toán. */
 @Injectable()
 export class SubscriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SubscriptionsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly payments: SubscriptionPaymentService,
+    private readonly activation: SubscriptionActivationService,
+  ) {}
+
+  /**
+   * Admin xác nhận đã nhận tiền cho thanh toán VietQR (khách ghi sai nội dung nên đối soát tự động không khớp). Kích hoạt qua
+   * dịch vụ dùng chung nên idempotent. Chỉ VIETQR đang PENDING/FAILED; PAID trả hiện trạng; REFUNDED/PayPal → 409.
+   */
+  async confirmVietqr(paymentId: string, adminId: string): Promise<{ status: 'PAID' }> {
+    const payment = await this.payments.findById(paymentId);
+    if (!payment) throw notFound('Không tìm thấy thanh toán.');
+    if (payment.provider !== 'VIETQR') {
+      throw new AppException(ErrorCode.ORDER_NOT_PAID, HttpStatus.CONFLICT, 'Chỉ xác nhận thủ công được thanh toán VietQR đang chờ hoặc thất bại.');
+    }
+    if (payment.status === 'PAID') return { status: 'PAID' };
+    if (payment.status === 'REFUNDED' || payment.status === 'CANCELLED') {
+      throw new AppException(ErrorCode.ORDER_NOT_PAID, HttpStatus.CONFLICT, 'Chỉ xác nhận thủ công được thanh toán VietQR đang chờ hoặc thất bại.');
+    }
+    const result = await this.activation.activate(payment.id, {});
+    // Dấu vết ai xác nhận (chưa có bảng audit riêng): chỉ id admin và mã thanh toán, không dữ liệu khách.
+    if (result.activated) this.logger.log(`Admin ${adminId} xác nhận thủ công thanh toán VietQR ${payment.code}.`);
+    return { status: 'PAID' };
+  }
 
   /**
    * Cấp gói cho khách theo email: gói ACTIVE hiện có (nếu có) sang CANCELLED rồi tạo gói mới với hạn = now + `duration_days`.

@@ -45,7 +45,7 @@ export function PricingView({ data, reason }: { data: PublicPlansResponse; reaso
                   <li>{t('duration', { days: plan.durationDays })}</li>
                   <li>{plan.downloadQuota === null ? t('unlimited') : t('quota', { count: plan.downloadQuota })}</li>
                 </ul>
-                <PlanChooseButton plan={plan} />
+                <PlanChooseButton plan={plan} vietqrEnabled={data.vietqrEnabled} />
               </li>
             ))}
           </ul>

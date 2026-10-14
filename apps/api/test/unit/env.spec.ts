@@ -48,6 +48,21 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...valid, ALERT_EMAIL: 'nope' })).toThrow(EnvValidationError);
   });
 
+  it('SePay: bỏ trống cả ba hoặc đặt đủ ba thì hợp lệ; đặt dở dang thì dừng khởi động và nêu đúng biến thiếu', () => {
+    expect(validateEnv(valid).SEPAY_API_KEY).toBeUndefined();
+    const full = { ...valid, SEPAY_API_KEY: 'k', SEPAY_BANK_ACCOUNT: '0123456789', SEPAY_BANK_NAME: 'Vietcombank' };
+    expect(validateEnv(full).SEPAY_BANK_NAME).toBe('Vietcombank');
+    expect(validateEnv({ ...full, SEPAY_ACCOUNT_HOLDER: 'NGUYEN VAN A' }).SEPAY_ACCOUNT_HOLDER).toBe('NGUYEN VAN A');
+    for (const missing of ['SEPAY_API_KEY', 'SEPAY_BANK_ACCOUNT', 'SEPAY_BANK_NAME']) {
+      const partial: Record<string, string> = { ...full };
+      delete partial[missing];
+      expect(() => validateEnv(partial)).toThrow(EnvValidationError);
+      expect(() => validateEnv(partial)).toThrow(missing);
+    }
+    // Chỉ có tên chủ tài khoản (tuỳ chọn) thì không tính là cấu hình dở dang.
+    expect(validateEnv({ ...valid, SEPAY_ACCOUNT_HOLDER: 'NGUYEN VAN A' }).SEPAY_ACCOUNT_HOLDER).toBe('NGUYEN VAN A');
+  });
+
   it('PayPal: PAYPAL_MODE sandbox|live, client id/secret tuỳ chọn', () => {
     expect(() => validateEnv({ ...valid, PAYPAL_MODE: 'live' })).toThrow(EnvValidationError);
     expect(

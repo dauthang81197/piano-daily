@@ -9,6 +9,10 @@ import {
   customerSessionSchema,
   type CreatePlanOrderResponse,
   createPlanOrderResponseSchema,
+  type CreateVietqrResponse,
+  createVietqrResponseSchema,
+  type PaymentStatusResponse,
+  paymentStatusResponseSchema,
   type Entitlement,
   entitlementSchema,
 } from '@piano-daily/shared';
@@ -85,6 +89,17 @@ export const customerApi = {
   /** Capture đơn PayPal của gói và kích hoạt; trả entitlement mới. */
   async capturePlanOrder(accessToken: string, paypalOrderId: string): Promise<Entitlement> {
     return parsed(await call('/customer/subscriptions/paypal/capture-order', post({ paypalOrderId }), accessToken), entitlementSchema);
+  },
+  /** Tạo (hoặc lấy lại trong 24 giờ) thanh toán VietQR cho một gói: ảnh QR + thông tin chuyển khoản. */
+  async createVietqr(accessToken: string, planId: string): Promise<CreateVietqrResponse> {
+    return parsed(await call('/customer/subscriptions/vietqr/create', post({ planId }), accessToken), createVietqrResponseSchema);
+  },
+  /** Trạng thái thanh toán (polling); kèm entitlement khi đã PAID. */
+  async paymentStatus(accessToken: string, code: string): Promise<PaymentStatusResponse> {
+    return parsed(
+      await call(`/customer/subscriptions/payments/${encodeURIComponent(code)}`, { method: 'GET' }, accessToken),
+      paymentStatusResponseSchema,
+    );
   },
   async download(accessToken: string, sheetId: string, fileType: string): Promise<CustomerDownloadResponse> {
     const res = await call(

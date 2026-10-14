@@ -204,3 +204,11 @@
 - Thanh toán PENDING bị bỏ dở chưa có job dọn như đơn mua lẻ (`pending-order-cleanup`).
 - Giá gói USD và VND nhập riêng, PayPal luôn thu USD: khách tiếng Việt trả USD cho tới khi có VietQR (S4).
 - (S3 review) Webhook `PAYMENT.CAPTURE.REVERSED` / `CUSTOMER.DISPUTE.*` và cộng dồn nhiều lần hoàn một phần chưa xử lý; thanh toán PENDING bỏ dở chưa có job dọn; chưa có email biên lai, chưa hiện mã `PS-` cho khách, chưa có công cụ capture lại cho admin; bảng thanh toán admin chưa phân trang/lọc; thay gói khác làm mất ngày còn lại (chưa cảnh báo/tỉ lệ); mã đơn mua lẻ `PD-` có ký tự lặp trong bảng chữ cái.
+
+## Thanh toán gói bằng VietQR qua SePay (feature/thanh-toan-goi-vietqr)
+
+- Chưa thử với tài khoản SePay thật: định dạng webhook theo tài liệu SePay, ảnh QR dùng `qr.sepay.vn` (tài liệu SePay có chỗ ghi `vietqr.app`); cần chuyển khoản thử một khoản nhỏ khi có tài khoản.
+- Hoàn tiền VietQR là thủ công và chưa có thao tác admin đổi payment sang REFUNDED/huỷ gói.
+- Thanh toán VietQR PENDING bỏ dở chưa có job dọn; chưa đối soát lại tự động các giao dịch SePay bị lỡ (chỉ có xác nhận thủ công).
+- Khách quốc tế (locale en) chưa thấy VietQR dù có thể dùng ngân hàng Việt Nam.
+- (S4 review) Chưa cộng dồn nhiều lần chuyển thiếu cùng một mã và chưa ghi số tiền thực nhận/mã tham chiếu ngân hàng từng giao dịch; chưa có thao tác admin hoàn tiền VietQR; panel VietQR dừng hỏi khi khách đổi sang PayPal hoặc đóng modal; chưa có bảng audit cho xác nhận thủ công (mới có log id admin).

@@ -10,6 +10,7 @@ import { FormError } from '@/components/payment/form-error';
 import { Link } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { formatPlanPrice } from '@/lib/plan-format';
+import { VietqrPanel } from './vietqr-panel';
 import { ApiError } from '@/lib/public-api';
 import { paypalClientId } from '@/lib/public-env';
 
@@ -47,7 +48,7 @@ function clientId(): string | null {
  * Nút "Chọn gói" (S3): chưa đăng nhập thì mở modal đăng nhập và nhớ gói, đăng nhập xong tự mở modal thanh toán gói đó.
  * Không có `NEXT_PUBLIC_PAYPAL_CLIENT_ID` thì nút bị vô hiệu (không có cách thanh toán).
  */
-export function PlanChooseButton({ plan }: { plan: PublicPlan }) {
+export function PlanChooseButton({ plan, vietqrEnabled = false }: { plan: PublicPlan; vietqrEnabled?: boolean }) {
   const t = useTranslations('Pricing');
   const auth = useCustomer();
   const [open, setOpen] = useState(false);
@@ -91,12 +92,12 @@ export function PlanChooseButton({ plan }: { plan: PublicPlan }) {
       >
         {configured ? t('choose') : t('checkout.comingSoon')}
       </button>
-      {open ? <PlanCheckoutModal plan={plan} onClose={close} /> : null}
+      {open ? <PlanCheckoutModal plan={plan} vietqrEnabled={vietqrEnabled} onClose={close} /> : null}
     </>
   );
 }
 
-function PlanCheckoutModal({ plan, onClose }: { plan: PublicPlan; onClose: () => void }) {
+function PlanCheckoutModal({ plan, vietqrEnabled, onClose }: { plan: PublicPlan; vietqrEnabled: boolean; onClose: () => void }) {
   const t = useTranslations('Pricing.checkout');
   const locale = useLocale() === 'en' ? 'en' : 'vi';
   const auth = useCustomer();
@@ -109,11 +110,14 @@ function PlanCheckoutModal({ plan, onClose }: { plan: PublicPlan; onClose: () =>
   const [busy, setBusy] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const [method, setMethod] = useState<'paypal' | 'vietqr'>('paypal');
+  const canVietqr = vietqrEnabled && plan.priceVnd > 0;
   /** Đã duyệt trên PayPal nhưng chưa xác nhận được capture: khoá nút để không tạo và trả tiền đơn thứ hai. */
   const [captureUnknown, setCaptureUnknown] = useState(false);
   const id = clientId();
   const name = plan.name[locale];
   const closable = !busy && !popupOpen;
+  const showVietqr = method === 'vietqr' && locale === 'vi' && canVietqr;
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -208,25 +212,49 @@ function PlanCheckoutModal({ plan, onClose }: { plan: PublicPlan; onClose: () =>
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-body-md font-semibold text-on-surface">{t('method')}</legend>
               <label className="flex min-h-11 items-center gap-3 text-body-md">
-                <input type="radio" name={`${ids}-method`} checked readOnly className="size-5 accent-secondary" />
+                <input
+                  type="radio"
+                  name={`${ids}-method`}
+                  checked={!showVietqr}
+                  disabled={busy}
+                  onChange={() => setMethod('paypal')}
+                  className="size-5 accent-secondary"
+                />
                 {t('paypal')}
               </label>
               {locale === 'vi' ? (
-                <label className="flex min-h-11 items-center gap-3 text-body-md text-on-surface-variant">
-                  <input type="radio" name={`${ids}-method`} disabled className="size-5" />
-                  {t('vietqr')}
+                <label className={`flex min-h-11 items-center gap-3 text-body-md ${canVietqr ? '' : 'text-on-surface-variant'}`}>
+                  <input
+                    type="radio"
+                    name={`${ids}-method`}
+                    checked={showVietqr}
+                    disabled={!canVietqr || busy}
+                    onChange={() => setMethod('vietqr')}
+                    className="size-5 accent-secondary"
+                  />
+                  {canVietqr ? t('vietqrLabel') : t('vietqr')}
                 </label>
               ) : null}
             </fieldset>
-            {locale === 'vi' ? (
+            {locale === 'vi' && !showVietqr ? (
               <p className="text-caption text-on-surface-variant">
                 {t('usdNote', { usd: `$${formatUsd(plan.priceUsdCents)}`, price: formatPlanPrice(plan, 'vi') })}
               </p>
             ) : null}
 
-            {errorKey ? <FormError>{t(`errors.${errorKey}`)}</FormError> : null}
+            {showVietqr ? (
+              <VietqrPanel
+                planId={plan.id}
+                onPaid={(entitlement) => {
+                  auth?.applyEntitlement(entitlement);
+                  setDone(true);
+                }}
+              />
+            ) : null}
 
-            {captureUnknown ? null : id === null ? (
+            {errorKey && !showVietqr ? <FormError>{t(`errors.${errorKey}`)}</FormError> : null}
+
+            {showVietqr ? null : captureUnknown ? null : id === null ? (
               <FormError>{t('config')}</FormError>
             ) : (
               <div className="flex flex-col gap-3">

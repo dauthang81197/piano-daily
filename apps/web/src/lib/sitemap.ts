@@ -24,5 +24,9 @@ export function buildSitemap(entries: SitemapEntries, base?: string): MetadataRo
   for (const s of entries.sheets) add(`/sheet/${encodeURIComponent(s.slug)}`, s.updatedAt);
   for (const c of entries.composers) add(`/composer/${encodeURIComponent(c.slug)}`, c.updatedAt);
   for (const g of entries.genres) add(`/genre/${encodeURIComponent(g.slug)}`, g.updatedAt);
+  // Khoá học: trang tổng quan khi có nhánh công khai, từng nhánh và từng bài công khai.
+  if (entries.courseTracks.length > 0) add('/courses');
+  for (const t of entries.courseTracks) add(`/courses/${encodeURIComponent(t.slug)}`, t.updatedAt);
+  for (const l of entries.courseLessons) add(`/courses/${encodeURIComponent(l.trackSlug)}/${l.id}`, l.updatedAt);
   return out;
 }

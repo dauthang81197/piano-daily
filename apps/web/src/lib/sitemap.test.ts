@@ -5,6 +5,8 @@ const entries = {
   sheets: [{ slug: 'fur-elise', updatedAt: '2026-10-01T00:00:00.000Z' }],
   composers: [{ slug: 'beethoven', updatedAt: '2026-10-02T00:00:00.000Z' }],
   genres: [{ slug: 'classical', updatedAt: '2026-10-03T00:00:00.000Z' }],
+  courseTracks: [{ slug: 'ky-thuat', updatedAt: '2026-10-04T00:00:00.000Z' }],
+  courseLessons: [{ trackSlug: 'ky-thuat', id: 'abc123', updatedAt: '2026-10-05T00:00:00.000Z' }],
 };
 const BASE = 'https://pianodaily.example';
 
@@ -24,10 +26,13 @@ describe('buildSitemap', () => {
           `${BASE}/${locale}/sheet/fur-elise`,
           `${BASE}/${locale}/composer/beethoven`,
           `${BASE}/${locale}/genre/classical`,
+          `${BASE}/${locale}/courses`,
+          `${BASE}/${locale}/courses/ky-thuat`,
+          `${BASE}/${locale}/courses/ky-thuat/abc123`,
         ]),
       );
     }
-    expect(map).toHaveLength(2 * (1 + 4 + 1 + 1 + 1));
+    expect(map).toHaveLength(2 * (1 + 4 + 1 + 1 + 1 + 3));
   });
 
   it('mỗi URL kèm hreflang vi, en và x-default trỏ đúng cặp', () => {
@@ -54,8 +59,8 @@ describe('buildSitemap', () => {
   });
 
   it('mã hoá slug; dữ liệu rỗng vẫn có trang chủ và Level', () => {
-    const odd = buildSitemap({ sheets: [{ slug: 'a b', updatedAt: '2026-10-01T00:00:00.000Z' }], composers: [], genres: [] }, BASE);
+    const odd = buildSitemap({ sheets: [{ slug: 'a b', updatedAt: '2026-10-01T00:00:00.000Z' }], composers: [], genres: [], courseTracks: [], courseLessons: [] }, BASE);
     expect(odd.some((e) => e.url === `${BASE}/vi/sheet/a%20b`)).toBe(true);
-    expect(buildSitemap({ sheets: [], composers: [], genres: [] }, BASE)).toHaveLength(2 * 5);
+    expect(buildSitemap({ sheets: [], composers: [], genres: [], courseTracks: [], courseLessons: [] }, BASE)).toHaveLength(2 * 5);
   });
 });

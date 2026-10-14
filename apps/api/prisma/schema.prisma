@@ -218,6 +218,84 @@ model SubscriptionPayment {
   @@map("subscription_payments")
 }
 
+// ── courses ──────────────────────────────────────────────────
+// Khoá học (C1): Nhánh -> Level -> Section -> Bài học. Chỉ module `courses` ghi. `sort_order` số nguyên trong cùng cha;
+// một bài chỉ công khai khi chính nó và cả ba cấp cha `is_published`. Bài học có nhạc riêng (upload MIDI), không qua Sheet.
+
+model CourseTrack {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  slug        String   @unique
+  title       String
+  description String   @default("")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  levels CourseLevel[]
+
+  @@index([sortOrder])
+  @@map("course_tracks")
+}
+
+model CourseLevel {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  trackId     String   @map("track_id") @db.Uuid
+  title       String
+  description String   @default("")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  track    CourseTrack     @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  sections CourseSection[]
+
+  @@index([trackId, sortOrder])
+  @@map("course_levels")
+}
+
+model CourseSection {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  levelId     String   @map("level_id") @db.Uuid
+  title       String
+  description String   @default("")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  level   CourseLevel    @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  lessons CourseLesson[]
+
+  @@index([levelId, sortOrder])
+  @@map("course_sections")
+}
+
+model CourseLesson {
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  sectionId           String   @map("section_id") @db.Uuid
+  title               String
+  youtubeUrl          String?  @map("youtube_url")
+  content             String   @default("")
+  durationMinutes     Int?     @map("duration_minutes")
+  /// Nhạc của bài (upload MIDI): file gốc ở vùng private, note-JSON ở vùng public. Cùng null hoặc cùng có.
+  midiStorageKey      String?  @map("midi_storage_key")
+  noteJsonKey         String?  @map("note_json_key")
+  midiOriginalName    String?  @map("midi_original_name")
+  midiDurationSeconds Float?   @map("midi_duration_seconds")
+  midiNoteCount       Int?     @map("midi_note_count")
+  sortOrder           Int      @default(0) @map("sort_order")
+  isPublished         Boolean  @default(false) @map("is_published")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  section CourseSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+
+  @@index([sectionId, sortOrder])
+  @@map("course_lessons")
+}
+
 // ── catalog ──────────────────────────────────────────────────
 // Slug sinh từ tên lúc tạo (bỏ dấu, unique trong bảng, thêm hậu tố -2, -3… khi trùng) và không đổi khi đổi tên.
 

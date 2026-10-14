@@ -156,6 +156,30 @@ export class SheetMediaService {
    * File gốc ghi TRƯỚC note-JSON: lỗi ghi note-JSON vẫn để lại key file gốc trong `keys` để rollback.
    */
   async storeMidi(sheetId: string, upload: MediaUpload): Promise<StoredMidi> {
+    return this.storeMidiAt(
+      (hash) => sheetKey('private', sheetId, FileType.MIDI, `${hash}.mid`),
+      (hash) => sheetKey('public', sheetId, FileType.MIDI_JSON, `${hash}.json`),
+      upload,
+    );
+  }
+
+  /**
+   * Nhạc của bài học (khoá học C1): cùng pipeline như `storeMidi` nhưng khoá object dưới `lessons/<lessonId>/` (không có
+   * Sheet). Bài học là chủ dòng DB trỏ tới các key này; lỗi ghi ném `StorageWriteError` kèm key đã ghi.
+   */
+  async storeLessonMidi(lessonId: string, upload: MediaUpload): Promise<StoredMidi> {
+    return this.storeMidiAt(
+      (hash) => `private/lessons/${lessonId}/MIDI/${hash}.mid`,
+      (hash) => `public/lessons/${lessonId}/MIDI_JSON/${hash}.json`,
+      upload,
+    );
+  }
+
+  private async storeMidiAt(
+    privateKey: (hash: string) => string,
+    publicKey: (hash: string) => string,
+    upload: MediaUpload,
+  ): Promise<StoredMidi> {
     let midi: Midi;
     try {
       midi = new Midi(upload.buffer);
@@ -170,7 +194,7 @@ export class SheetMediaService {
 
     const midiFile: StoredFile = {
       type: FileType.MIDI,
-      storageKey: sheetKey('private', sheetId, FileType.MIDI, `${midiHash}.mid`),
+      storageKey: privateKey(midiHash),
       size: upload.buffer.length,
       mimeType: MIDI_MIME_TYPE,
       originalName: upload.originalName,
@@ -180,7 +204,7 @@ export class SheetMediaService {
     };
     const jsonFile: StoredFile = {
       type: FileType.MIDI_JSON,
-      storageKey: sheetKey('public', sheetId, FileType.MIDI_JSON, `${sha256(jsonBuffer)}.json`),
+      storageKey: publicKey(sha256(jsonBuffer)),
       size: jsonBuffer.length,
       mimeType: JSON_MIME_TYPE,
       originalName: null,

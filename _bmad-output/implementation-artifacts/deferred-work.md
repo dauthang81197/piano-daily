@@ -212,3 +212,9 @@
 - Thanh toán VietQR PENDING bỏ dở chưa có job dọn; chưa đối soát lại tự động các giao dịch SePay bị lỡ (chỉ có xác nhận thủ công).
 - Khách quốc tế (locale en) chưa thấy VietQR dù có thể dùng ngân hàng Việt Nam.
 - (S4 review) Chưa cộng dồn nhiều lần chuyển thiếu cùng một mã và chưa ghi số tiền thực nhận/mã tham chiếu ngân hàng từng giao dịch; chưa có thao tác admin hoàn tiền VietQR; panel VietQR dừng hỏi khi khách đổi sang PayPal hoặc đóng modal; chưa có bảng audit cho xác nhận thủ công (mới có log id admin).
+
+## Khoá học C1 (feature/khoa-hoc-noi-dung)
+
+- C1b: khuông nhạc (VexFlow) chạy nốt đồng bộ với player, khuông bên trái, bàn tay/phím bên phải; C1c: trình gõ nốt trong admin (+ nhập MIDI vào trình gõ), ghi cùng định dạng note-JSON.
+- C2 tiến độ học (thanh "x/y bài · %" hiện đang là chỗ giữ 0%), C3 nộp bài bằng link YouTube/Drive, C4 đánh giá/bình luận công khai kiểm duyệt sau, C5 gắn thuê bao (bài miễn phí/trả phí).
+- Admin chưa có xem trước bài nháp (player/video/nội dung như người học thấy); nội dung khoá chưa song ngữ; sắp xếp bằng nút lên/xuống, chưa kéo-thả.

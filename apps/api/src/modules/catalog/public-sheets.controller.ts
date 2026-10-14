@@ -19,6 +19,7 @@ import {
 } from '@piano-daily/shared';
 import { getClientIp } from '../../common/http/client-ip';
 import { SettingsService } from '../settings/settings.service';
+import { PublicCoursesService } from '../courses/public-courses.service';
 import { PreviewTokenService } from '../identity/preview-token.service';
 import { Public } from '../identity/public.decorator';
 import { UuidParamPipe } from './catalog.helpers';
@@ -36,6 +37,7 @@ export class PublicSheetsController {
     private readonly previewTokens: PreviewTokenService,
     private readonly pricing: PricingService,
     private readonly settings: SettingsService,
+    private readonly courses: PublicCoursesService,
   ) {}
 
   @Get('sheets')
@@ -47,8 +49,9 @@ export class PublicSheetsController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('sitemap-entries')
-  sitemapEntries(): Promise<SitemapEntries> {
-    return this.service.sitemapEntries();
+  async sitemapEntries(): Promise<SitemapEntries> {
+    const [entries, courses] = await Promise.all([this.service.sitemapEntries(), this.courses.sitemap()]);
+    return { ...entries, ...courses };
   }
 
   @Get('sheets/facets')

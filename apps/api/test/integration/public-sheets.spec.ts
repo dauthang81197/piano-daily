@@ -431,8 +431,8 @@ describe('API công khai Sheet (Postgres thật)', () => {
       expect(body.genres.find((g) => g.slug === 'pop')!.updatedAt).toBe('2026-03-01T00:00:00.000Z');
     });
 
-    it('chưa có dữ liệu: ba mảng rỗng', async () => {
-      expect(await sitemap()).toEqual({ sheets: [], composers: [], genres: [] });
+    it('chưa có dữ liệu: các mảng rỗng', async () => {
+      expect(await sitemap()).toEqual({ sheets: [], composers: [], genres: [], courseTracks: [], courseLessons: [] });
     });
 
     it('chỉ trả slug và updatedAt, không lộ id/trạng thái/trường khác', async () => {

@@ -61,6 +61,9 @@ export function MobileMenu() {
                 {t(`levels.${level}`)}
               </Link>
             ))}
+            <Link href="/courses" className={linkClass} onClick={() => setOpen(false)}>
+              {t('courses')}
+            </Link>
             <Link href="/pricing" className={linkClass} onClick={() => setOpen(false)}>
               {t('pricing')}
             </Link>

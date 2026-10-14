@@ -12,15 +12,22 @@ export const COURSE_KINDS = ['tracks', 'levels', 'sections', 'lessons'] as const
 export type CourseKind = (typeof COURSE_KINDS)[number];
 export const courseKindSchema = z.enum(COURSE_KINDS);
 
+// Postgres không lưu được NUL trong text (sẽ thành 500): chặn ở schema.
+const NO_NUL = {
+  test: (v: string) => !v.includes(String.fromCharCode(0)),
+};
+const NO_NUL_ERROR = 'Nội dung chứa ký tự không hợp lệ.';
 const title = (label: string) =>
   z
     .string({ error: `Vui lòng nhập ${label}.` })
     .trim()
+    .refine(NO_NUL.test, { error: NO_NUL_ERROR })
     .min(1, { error: `Vui lòng nhập ${label}.` })
     .max(COURSE_TITLE_MAX, { error: `${label[0]!.toUpperCase()}${label.slice(1)} tối đa ${COURSE_TITLE_MAX} ký tự.` });
 const description = z
   .string({ error: `Mô tả tối đa ${COURSE_DESCRIPTION_MAX} ký tự.` })
   .trim()
+  .refine(NO_NUL.test, { error: NO_NUL_ERROR })
   .max(COURSE_DESCRIPTION_MAX, { error: `Mô tả tối đa ${COURSE_DESCRIPTION_MAX} ký tự.` })
   .default('');
 const published = z.boolean({ error: 'isPublished phải là true hoặc false.' });
@@ -54,6 +61,7 @@ export const lessonBodySchema = z.object({
   content: z
     .string({ error: `Nội dung tối đa ${LESSON_CONTENT_MAX} ký tự.` })
     .max(LESSON_CONTENT_MAX, { error: `Nội dung tối đa ${LESSON_CONTENT_MAX} ký tự.` })
+    .refine(NO_NUL.test, { error: NO_NUL_ERROR })
     .default(''),
   durationMinutes: z
     .number({ error: `Thời lượng phải là số phút từ 1 đến ${LESSON_MAX_DURATION_MINUTES}.` })

@@ -17,7 +17,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!hasLocale(routing.locales, locale)) return {};
   const lesson = await fetchLesson(trackSlug, lessonId);
   if (!lesson) return {};
-  const summary = lesson.content.replace(/[#*_`>[\]()-]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Mô tả meta chỉ lấy đầu nội dung (nội dung tới 20.000 ký tự), bỏ ký hiệu Markdown thô.
+  const summary = lesson.content.slice(0, 600).replace(/[#*_`>[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
   return pageMetadata({
     locale,
     path: `/courses/${encodeURIComponent(lesson.track.slug)}/${lesson.id}`,

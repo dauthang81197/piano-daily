@@ -1,4 +1,5 @@
-import { Controller, Get, Header, Param } from '@nestjs/common';
+import { Controller, Get, Header, Param, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { PublicLesson, PublicTrackCard, PublicTrackTree } from '@piano-daily/shared';
 import { UuidParamPipe } from '../catalog/catalog.helpers';
 import { Public } from '../identity/public.decorator';
@@ -6,6 +7,8 @@ import { PublicCoursesService } from './public-courses.service';
 
 /** Khoá học công khai (C1): nhánh, lộ trình và bài học đã công khai. Web SSR gọi kèm secret nội bộ nên không bị throttle. */
 @Public()
+@UseGuards(ThrottlerGuard)
+@Throttle({ default: { limit: 60, ttl: 60_000 } })
 @Controller('courses')
 export class PublicCoursesController {
   constructor(private readonly courses: PublicCoursesService) {}

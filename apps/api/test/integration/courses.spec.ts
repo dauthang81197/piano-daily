@@ -128,6 +128,8 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       expect(errorResponseSchema.parse(bad.body).error.code).toBe('VALIDATION_FAILED');
       await sup(api().post('/admin/courses/levels').send({ trackId: MISSING, title: 'x' })).expect(404);
       await sup(api().post('/admin/courses/levels').send({ title: 'x' })).expect(400);
+      // NUL trong văn bản: 400 (Postgres không lưu được), không phải 500.
+      await sup(api().post('/admin/courses/tracks').send({ title: 'a\u0000b' })).expect(400);
       await sup(api().post('/admin/courses/bai-hoc').send({ title: 'x' })).expect(404);
       await sup(api().patch(`/admin/courses/tracks/${MISSING}`).send({ title: 'x' })).expect(404);
     });

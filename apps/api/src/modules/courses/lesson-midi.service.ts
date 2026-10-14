@@ -59,7 +59,7 @@ export class LessonMidiService {
           data: {
             midiStorageKey: stored.midi.storageKey,
             noteJsonKey: stored.json.storageKey,
-            midiOriginalName: (upload.originalName ?? '').slice(0, 200) || null,
+            midiOriginalName: (upload.originalName ?? '').replaceAll('\u0000', '').slice(0, 200) || null,
             midiDurationSeconds: stored.midi.durationSeconds ?? null,
             midiNoteCount: stored.midi.noteCount ?? null,
           },

@@ -2,7 +2,7 @@
 title: 'Khoá học piano C1: nội dung do admin soạn, nhạc MIDI có tay đánh phím, lộ trình công khai'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'fd1fc31707c304e17cd38d2d3f2ae016a7fdc3c1'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -98,6 +98,14 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+Ba reviewer (Blind Hunter, Edge Case Hunter, Verification Gap), không có phát hiện chặn.
+
+**Đã vá:** throttle 60/phút cho API công khai khoá học; cây công khai/prev-next không kéo `content`; mô tả meta cắt 160 ký tự; NUL trong tiêu đề/mô tả/nội dung bị chặn 400 (trước là 500) và bỏ NUL khỏi tên file MIDI; tạo con khi cha vừa bị xoá trả 404 (trước 500); admin hiện đúng thông báo quy tắc "bài công khai cần ít nhất một phần" ở hàng cây và khi gỡ nhạc; đóng hộp thoại bằng X/Esc cũng làm mới cây; heading trong nội dung Markdown hạ một bậc (không có hai `<h1>`).
+
+**Hoãn (đã ghi `deferred-work.md`):** PATCH ngữ nghĩa thay toàn bộ, MIDI 0 nốt, sort_order trùng khi tạo đồng thời, race xoá/thay nhạc cùng nội dung, GC object mồ côi, nhánh rỗng trong sitemap, giới hạn sitemap, đánh dấu "ẩn do cha nháp", công khai bài chỉ với nhạc khi tạo, N+1, các khoảng trống test.
+
+**Bỏ qua:** lộ URL note-JSON sau khi gỡ công khai (cùng cơ chế Sheet, URL khó đoán); MIDI hỏng 422 thay vì 400 theo pipeline Sheet hiện có.
 
 ## Design Notes
 

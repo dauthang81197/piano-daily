@@ -127,7 +127,14 @@ export class PublicCoursesService {
         sections: {
           where: { isPublished: true },
           orderBy: ORDER,
-          include: { lessons: { where: { isPublished: true }, orderBy: ORDER } },
+          include: {
+            // Không kéo `content` (tới 20.000 ký tự/bài): cây và prev/next chỉ cần tiêu đề và cờ.
+            lessons: {
+              where: { isPublished: true },
+              orderBy: ORDER,
+              select: { id: true, title: true, durationMinutes: true, youtubeUrl: true, noteJsonKey: true },
+            },
+          },
         },
       },
     });

@@ -161,7 +161,7 @@ export function LessonForm({
                     </span>
                   </span>
                 </div>
-                {canWrite && <DeleteConfirm itemLabel="nhạc của bài" onConfirm={removeMidi} onError={(err) => setMidiError(applyServerError(err, [] as const, () => undefined))} />}
+                {canWrite && <DeleteConfirm itemLabel="nhạc của bài" onConfirm={removeMidi} onError={(err) => setMidiError(applyServerError(err, ['content'] as const, (_f, m) => setMidiError(m)))} />}
               </div>
             )}
             {canWrite && (

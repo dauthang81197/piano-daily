@@ -36,6 +36,12 @@ import {
 } from './course-helpers';
 
 type Tx = Prisma.TransactionClient;
+const PARENT_NOT_FOUND: Record<CourseKind, string> = {
+  tracks: TRACK_NOT_FOUND,
+  levels: TRACK_NOT_FOUND,
+  sections: LEVEL_NOT_FOUND,
+  lessons: SECTION_NOT_FOUND,
+};
 const NOT_FOUND: Record<CourseKind, string> = {
   tracks: TRACK_NOT_FOUND,
   levels: LEVEL_NOT_FOUND,
@@ -108,9 +114,15 @@ export class CoursesService {
   // ── Tạo ────────────────────────────────────────────────────────────────
 
   async create(kind: CourseKind, raw: unknown): Promise<AdminTrack | AdminLevel | AdminSection | AdminLesson> {
-    const result = await this.createRow(kind, raw);
-    this.revalidate();
-    return result;
+    try {
+      const result = await this.createRow(kind, raw);
+      this.revalidate();
+      return result;
+    } catch (err) {
+      // Cha bị xoá giữa lúc kiểm tra và lúc chèn: FK RESTRICT báo P2003 -> 404 như cha không tồn tại.
+      if (isPrismaError(err, 'P2003')) throw notFound(PARENT_NOT_FOUND[kind]);
+      throw err;
+    }
   }
 
   private async createRow(kind: CourseKind, raw: unknown): Promise<AdminTrack | AdminLevel | AdminSection | AdminLesson> {

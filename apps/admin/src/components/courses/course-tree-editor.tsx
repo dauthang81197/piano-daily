@@ -18,7 +18,14 @@ type Dialog_ =
   | { open: false }
   | { open: true; kind: 'levels' | 'sections'; item: AdminLevel | AdminSection | null; parent: { key: 'trackId' | 'levelId'; id: string } }
   | { open: true; kind: 'lessons'; item: AdminLesson | null; sectionId: string };
-const messageOf = (err: unknown) => applyServerError(err, [] as const, () => undefined);
+/** Lỗi ngoài form (hàng cây, gỡ nhạc): lỗi theo trường `content` (bài công khai cần ít nhất một phần) hiện nguyên văn. */
+const messageOf = (err: unknown) => {
+  let fieldMessage: string | null = null;
+  const message = applyServerError(err, ['content'] as const, (_field, m) => {
+    fieldMessage = m;
+  });
+  return message ?? fieldMessage;
+};
 
 /** Một hàng của cây: tên, trạng thái công khai, lên/xuống, sửa, xoá. */
 function Row({
@@ -185,7 +192,7 @@ export function CourseTreeEditor({ trackId }: { trackId: string }) {
         </section>
       ))}
 
-      <Dialog open={dialog.open} onOpenChange={(open) => !open && setDialog({ open: false })}>
+      <Dialog open={dialog.open} onOpenChange={(open) => !open && done()}>
         <DialogContent className="sm:max-w-2xl">
           {dialog.open && dialog.kind === 'lessons' && (
             <>

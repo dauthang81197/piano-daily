@@ -2,6 +2,10 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 const COMPONENTS: Components = {
+  // Trang bài đã có <h1> là tên bài: heading trong nội dung hạ một bậc để không có hai <h1>.
+  h1: ({ children }) => <h2>{children}</h2>,
+  h2: ({ children }) => <h3>{children}</h3>,
+  h3: ({ children }) => <h4>{children}</h4>,
   // Không tải ảnh ngoài từ Markdown (theo dõi/hotlink): chỉ giữ chữ thay thế.
   img: ({ alt }) => (alt ? <span>{alt}</span> : null),
   a: ({ href, children }) => (

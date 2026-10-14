@@ -190,7 +190,14 @@
     "viewReset": "Đặt lại mặc định",
     "unsupported": "Trình duyệt của bạn không hỗ trợ Web Audio nên không thể nghe thử bản nhạc này. Hãy thử trình duyệt mới hơn.",
     "errorLoad": "Không tải được dữ liệu nốt nhạc. Hãy kiểm tra kết nối rồi bấm lại để thử lần nữa.",
-    "errorEmpty": "Bản nhạc này không có nốt nào để phát."
+    "errorEmpty": "Bản nhạc này không có nốt nào để phát.",
+    "notationToggle": "Khuông nhạc",
+    "notationLabel": "Khuông nhạc của {title}",
+    "notationHint": "Khuông nhạc sẽ hiện khi bạn bấm phát. Bấm vào một ô nhịp để tua tới đó.",
+    "notationLoading": "Đang dựng khuông nhạc…",
+    "notationError": "Không dựng được khuông nhạc cho bài này. Bạn vẫn nghe và xem phím bình thường.",
+    "notationTruncated": "Khuông nhạc chỉ hiển thị {count} ô nhịp đầu; bài vẫn phát đủ.",
+    "notationNote": "Khuông nhạc là bản hiển thị gần đúng để học (làm tròn về nốt móc kép, không có nốt chùm ba)."
   },
   "Preview": {
     "title": "Xem trước: {title}",

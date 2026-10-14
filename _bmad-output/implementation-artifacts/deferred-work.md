@@ -228,3 +228,11 @@
 - Mô tả meta/SEO của trang bài `/en` dùng nội dung tiếng Anh nếu có; `hreflang` vẫn trỏ cặp URL vi/en như trước dù nội dung chưa dịch (trang `/en` hiện bản tiếng Việt).
 
 - (song ngữ review) `PATCH` thay toàn bộ nên bỏ sót `titleEn/descriptionEn/contentEn/preset` sẽ xoá bản dịch/mức (admin UI luôn gửi đủ; chuyển sang cập nhật từng phần cùng mục PATCH của C1); level cũ chưa tự nhận mức; `hreflang` không phân biệt trang đã dịch/chưa dịch; chỉ báo thiếu bản dịch mới có ở tên bài/section/level; thiếu test: giới hạn `descriptionEn/contentEn`, CHECK DB, schema shared, trang web `[locale]/courses`.
+
+
+## Khoá học C1b: khuông nhạc (feature/khoa-hoc-khuong-nhac)
+
+- Khuông chỉ có ở trang bài học và chỉ dựng sau lần Play đầu tiên (chưa xem được khuông trước khi phát); chưa có tuplet, giọng/chiết âm, nốt chùm tinh chỉnh, ngón tay, in/xuất PDF; ô nhịp quá 120 chỉ hiển thị phần đầu.
+- Màu khuông lấy theo chủ đề lúc vẽ (đổi chủ đề giữa chừng cần tải lại); dòng nhạc đã vẽ giữ trong bộ nhớ đến khi đổi bề rộng; dấu luyến giữa hai dòng chỉ vẽ phần đầu.
+- Chưa có bàn phím/điều hướng bằng phím cho việc tua theo ô nhịp (thanh tua vẫn dùng được); chưa kiểm thử khuông trên trình duyệt thật trong CI (kiểm tay bằng ảnh chụp Chrome headless).
+

@@ -41,3 +41,19 @@
     animation: none;
   }
 }
+
+/* Khuông nhạc (C1b): hợp âm đang vang tô màu brass; chỉ đổi màu, không dựng lại SVG. */
+[data-notation-active='true'] * {
+  fill: var(--color-secondary);
+  stroke: var(--color-secondary);
+}
+
+.notation-scroll {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notation-scroll {
+    scroll-behavior: auto;
+  }
+}

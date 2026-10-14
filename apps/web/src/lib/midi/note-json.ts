@@ -16,6 +16,18 @@ export interface PlayerNote {
   velocity: number;
   /** Chỉ số track (không tính track gõ) mà nốt thuộc về; dùng để chia tay trái/phải. */
   track?: number;
+  /** Vị trí và độ dài theo tick của file MIDI (có khi note-JSON ghi `ticks`); dùng để dựng khuông nhạc. */
+  ticks?: number;
+  durationTicks?: number;
+}
+
+/** Thông tin nhịp/tempo của note-JSON (từ `header`), chỉ có khi hợp lệ. */
+export interface NoteHeader {
+  ppq: number;
+  /** Sắp theo tick; luôn có ít nhất một phần tử (mặc định 120 BPM). */
+  tempos: { ticks: number; bpm: number }[];
+  /** Sắp theo tick; luôn có ít nhất một phần tử (mặc định 4/4 từ tick 0). */
+  timeSignatures: { ticks: number; numerator: number; denominator: number }[];
 }
 
 export interface ParsedNotes {
@@ -23,6 +35,8 @@ export interface ParsedNotes {
   notes: PlayerNote[];
   /** Hết nốt cuối cùng, tính bằng giây. */
   duration: number;
+  /** Có khi note-JSON có `header.ppq` hợp lệ; thiếu thì không dựng được khuông nhạc. */
+  header?: NoteHeader;
 }
 
 /** Note-JSON hỏng hoặc không có nốt nào để phát. */
@@ -36,7 +50,15 @@ export class NoteJsonError extends Error {
 export { noteName };
 
 // Dạng `midi.toJSON()` của `@tonejs/midi` (Story 1.7): chỉ đọc các trường player cần; nốt hỏng bị bỏ riêng lẻ.
+const headerSchema = z.object({
+  ppq: z.number().int().positive(),
+  tempos: z.array(z.object({ ticks: z.number().min(0), bpm: z.number().positive() })).optional(),
+  timeSignatures: z
+    .array(z.object({ ticks: z.number().min(0), timeSignature: z.tuple([z.number().int().positive(), z.number().int().positive()]) }))
+    .optional(),
+});
 const rootSchema = z.object({
+  header: z.unknown().optional(),
   tracks: z.array(
     z.object({
       instrument: z.object({ percussion: z.boolean().optional() }).optional(),
@@ -49,7 +71,24 @@ const noteSchema = z.object({
   time: z.number().min(0),
   duration: z.number().positive(),
   velocity: z.number().min(0).max(1).optional(),
+  ticks: z.number().min(0).optional(),
+  durationTicks: z.number().positive().optional(),
 });
+
+/** Đọc `header` an toàn: sai dạng thì bỏ (không ảnh hưởng việc phát). */
+function parseHeader(raw: unknown): NoteHeader | undefined {
+  const parsed = headerSchema.safeParse(raw);
+  if (!parsed.success) return undefined;
+  const { ppq, tempos, timeSignatures } = parsed.data;
+  const byTicks = <T extends { ticks: number }>(xs: T[]) => [...xs].sort((a, b) => a.ticks - b.ticks);
+  return {
+    ppq,
+    tempos: tempos?.length ? byTicks(tempos) : [{ ticks: 0, bpm: 120 }],
+    timeSignatures: timeSignatures?.length
+      ? byTicks(timeSignatures.map((t) => ({ ticks: t.ticks, numerator: t.timeSignature[0], denominator: t.timeSignature[1] })))
+      : [{ ticks: 0, numerator: 4, denominator: 4 }],
+  };
+}
 
 /**
  * Gộp mọi track của note-JSON thành một danh sách nốt để phát: bỏ track nhạc cụ gõ (kênh 10) và nốt không hợp lệ,
@@ -67,7 +106,7 @@ export function parseNoteJson(json: unknown): ParsedNotes {
     for (const raw of track.notes) {
       const note = noteSchema.safeParse(raw);
       if (!note.success || note.data.time >= MAX_SECONDS) continue;
-      const { midi, time, velocity } = note.data;
+      const { midi, time, velocity, ticks, durationTicks } = note.data;
       notes.push({
         midi,
         name: noteName(midi),
@@ -75,6 +114,7 @@ export function parseNoteJson(json: unknown): ParsedNotes {
         duration: Math.min(note.data.duration, MAX_SECONDS - time),
         velocity: velocity ?? 0.8,
         track: trackIndex,
+        ...(ticks !== undefined && durationTicks !== undefined ? { ticks, durationTicks } : {}),
       });
     }
   }
@@ -82,5 +122,6 @@ export function parseNoteJson(json: unknown): ParsedNotes {
 
   notes.sort((a, b) => a.time - b.time || a.midi - b.midi);
   const kept = notes.slice(0, MAX_NOTES);
-  return { notes: kept, duration: Math.max(...kept.map((n) => n.time + n.duration)) };
+  const header = parseHeader(root.data.header);
+  return { notes: kept, duration: Math.max(...kept.map((n) => n.time + n.duration)), ...(header ? { header } : {}) };
 }

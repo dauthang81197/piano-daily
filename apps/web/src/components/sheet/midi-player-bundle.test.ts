@@ -94,6 +94,15 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
     expect(readFileSync(path.join(src, 'components/sheet/piano-view.tsx'), 'utf8')).toContain("await import('./piano-scene')");
   });
 
+  it('khuông nhạc: VexFlow, bộ dựng khuông và NotationView chỉ được nạp bằng import() động', () => {
+    expect(graph.packages.filter((p) => p.startsWith('vexflow'))).toEqual([]);
+    for (const heavy of ['components/sheet/notation-view.tsx', 'lib/midi/notation/render.ts', 'lib/midi/notation/quantize.ts']) {
+      expect(graph.files).not.toContain(heavy);
+    }
+    expect(readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8')).toContain("import('./notation-view')");
+    expect(readFileSync(path.join(src, 'lib/midi/notation/render.ts'), 'utf8')).toContain("await import('vexflow/core')");
+  });
+
   it('bộ dò bắt được vi phạm: file giả import zod hoặc note-json thì bị phát hiện', () => {
     // Kiểm chứng chính bộ dò trên một đồ thị mà ta biết có zod: note-json.ts.
     const bad = eagerGraph(path.join(src, 'lib/midi/note-json.ts'));

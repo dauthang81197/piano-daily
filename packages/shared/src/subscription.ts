@@ -16,6 +16,21 @@ export const SubscriptionStatus = {
 } as const;
 export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
 
+/** Trạng thái thanh toán gói; phải trùng enum `SubscriptionPaymentStatus` của Prisma (có test kiểm tra). */
+export const SubscriptionPaymentStatus = {
+  PENDING: 'PENDING',
+  PAID: 'PAID',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+  REFUNDED: 'REFUNDED',
+} as const;
+export type SubscriptionPaymentStatus = (typeof SubscriptionPaymentStatus)[keyof typeof SubscriptionPaymentStatus];
+export const subscriptionPaymentStatusSchema = z.enum(SubscriptionPaymentStatus);
+
+/** Cách thanh toán gói. */
+export const SUBSCRIPTION_PAYMENT_PROVIDERS = ['PAYPAL', 'VIETQR'] as const;
+export type SubscriptionPaymentProvider = (typeof SUBSCRIPTION_PAYMENT_PROVIDERS)[number];
+
 /** Lý do hết quyền tải (cũng là mã lỗi 402). */
 export const PAYWALL_REASONS = ['TRIAL_EXPIRED', 'PLAN_REQUIRED', 'QUOTA_EXCEEDED'] as const;
 export type PaywallReason = (typeof PAYWALL_REASONS)[number];
@@ -113,3 +128,30 @@ export const grantPlanResponseSchema = z.object({
   currentPeriodEnd: z.string(),
 });
 export type GrantPlanResponse = z.infer<typeof grantPlanResponseSchema>;
+
+/** Body `POST /customer/subscriptions/paypal/create-order`: giá và tiền tệ luôn lấy từ gói phía server. */
+export const createPlanOrderRequestSchema = z.object({ planId: z.uuid({ error: 'Gói không hợp lệ.' }) });
+export type CreatePlanOrderRequest = z.infer<typeof createPlanOrderRequestSchema>;
+
+export const createPlanOrderResponseSchema = z.object({ paymentCode: z.string(), paypalOrderId: z.string() });
+export type CreatePlanOrderResponse = z.infer<typeof createPlanOrderResponseSchema>;
+
+/** Body `POST /customer/subscriptions/paypal/capture-order`. Phản hồi là `Entitlement` mới. */
+export const capturePlanOrderRequestSchema = z.object({ paypalOrderId: z.string().trim().min(1).max(64) });
+export type CapturePlanOrderRequest = z.infer<typeof capturePlanOrderRequestSchema>;
+
+/** Thanh toán gói cho admin (chỉ đọc). `amount` là đơn vị nhỏ nhất của `currency` (USD cents / VND). */
+export const subscriptionPaymentSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  customerEmail: z.string(),
+  planNameVi: z.string(),
+  provider: z.enum(SUBSCRIPTION_PAYMENT_PROVIDERS),
+  status: subscriptionPaymentStatusSchema,
+  amount: z.number().int().nonnegative(),
+  currency: z.enum(['USD', 'VND']),
+  reviewRequired: z.boolean(),
+  paidAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type SubscriptionPayment = z.infer<typeof subscriptionPaymentSchema>;

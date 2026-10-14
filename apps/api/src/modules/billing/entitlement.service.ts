@@ -10,7 +10,7 @@ const DAY_MS = 86_400_000;
 
 /**
  * Quyền tải của khách (S2 thuê bao). Thứ tự: (1) tắt cưỡng chế → tự do; (2) Subscription ACTIVE còn hạn và còn lượt kỳ;
- * (3) dùng thử (trong `trial_days` kể từ lúc xác minh email VÀ dưới `trial_max_downloads` lượt). Mọi lần trừ lượt là một
+ * (3) dùng thử (trong `trial_days` kể từ lúc xác minh email VÀ dưới `trial_max_downloads` lượt). Hạn mức đọc từ ảnh chụp trên Subscription. Mọi lần trừ lượt là một
  * `UPDATE … WHERE (còn lượt)` kiểm số dòng, chạy trong transaction của caller (cùng `DownloadLog`), nên tải song song
  * không vượt hạn mức và lượt bị từ chối không bao giờ bị trừ.
  */
@@ -30,11 +30,10 @@ export class EntitlementService {
     const updated = await tx.$executeRaw`
       UPDATE subscriptions s
       SET downloads_used_in_period = s.downloads_used_in_period + 1, updated_at = now()
-      FROM plans p
-      WHERE s.customer_id = ${customerId}::uuid AND p.id = s.plan_id
+      WHERE s.customer_id = ${customerId}::uuid
         AND EXISTS (SELECT 1 FROM customers c WHERE c.id = s.customer_id AND c.is_active)
         AND s.status = 'ACTIVE' AND s.current_period_end > now()
-        AND (p.download_quota IS NULL OR s.downloads_used_in_period < p.download_quota)`;
+        AND (s.download_quota IS NULL OR s.downloads_used_in_period < s.download_quota)`;
     if (updated === 1) return;
 
     if (await this.trial.consume(tx, customerId, config.trialDays, config.trialMaxDownloads)) return;
@@ -71,7 +70,7 @@ export class EntitlementService {
     const left = withinTime ? Math.max(0, config.trialMaxDownloads - (customer?.trialDownloadsUsed ?? 0)) : 0;
     const trial = { active: left > 0, endsAt: endsAt?.toISOString() ?? null, downloadsLeft: left, downloadsMax: config.trialMaxDownloads };
 
-    const quota = sub?.plan.downloadQuota ?? null;
+    const quota = sub?.downloadQuota ?? null; // hạn mức chụp lúc kích hoạt, không phải hạn mức hiện tại của gói
     const subLeft = sub && quota !== null ? Math.max(0, quota - sub.downloadsUsedInPeriod) : null;
     const subscription = sub
       ? {

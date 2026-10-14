@@ -94,14 +94,15 @@ describe('EntitlementService.getEntitlement', () => {
   it('có gói: không giới hạn -> downloadsLeft null; có hạn mức -> còn lại; hết lượt kỳ -> không tải (khi thử hết)', async () => {
     const end = new Date(Date.now() + DAY);
     const base = { id: 's', planId: 'p', currentPeriodEnd: end };
-    const plan = (quota: number | null) => ({ nameVi: 'Tháng', nameEn: 'Monthly', downloadQuota: quota });
+    // Hạn mức lấy từ ảnh chụp trên Subscription; hạn mức hiện tại của gói (khác) không được dùng.
+    const plan = (quota: number | null) => ({ downloadQuota: quota === null ? 99 : quota + 100, nameVi: 'Tháng', nameEn: 'Monthly' });
     const spent = { emailVerifiedAt: new Date(Date.now() - 30 * DAY), trialDownloadsUsed: 2, isActive: true };
-    const unlimited = await entitlementService({ customer: spent, sub: { ...base, downloadsUsedInPeriod: 50, plan: plan(null) } }).getEntitlement(CUSTOMER);
+    const unlimited = await entitlementService({ customer: spent, sub: { ...base, downloadsUsedInPeriod: 50, downloadQuota: null, plan: plan(null) } }).getEntitlement(CUSTOMER);
     expect(unlimited.subscription).toMatchObject({ downloadsLeft: null, planName: { vi: 'Tháng', en: 'Monthly' } });
     expect(unlimited.canDownload).toBe(true);
-    const some = await entitlementService({ customer: spent, sub: { ...base, downloadsUsedInPeriod: 4, plan: plan(10) } }).getEntitlement(CUSTOMER);
+    const some = await entitlementService({ customer: spent, sub: { ...base, downloadsUsedInPeriod: 4, downloadQuota: 10, plan: plan(10) } }).getEntitlement(CUSTOMER);
     expect(some.subscription?.downloadsLeft).toBe(6);
-    const none = await entitlementService({ customer: spent, sub: { ...base, downloadsUsedInPeriod: 10, plan: plan(10) } }).getEntitlement(CUSTOMER);
+    const none = await entitlementService({ customer: spent, sub: { ...base, downloadsUsedInPeriod: 10, downloadQuota: 10, plan: plan(10) } }).getEntitlement(CUSTOMER);
     expect(none).toMatchObject({ subscription: { downloadsLeft: 0 }, canDownload: false });
   });
 

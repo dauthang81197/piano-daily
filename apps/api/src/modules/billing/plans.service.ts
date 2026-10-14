@@ -71,6 +71,11 @@ export class PlansService {
     this.revalidate();
   }
 
+  /** Dòng gói đang bật (để mua); gói tắt hoặc không tồn tại trả null. */
+  findActiveRow(id: string): Promise<PlanRow | null> {
+    return this.prisma.plan.findFirst({ where: { id, isActive: true } });
+  }
+
   /** `GET /plans`: chỉ gói đang bật, kèm công tắc thuê bao để web biết có hiện giá hay chưa. */
   async listPublic(): Promise<PublicPlansResponse> {
     const [subscriptionsEnabled, rows] = await Promise.all([

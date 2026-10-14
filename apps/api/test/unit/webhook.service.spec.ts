@@ -2,6 +2,7 @@ import type { AlertService } from '../../src/modules/notify/alert.service';
 import type { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../src/config/env';
+import type { PlanPaymentService } from '../../src/modules/commerce/plan-payment.service';
 import type { OrderRepository } from '../../src/modules/commerce/order.repository';
 import type { OrderService } from '../../src/modules/commerce/order.service';
 import type { PaymentEventRepository } from '../../src/modules/commerce/payment-event.repository';
@@ -26,12 +27,14 @@ describe('WebhookService', () => {
   const orders = { fulfil: vi.fn(), refund: vi.fn(), failIfPending: vi.fn() };
   const orderRepo = { findByPaypalOrderId: vi.fn(), findByOrderCode: vi.fn() };
   const alerts = { alert: vi.fn() };
+  const planPayments = { findForWebhook: vi.fn(), fulfil: vi.fn(), refund: vi.fn(), failIfPending: vi.fn() };
   const make = (webhookId: string | undefined = 'WID') =>
     new WebhookService(
       provider as unknown as PaymentProvider,
       events as unknown as PaymentEventRepository,
       orders as unknown as OrderService,
       orderRepo as unknown as OrderRepository,
+      planPayments as unknown as PlanPaymentService,
       { get: () => webhookId } as unknown as ConfigService<Env, true>,
       alerts as unknown as AlertService,
     );
@@ -39,6 +42,8 @@ describe('WebhookService', () => {
   beforeEach(() => {
     for (const fn of [...Object.values(provider), ...Object.values(events), ...Object.values(orders), ...Object.values(orderRepo)]) fn.mockReset();
     alerts.alert.mockReset();
+    for (const fn of Object.values(planPayments)) fn.mockReset();
+    planPayments.findForWebhook.mockResolvedValue(null);
     provider.verifyWebhook.mockResolvedValue(true);
     events.record.mockResolvedValue({ created: true, processedAt: null });
     orderRepo.findByOrderCode.mockResolvedValue(order('PENDING'));

@@ -337,8 +337,34 @@
     "duration": "Thời hạn {days} ngày",
     "unlimited": "Tải không giới hạn trong kỳ",
     "quota": "{count} lượt tải mỗi kỳ",
-    "choose": "Sắp có",
-    "paymentSoon": "Thanh toán gói (chuyển khoản VietQR trong nước, PayPal quốc tế) sẽ sớm được mở. Trong lúc chờ, bạn vẫn có thể mua lẻ từng bản nhạc bằng PayPal.",
-    "unavailable": "Các gói thuê bao chưa được mở. Bạn vẫn có thể xem, nghe thử và mua lẻ từng bản nhạc."
+    "choose": "Chọn gói",
+    "paymentSoon": "Thanh toán bằng PayPal (tính bằng USD). Chuyển khoản VietQR trong nước sẽ sớm được mở. Bạn vẫn có thể mua lẻ từng bản nhạc bằng PayPal.",
+    "unavailable": "Các gói thuê bao chưa được mở. Bạn vẫn có thể xem, nghe thử và mua lẻ từng bản nhạc.",
+    "checkout": {
+      "title": "Mua {plan}",
+      "summary": "{plan} · {days} ngày",
+      "method": "Cách thanh toán",
+      "paypal": "PayPal (thẻ hoặc tài khoản PayPal)",
+      "vietqr": "Chuyển khoản VietQR (sắp có)",
+      "usdNote": "PayPal thu tiền bằng USD: {usd} (giá tham khảo {price}).",
+      "loginNeeded": "Vui lòng đăng nhập để mua gói.",
+      "processing": "Đang xử lý thanh toán. Vui lòng không đóng cửa sổ này.",
+      "success": "Thanh toán thành công. Gói của bạn đã được kích hoạt.",
+      "successHint": "Bạn có thể tải bản nhạc ngay bây giờ.",
+      "browse": "Xem thư viện",
+      "close": "Đóng",
+      "config": "Thanh toán chưa được cấu hình trên site này. Vui lòng liên hệ để được hỗ trợ.",
+      "errors": {
+        "paymentsDisabled": "Thanh toán trực tuyến tạm thời không khả dụng. Vui lòng thử lại sau.",
+        "declined": "Thanh toán bị từ chối. Vui lòng kiểm tra thẻ hoặc chọn phương thức khác trong PayPal.",
+        "network": "Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.",
+        "tooMany": "Bạn thao tác quá nhanh. Vui lòng đợi một phút rồi thử lại.",
+        "cancelled": "Bạn đã đóng cửa sổ PayPal trước khi hoàn tất. Chưa có khoản nào bị trừ.",
+        "captureUnknown": "Khoản thanh toán có thể đã được ghi nhận nhưng chưa xác nhận được. Vui lòng đừng thanh toán lại; hãy liên hệ kèm email tài khoản để được kích hoạt gói.",
+        "verify": "Bạn cần xác minh email trước khi mua gói.",
+        "generic": "Không hoàn tất được thanh toán. Vui lòng thử lại; nếu vẫn lỗi, hãy liên hệ kèm email tài khoản."
+      },
+      "comingSoon": "Sắp có"
+    }
   }
 }

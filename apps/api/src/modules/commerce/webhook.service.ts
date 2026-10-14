@@ -6,6 +6,7 @@ import type { Env } from '../../config/env';
 import { AlertService } from '../notify/alert.service';
 import { OrderRepository } from './order.repository';
 import { OrderService } from './order.service';
+import { PlanPaymentService } from './plan-payment.service';
 import { PaymentEventRepository } from './payment-event.repository';
 import { type CaptureResult, PAYMENT_PROVIDER, type PaymentProvider } from './payment-provider';
 
@@ -47,6 +48,7 @@ export class WebhookService {
     private readonly events: PaymentEventRepository,
     private readonly orders: OrderService,
     private readonly orderRepo: OrderRepository,
+    private readonly planPayments: PlanPaymentService,
     private readonly config: ConfigService<Env, true>,
     private readonly alerts: AlertService,
   ) {}
@@ -95,6 +97,8 @@ export class WebhookService {
 
     const order = await this.findOrder(event.resource);
     if (!order) {
+      // Không phải đơn mua lẻ: thử đơn thanh toán gói (S3).
+      if (await this.dispatchPlanPayment(type, event.resource)) return;
       this.logger.warn(`Webhook ${type}: không tìm thấy đơn tương ứng.`);
       return;
     }
@@ -121,6 +125,33 @@ export class WebhookService {
     }
   }
 
+  /** Xử lý event của thanh toán gói. Trả true nếu event thuộc một thanh toán gói (kể cả khi bỏ qua vì trạng thái). */
+  private async dispatchPlanPayment(type: string, resource: Record<string, unknown>): Promise<boolean> {
+    const { orderId, customId } = relatedIds(resource);
+    const payment = await this.planPayments.findForWebhook(orderId, customId);
+    if (!payment) return false;
+    if (type === 'PAYMENT.CAPTURE.COMPLETED') {
+      if (payment.status === 'REFUNDED') return true;
+      await this.planPayments.fulfil(payment.id, toCompletedCapture(resource));
+    } else if (type === 'PAYMENT.CAPTURE.REFUNDED') {
+      // Cùng quy tắc với đơn mua lẻ: REFUNDED đến trước COMPLETED thì báo lỗi để PayPal gửi lại sau.
+      if (payment.status === 'PENDING') throw unavailable();
+      if (payment.status !== 'PAID' && payment.status !== 'REFUNDED') {
+        this.logger.warn(`Webhook ${type}: bỏ qua, thanh toán gói ở trạng thái ${payment.status}.`);
+        return true;
+      }
+      const amount = isRecord(resource.amount) ? resource.amount : {};
+      if (str(amount.value) !== formatUsd(payment.amount) || str(amount.currency_code) !== payment.currency) {
+        void this.alerts.alert('REVIEW_REQUIRED', `Thanh toán gói ${payment.code} được hoàn tiền một phần`, `Thanh toán gói ${payment.code}: PayPal báo hoàn tiền không phải toàn phần, gói giữ nguyên.`, payment.code);
+        return true;
+      }
+      await this.planPayments.refund(payment.id);
+    } else {
+      await this.planPayments.failIfPending(payment.id);
+    }
+    return true;
+  }
+
   private async findOrder(resource: Record<string, unknown>) {
     const supplementary = isRecord(resource.supplementary_data) ? resource.supplementary_data : {};
     const related = isRecord(supplementary.related_ids) ? supplementary.related_ids : {};
@@ -138,6 +169,12 @@ export class WebhookService {
 function refundCoversOrder(resource: Record<string, unknown>, order: { amountCents: number; currency: string }): boolean {
   const amount = isRecord(resource.amount) ? resource.amount : {};
   return str(amount.value) === formatUsd(order.amountCents) && str(amount.currency_code) === order.currency;
+}
+
+function relatedIds(resource: Record<string, unknown>): { orderId: string | null; customId: string | null } {
+  const supplementary = isRecord(resource.supplementary_data) ? resource.supplementary_data : {};
+  const related = isRecord(supplementary.related_ids) ? supplementary.related_ids : {};
+  return { orderId: str(related.order_id), customId: str(resource.custom_id) };
 }
 
 function parseEvent(rawBody: string): PaypalEvent | null {

@@ -36,7 +36,7 @@ export class SubscriptionsService {
         data: { status: 'CANCELLED' },
       });
       await tx.subscription.create({
-        data: { customerId: customer.id, planId: plan.id, status: 'ACTIVE', currentPeriodStart: now, currentPeriodEnd: end, provider: 'ADMIN' },
+        data: { customerId: customer.id, planId: plan.id, status: 'ACTIVE', currentPeriodStart: now, currentPeriodEnd: end, downloadQuota: plan.downloadQuota, provider: 'ADMIN' },
       });
     });
     return {

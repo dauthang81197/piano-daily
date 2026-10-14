@@ -337,8 +337,34 @@
     "duration": "{days}-day plan",
     "unlimited": "Unlimited downloads in the period",
     "quota": "{count} downloads per period",
-    "choose": "Coming soon",
-    "paymentSoon": "Plan payments (VietQR bank transfer in Vietnam, PayPal internationally) will open soon. Meanwhile you can still buy single sheets with PayPal.",
-    "unavailable": "Subscription plans are not open yet. You can still browse, preview and buy single sheets."
+    "choose": "Choose plan",
+    "paymentSoon": "Pay with PayPal. Vietnamese bank transfer (VietQR) will open soon. You can still buy single sheets with PayPal.",
+    "unavailable": "Subscription plans are not open yet. You can still browse, preview and buy single sheets.",
+    "checkout": {
+      "title": "Buy {plan}",
+      "summary": "{plan} · {days} days",
+      "method": "Payment method",
+      "paypal": "PayPal (card or PayPal account)",
+      "vietqr": "VietQR bank transfer (coming soon)",
+      "usdNote": "PayPal charges in USD: {usd}.",
+      "loginNeeded": "Please log in to buy a plan.",
+      "processing": "Processing your payment. Please do not close this window.",
+      "success": "Payment successful. Your plan is now active.",
+      "successHint": "You can download sheet music right away.",
+      "browse": "Browse the library",
+      "close": "Close",
+      "config": "Online payment is not configured on this site. Please contact us for help.",
+      "errors": {
+        "paymentsDisabled": "Online payments are temporarily unavailable. Please try again later.",
+        "declined": "Your payment was declined. Please check your card or choose another payment method in PayPal.",
+        "network": "The server could not be reached. Check your connection and try again.",
+        "tooMany": "Too many attempts. Please wait a minute and try again.",
+        "cancelled": "The PayPal window was closed before the payment was completed. You have not been charged.",
+        "captureUnknown": "Your payment may already have been received but we could not confirm it. Please do not pay again; contact us with your account email and we will activate your plan.",
+        "verify": "You need to verify your email before buying a plan.",
+        "generic": "The payment could not be completed. Please try again; if it keeps failing, contact us with your account email."
+      },
+      "comingSoon": "Coming soon"
+    }
   }
 }

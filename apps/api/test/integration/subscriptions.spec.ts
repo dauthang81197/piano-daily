@@ -76,11 +76,13 @@ describe('Gói thuê bao, dùng thử và quyền tải (S2, Postgres thật)', 
     prisma.plan.create({
       data: { nameVi: 'Tháng', nameEn: 'Monthly', priceVnd: 99000, priceUsdCents: 499, durationDays: 30, downloadQuota: null, ...over },
     });
-  const subscribe = (planId: string, over: Record<string, unknown> = {}) =>
+  const subscribe = async (planId: string, over: Record<string, unknown> = {}) =>
     prisma.subscription.create({
       data: {
         customerId,
         planId,
+        // Ảnh chụp hạn mức như lúc kích hoạt thật.
+        downloadQuota: (await prisma.plan.findUniqueOrThrow({ where: { id: planId } })).downloadQuota,
         status: 'ACTIVE',
         currentPeriodStart: new Date(Date.now() - DAY),
         currentPeriodEnd: new Date(Date.now() + 29 * DAY),
@@ -105,12 +107,12 @@ describe('Gói thuê bao, dùng thử và quyền tải (S2, Postgres thật)', 
     await setSetting('subscriptions_enabled', 'false');
     await setSetting('trial_days', '7');
     await setSetting('trial_max_downloads', '2');
-    await prisma?.$executeRawUnsafe('TRUNCATE TABLE subscriptions, plans, customers CASCADE');
+    await prisma?.$executeRawUnsafe('TRUNCATE TABLE subscription_payments, subscriptions, plans, customers CASCADE');
     await app?.close();
   });
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE subscriptions, plans, customers, sheet_genres, sheet_files, sheets, series, composers, genres CASCADE',
+      'TRUNCATE TABLE subscription_payments, subscriptions, plans, customers, sheet_genres, sheet_files, sheets, series, composers, genres CASCADE',
     );
     await setSetting('subscriptions_enabled', 'false');
     await setSetting('trial_days', '7');
@@ -254,6 +256,17 @@ describe('Gói thuê bao, dùng thử và quyền tải (S2, Postgres thật)', 
       expect(e).toMatchObject({ canDownload: false, subscription: null, trial: { active: false } });
     });
 
+    it('sửa hạn mức của gói sau khi khách đã có gói: hạn mức đã chụp trên Subscription giữ nguyên', async () => {
+      await enable({ max: 0 });
+      const plan = await addPlan({ downloadQuota: 1 });
+      await subscribe(plan.id);
+      await prisma.plan.update({ where: { id: plan.id }, data: { downloadQuota: 100 } });
+      const sheet = await addSheet();
+      await download(sheet.id).expect(200);
+      const res = await download(sheet.id).expect(402);
+      expect(errorResponseSchema.parse(res.body).error.code).toBe('QUOTA_EXCEEDED');
+    });
+
     it('khách chưa xác minh: vẫn 403 EMAIL_NOT_VERIFIED (không phải 402), không trừ lượt', async () => {
       await enable();
       await prisma.customer.update({ where: { id: customerId }, data: { emailVerifiedAt: null } });
@@ -385,6 +398,17 @@ describe('Gói thuê bao, dùng thử và quyền tải (S2, Postgres thật)', 
       const plan = await addPlan();
       await subscribe(plan.id);
       await expect(prisma.customer.delete({ where: { id: customerId } })).rejects.toMatchObject({ code: 'P2003' });
+    });
+
+    it('cấp gói có hạn mức: Subscription chụp hạn mức của gói; hết hạn mức thì 402 QUOTA_EXCEEDED', async () => {
+      await enable({ max: 0 });
+      const plan = await addPlan({ downloadQuota: 1 });
+      await as(superToken, api().post('/admin/subscriptions/grant').send({ email: EMAIL, planId: plan.id })).expect(200);
+      expect((await prisma.subscription.findFirstOrThrow({ where: { customerId } })).downloadQuota).toBe(1);
+      const sheet = await addSheet();
+      await download(sheet.id).expect(200);
+      const res = await download(sheet.id).expect(402);
+      expect(errorResponseSchema.parse(res.body).error.code).toBe('QUOTA_EXCEEDED');
     });
 
     it('email lạ -> 404; gói tắt hoặc không tồn tại -> 400 tại planId', async () => {

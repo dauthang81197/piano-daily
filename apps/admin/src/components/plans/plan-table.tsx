@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { plansApi } from '@/lib/api/plans';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { GrantPlanForm } from './grant-plan-form';
+import { PaymentsTable } from './payments-table';
 import { PLAN_READ_ONLY_REASON, PlanForm } from './plan-form';
 
 type DialogState = { open: false } | { open: true; plan: Plan | null };
@@ -157,6 +158,8 @@ export function PlanTable() {
       </div>
 
       <GrantPlanForm plans={plans ?? []} />
+
+      <PaymentsTable />
 
       <Dialog open={dialog.open} onOpenChange={(open) => !open && setDialog({ open: false })}>
         <DialogContent className="sm:max-w-2xl">

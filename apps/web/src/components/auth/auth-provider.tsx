@@ -17,6 +17,10 @@ type AuthState = {
   customer: CustomerUser | null;
   /** Trạng thái dùng thử/gói của khách đang đăng nhập; `null` khi chưa tải được hoặc chưa đăng nhập. */
   entitlement: Entitlement | null;
+  /** Access token còn hạn (tự làm mới); `null` khi chưa đăng nhập. Dùng cho các lời gọi API của khách ngoài tải file. */
+  getToken: () => Promise<string | null>;
+  /** Cập nhật trạng thái dùng thử/gói ngay (vd. sau khi mua gói thành công). */
+  applyEntitlement: (next: Entitlement) => void;
   /** Mở modal đăng nhập (tab mặc định `login`). */
   openAuth: (tab?: AuthTab) => void;
   /** Nhận phiên mới sau đăng nhập; modal gọi. */
@@ -184,8 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthState>(
-    () => ({ status, customer, entitlement, openAuth, acceptSession, logout, download }),
-    [status, customer, entitlement, openAuth, acceptSession, logout, download],
+    () => ({ status, customer, entitlement, getToken: validToken, applyEntitlement: setEntitlement, openAuth, acceptSession, logout, download }),
+    [status, customer, entitlement, validToken, openAuth, acceptSession, logout, download],
   );
 
   return (

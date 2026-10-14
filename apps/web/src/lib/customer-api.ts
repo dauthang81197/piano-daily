@@ -7,6 +7,8 @@ import {
   type CustomerRegisterRequest,
   type CustomerSession,
   customerSessionSchema,
+  type CreatePlanOrderResponse,
+  createPlanOrderResponseSchema,
   type Entitlement,
   entitlementSchema,
 } from '@piano-daily/shared';
@@ -75,6 +77,14 @@ export const customerApi = {
   },
   async entitlement(accessToken: string): Promise<Entitlement> {
     return parsed(await call('/customer/entitlement', { method: 'GET' }, accessToken), entitlementSchema);
+  },
+  /** Tạo đơn PayPal cho một gói (giá do server quyết định). */
+  async createPlanOrder(accessToken: string, planId: string): Promise<CreatePlanOrderResponse> {
+    return parsed(await call('/customer/subscriptions/paypal/create-order', post({ planId }), accessToken), createPlanOrderResponseSchema);
+  },
+  /** Capture đơn PayPal của gói và kích hoạt; trả entitlement mới. */
+  async capturePlanOrder(accessToken: string, paypalOrderId: string): Promise<Entitlement> {
+    return parsed(await call('/customer/subscriptions/paypal/capture-order', post({ paypalOrderId }), accessToken), entitlementSchema);
   },
   async download(accessToken: string, sheetId: string, fileType: string): Promise<CustomerDownloadResponse> {
     const res = await call(

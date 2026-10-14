@@ -227,3 +227,4 @@
 - Chỉ hai ngôn ngữ vi/en, nhập tay; chưa có chỉ báo "mục nào còn thiếu bản tiếng Anh" ngoài dấu EN ở cây admin; level cũ (preset null) không tự chuyển sang mức có sẵn.
 - Mô tả meta/SEO của trang bài `/en` dùng nội dung tiếng Anh nếu có; `hreflang` vẫn trỏ cặp URL vi/en như trước dù nội dung chưa dịch (trang `/en` hiện bản tiếng Việt).
 
+- (song ngữ review) `PATCH` thay toàn bộ nên bỏ sót `titleEn/descriptionEn/contentEn/preset` sẽ xoá bản dịch/mức (admin UI luôn gửi đủ; chuyển sang cập nhật từng phần cùng mục PATCH của C1); level cũ chưa tự nhận mức; `hreflang` không phân biệt trang đã dịch/chưa dịch; chỉ báo thiếu bản dịch mới có ở tên bài/section/level; thiếu test: giới hạn `descriptionEn/contentEn`, CHECK DB, schema shared, trang web `[locale]/courses`.

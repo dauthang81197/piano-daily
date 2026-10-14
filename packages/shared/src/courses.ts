@@ -31,14 +31,14 @@ const description = z
   .max(COURSE_DESCRIPTION_MAX, { error: `Mô tả tối đa ${COURSE_DESCRIPTION_MAX} ký tự.` })
   .default('');
 /** Trường tiếng Anh tuỳ chọn: rỗng/chỉ khoảng trắng/vắng → null (web tiếng Anh dùng bản tiếng Việt). */
-const optionalEnglish = (max: number, label: string) =>
+const optionalEnglish = (max: number, label: string, { trim = true }: { trim?: boolean } = {}) =>
   z
-    .string({ error: `${label} tối đa ${max} ký tự.` })
-    .trim()
+    .string({ error: `${label} phải là chuỗi, tối đa ${max} ký tự.` })
     .refine(NO_NUL.test, { error: NO_NUL_ERROR })
     .max(max, { error: `${label} tối đa ${max} ký tự.` })
     .nullish()
-    .transform((value) => value || null);
+    // Markdown giữ nguyên khoảng trắng đầu dòng (khối code thụt lề); chỉ nội dung toàn khoảng trắng mới thành null.
+    .transform((value) => (value?.trim() ? (trim ? value.trim() : value) : null));
 const titleEn = optionalEnglish(COURSE_TITLE_MAX, 'Tên tiếng Anh');
 const descriptionEn = optionalEnglish(COURSE_DESCRIPTION_MAX, 'Mô tả tiếng Anh');
 const published = z.boolean({ error: 'isPublished phải là true hoặc false.' });
@@ -111,7 +111,7 @@ export const lessonBodySchema = z.object({
     .max(LESSON_CONTENT_MAX, { error: `Nội dung tối đa ${LESSON_CONTENT_MAX} ký tự.` })
     .refine(NO_NUL.test, { error: NO_NUL_ERROR })
     .default(''),
-  contentEn: optionalEnglish(LESSON_CONTENT_MAX, 'Nội dung tiếng Anh'),
+  contentEn: optionalEnglish(LESSON_CONTENT_MAX, 'Nội dung tiếng Anh', { trim: false }),
   durationMinutes: z
     .number({ error: `Thời lượng phải là số phút từ 1 đến ${LESSON_MAX_DURATION_MINUTES}.` })
     .int({ error: `Thời lượng phải là số phút từ 1 đến ${LESSON_MAX_DURATION_MINUTES}.` })
@@ -246,5 +246,8 @@ export type PublicLesson = z.infer<typeof publicLessonSchema>;
 export const COURSE_LOCALES = ['vi', 'en'] as const;
 export type CourseLocale = (typeof COURSE_LOCALES)[number];
 export const courseLocaleQuerySchema = z.object({
-  locale: z.enum(COURSE_LOCALES, { error: 'locale phải là vi hoặc en.' }).optional().default('vi'),
+  // Chấp nhận hoa/thường và rỗng (= vi) để client cũ không bị 400; giá trị khác vẫn bị từ chối.
+  locale: z
+    .preprocess((v) => (typeof v === 'string' ? v.trim().toLowerCase() || undefined : v), z.enum(COURSE_LOCALES, { error: 'locale phải là vi hoặc en.' }).optional())
+    .transform((v) => v ?? 'vi'),
 });

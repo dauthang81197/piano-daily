@@ -422,6 +422,29 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       // Hai level cùng mức trong một nhánh là hợp lệ.
       await sup(api().post('/admin/courses/levels').send({ trackId: track.id, preset: 'ADVANCED' })).expect(201);
     });
+
+    it('level có mức hiện tên chuẩn theo locale ở API công khai; contentEn giữ nguyên thụt lề; locale hoa/thường/rỗng', async () => {
+      const track = await mk('tracks', { title: 'Kỹ thuật' });
+      const level = await mk('levels', { trackId: track.id, preset: 'INTERMEDIATE' });
+      const section = await mk('sections', { levelId: level.id, title: 'Gam' });
+      const lesson = await mk('lessons', { sectionId: section.id, title: 'Bài 1', titleEn: 'Lesson 1', content: 'vi', contentEn: '    code\n\ntext\n' });
+      const second = await mk('lessons', { sectionId: section.id, title: 'Bài 2', titleEn: 'Lesson 2', content: 'vi2' });
+      for (const [kind, id] of [['tracks', track.id], ['levels', level.id], ['sections', section.id], ['lessons', lesson.id], ['lessons', second.id]] as const) await setPub(kind, id, true);
+      const slug = track.slug!;
+      const titleOf = async (q: string) => publicTrackTreeSchema.parse((await api().get(`/courses/${slug}${q}`).expect(200)).body).levels[0]!.title;
+      expect(await titleOf('')).toBe('Trung cấp');
+      expect(await titleOf('?locale=vi')).toBe('Trung cấp');
+      expect(await titleOf('?locale=en')).toBe('Intermediate');
+      expect(await titleOf('?locale=EN')).toBe('Intermediate');
+      expect(await titleOf('?locale=')).toBe('Trung cấp');
+      await api().get(`/courses/${slug}?locale=fr`).expect(400);
+      const detail = publicLessonSchema.parse((await api().get(`/courses/${slug}/lessons/${second.id}?locale=en`).expect(200)).body);
+      expect(detail).toMatchObject({ title: 'Lesson 2', level: { title: 'Intermediate' }, prev: { id: lesson.id, title: 'Lesson 1' } });
+      const first = publicLessonSchema.parse((await api().get(`/courses/${slug}/lessons/${lesson.id}?locale=en`).expect(200)).body);
+      expect(first.content).toBe('    code\n\ntext\n');
+      expect(first.next).toEqual({ id: second.id, title: 'Lesson 2' });
+      await api().get(`/courses/${slug}/lessons/${lesson.id}?locale=fr`).expect(400);
+    });
   });
 
   describe('làm mới cache web', () => {

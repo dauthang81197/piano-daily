@@ -1,6 +1,6 @@
 'use client';
 
-import { type AdminLesson, LESSON_CONTENT_MAX, LESSON_MAX_DURATION_MINUTES, MIDI_MAX_BYTES, MIDI_MIME_TYPE, MIDI_TOO_LARGE_MESSAGE, MIDI_WRONG_TYPE_MESSAGE, parseYoutubeUrl } from '@piano-daily/shared';
+import { type AdminLesson, COURSE_TITLE_MAX, LESSON_CONTENT_MAX, LESSON_MAX_DURATION_MINUTES, MIDI_MAX_BYTES, MIDI_MIME_TYPE, MIDI_TOO_LARGE_MESSAGE, MIDI_WRONG_TYPE_MESSAGE, parseYoutubeUrl } from '@piano-daily/shared';
 import { Music } from 'lucide-react';
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { FormError } from '@/components/form-error';
@@ -127,6 +127,7 @@ export function LessonForm({
       <FormField id="lesson-title" label="Tên bài" value={title} onChange={(e) => { setTitle(e.target.value); setErrors((v) => ({ ...v, title: undefined })); }} error={errors.title} disabled={!canWrite} />
       <FormField
         id="lesson-title-en"
+        maxLength={COURSE_TITLE_MAX}
         label="Tên bài (English, tuỳ chọn)"
         placeholder={EN_HINT}
         value={titleEn}
@@ -197,7 +198,7 @@ export function LessonForm({
       <div className="flex flex-col gap-2">
         <Label htmlFor="lesson-content-en">Nội dung (English, Markdown, tuỳ chọn)</Label>
         <MarkdownEditor id="lesson-content-en" value={contentEn} onChange={(v) => { setContentEn(v); setErrors((e) => ({ ...e, contentEn: undefined })); }} invalid={Boolean(errors.contentEn)} describedBy={errors.contentEn ? 'lesson-content-en-error' : undefined} />
-        <p className="text-caption text-muted-foreground">{EN_HINT} Nội dung tiếng Anh một mình không đủ để bật công khai.</p>
+        <p className="text-caption text-muted-foreground">{contentEn.length}/{LESSON_CONTENT_MAX} ký tự. {EN_HINT} Nội dung tiếng Anh một mình không đủ để bật công khai.</p>
         <FormError id="lesson-content-en-error" size="sm">{errors.contentEn}</FormError>
       </div>
       <label className="flex items-center gap-2 text-sm">

@@ -2,7 +2,7 @@
 title: 'Khoá học piano: nội dung song ngữ vi/en và level chọn từ danh sách'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'ff37564'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -90,3 +90,9 @@ context:
 - Kiểm chứng: lint, typecheck, build xanh; shared 295, web 758, admin 225, API integration 611/612 (ads throttle chập chờn đã biết, đạt khi chạy riêng), API unit chỉ 6 lỗi `backup-script` có sẵn.
 
 ## Review Triage Log
+
+Ba reviewer, không có phát hiện chặn.
+
+**Đã vá:** `contentEn` không còn bị trim (giữ thụt lề khối code; chỉ nội dung toàn khoảng trắng thành null); `?locale=` chấp nhận hoa/thường và rỗng (= vi) để client cũ không bị 400; admin thêm bộ đếm ký tự cho nội dung tiếng Anh và `maxLength` cho tên tiếng Anh của bài; thêm test: level có mức hiện "Intermediate" ở API công khai, prev/next tiếng Anh, locale hoa/rỗng/sai ở cả ba route, `contentEn` nguyên văn.
+
+**Hoãn (`deferred-work.md`):** PATCH thay toàn bộ (cùng mục C1), level cũ chưa tự nhận mức, `hreflang` không phân biệt trang chưa dịch, chỉ báo thiếu bản dịch, test CHECK DB/schema shared/trang web.

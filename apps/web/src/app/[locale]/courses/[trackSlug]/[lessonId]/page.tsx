@@ -15,7 +15,7 @@ type Props = { params: Promise<{ locale: string; trackSlug: string; lessonId: st
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, trackSlug, lessonId } = await params;
   if (!hasLocale(routing.locales, locale)) return {};
-  const lesson = await fetchLesson(trackSlug, lessonId);
+  const lesson = await fetchLesson(trackSlug, lessonId, locale);
   if (!lesson) return {};
   // Mô tả meta chỉ lấy đầu nội dung (nội dung tới 20.000 ký tự), bỏ ký hiệu Markdown thô.
   const summary = lesson.content.slice(0, 600).replace(/[#*_`>[\]()-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
@@ -31,7 +31,7 @@ export default async function LessonPage({ params }: Props) {
   const { locale, trackSlug, lessonId } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const lesson = await fetchLesson(trackSlug, lessonId);
+  const lesson = await fetchLesson(trackSlug, lessonId, locale);
   if (!lesson) notFound();
   return <LessonView lesson={lesson} />;
 }

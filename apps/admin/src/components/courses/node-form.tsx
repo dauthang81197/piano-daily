@@ -1,6 +1,13 @@
 'use client';
 
-import { COURSE_DESCRIPTION_MAX, COURSE_TITLE_MAX, type CourseKind } from '@piano-daily/shared';
+import {
+  COURSE_DESCRIPTION_MAX,
+  COURSE_LEVEL_PRESET_LABELS,
+  COURSE_LEVEL_PRESETS,
+  COURSE_TITLE_MAX,
+  type CourseKind,
+  type CourseLevelPreset,
+} from '@piano-daily/shared';
 import { type FormEvent, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import { FormField } from '@/components/form-field';
@@ -18,9 +25,10 @@ export const KIND_LABEL: Record<Exclude<CourseKind, 'lessons'>, string> = {
   sections: 'section',
 };
 
-type Values = { title: string; description: string; isPublished: boolean };
+type Values = { title: string; titleEn: string; description: string; descriptionEn: string; isPublished: boolean; preset: CourseLevelPreset | '' };
 type FieldErrors = Partial<Record<keyof Values, string>>;
-const FIELDS = ['title', 'description', 'isPublished'] as const;
+const FIELDS = ['title', 'titleEn', 'description', 'descriptionEn', 'isPublished', 'preset'] as const;
+const EN_HINT = 'Để trống thì web tiếng Anh dùng bản tiếng Việt.';
 
 /** Form tạo/sửa nhánh, level hoặc section (tiêu đề, mô tả, công khai). `parent` chỉ khi tạo cấp con. */
 export function NodeForm({
@@ -32,14 +40,31 @@ export function NodeForm({
   onCancel,
 }: {
   kind: Exclude<CourseKind, 'lessons'>;
-  item: { id: string; title: string; description: string; isPublished: boolean } | null;
+  item: {
+    id: string;
+    title: string;
+    titleEn: string | null;
+    description: string;
+    descriptionEn: string | null;
+    isPublished: boolean;
+    preset?: CourseLevelPreset | null;
+  } | null;
   parent?: { key: 'trackId' | 'levelId'; id: string };
   canWrite: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
   const label = KIND_LABEL[kind];
-  const [values, setValues] = useState<Values>({ title: item?.title ?? '', description: item?.description ?? '', isPublished: item?.isPublished ?? false });
+  const [values, setValues] = useState<Values>({
+    title: item?.title ?? '',
+    titleEn: item?.titleEn ?? '',
+    description: item?.description ?? '',
+    descriptionEn: item?.descriptionEn ?? '',
+    isPublished: item?.isPublished ?? false,
+    // Level mới mặc định "Sơ cấp"; level cũ không có mức là "Khác" (tự đặt tên).
+    preset: kind === 'levels' ? (item ? (item.preset ?? '') : 'BEGINNER') : '',
+  });
+  const usesPreset = kind === 'levels' && values.preset !== '';
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,14 +77,22 @@ export function NodeForm({
     event.preventDefault();
     if (busy || !canWrite) return;
     const title = values.title.trim();
-    if (!title) {
+    if (!title && !usesPreset) {
       setErrors({ title: `Vui lòng nhập tên ${label}.` });
       return;
     }
     setBusy(true);
     setFormError(null);
     try {
-      const body = { ...values, title, ...(parent && !item ? { [parent.key]: parent.id } : {}) };
+      const body = {
+        title,
+        titleEn: values.titleEn.trim() || null,
+        description: values.description,
+        descriptionEn: values.descriptionEn.trim() || null,
+        isPublished: values.isPublished,
+        ...(kind === 'levels' ? { preset: values.preset || null } : {}),
+        ...(parent && !item ? { [parent.key]: parent.id } : {}),
+      };
       if (item) await coursesApi.update(kind, item.id, body);
       else await coursesApi.create(kind, body);
       onDone();
@@ -74,15 +107,49 @@ export function NodeForm({
     <form onSubmit={submit} noValidate className="flex flex-col gap-4" aria-label={`Form ${label}`}>
       <FormError>{formError}</FormError>
       {!canWrite && <p className="text-sm text-muted-foreground">{COURSE_READ_ONLY_REASON}</p>}
-      <FormField
-        id={`node-title-${kind}`}
-        label={`Tên ${label}`}
-        value={values.title}
-        maxLength={COURSE_TITLE_MAX}
-        onChange={(e) => set('title', e.target.value)}
-        error={errors.title}
-        disabled={!canWrite}
-      />
+      {kind === 'levels' && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="node-preset">Mức</Label>
+          <select
+            id="node-preset"
+            value={values.preset}
+            disabled={!canWrite}
+            onChange={(e) => set('preset', e.target.value as Values['preset'])}
+            className="h-8 w-fit rounded-lg border border-input bg-transparent px-2.5 text-sm"
+          >
+            {COURSE_LEVEL_PRESETS.map((preset) => (
+              <option key={preset} value={preset}>
+                {COURSE_LEVEL_PRESET_LABELS[preset].vi} / {COURSE_LEVEL_PRESET_LABELS[preset].en}
+              </option>
+            ))}
+            <option value="">Khác (tự đặt tên)</option>
+          </select>
+          <FormError size="sm">{errors.preset}</FormError>
+        </div>
+      )}
+      {!usesPreset && (
+        <>
+          <FormField
+            id={`node-title-${kind}`}
+            label={`Tên ${label}`}
+            value={values.title}
+            maxLength={COURSE_TITLE_MAX}
+            onChange={(e) => set('title', e.target.value)}
+            error={errors.title}
+            disabled={!canWrite}
+          />
+          <FormField
+            id={`node-title-en-${kind}`}
+            label={`Tên ${label} (English, tuỳ chọn)`}
+            placeholder={EN_HINT}
+            value={values.titleEn}
+            maxLength={COURSE_TITLE_MAX}
+            onChange={(e) => set('titleEn', e.target.value)}
+            error={errors.titleEn}
+            disabled={!canWrite}
+          />
+        </>
+      )}
       <div className="flex flex-col gap-2">
         <Label htmlFor={`node-desc-${kind}`}>Mô tả</Label>
         <Textarea
@@ -94,6 +161,19 @@ export function NodeForm({
           disabled={!canWrite}
         />
         <FormError size="sm">{errors.description}</FormError>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`node-desc-en-${kind}`}>Mô tả (English, tuỳ chọn)</Label>
+        <Textarea
+          id={`node-desc-en-${kind}`}
+          rows={3}
+          value={values.descriptionEn}
+          maxLength={COURSE_DESCRIPTION_MAX}
+          onChange={(e) => set('descriptionEn', e.target.value)}
+          disabled={!canWrite}
+        />
+        <p className="text-caption text-muted-foreground">{EN_HINT}</p>
+        <FormError size="sm">{errors.descriptionEn}</FormError>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={values.isPublished} disabled={!canWrite} onChange={(e) => set('isPublished', e.target.checked)} />

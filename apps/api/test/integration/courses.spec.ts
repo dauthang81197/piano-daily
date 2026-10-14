@@ -364,6 +364,89 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
     });
   });
 
+  describe('song ngữ vi/en và level chọn mức', () => {
+    it('lưu/xoá trường tiếng Anh (rỗng -> null); request cũ không có trường EN vẫn hợp lệ; quá dài 400', async () => {
+      const track = (await sup(api().post('/admin/courses/tracks').send({ title: 'Phương pháp', titleEn: ' Method ', descriptionEn: '' })).expect(201)).body;
+      expect(track).toMatchObject({ titleEn: 'Method', descriptionEn: null });
+      const cleared = (await sup(api().patch(`/admin/courses/tracks/${track.id}`).send({ title: 'Phương pháp', titleEn: '   ' })).expect(200)).body;
+      expect(cleared.titleEn).toBeNull();
+      await sup(api().post('/admin/courses/tracks').send({ title: 'x', titleEn: 'a'.repeat(121) })).expect(400);
+      const section = (await build()).section;
+      const lesson = (await sup(api().post('/admin/courses/lessons').send({ sectionId: section.id, title: 'Bài', titleEn: 'Lesson', content: 'vi', contentEn: 'en' })).expect(201)).body;
+      expect(lesson).toMatchObject({ titleEn: 'Lesson', contentEn: 'en' });
+    });
+
+    it('public: mặc định/vi là tiếng Việt, en lấy bản EN và thiếu thì dùng tiếng Việt từng trường; locale sai 400', async () => {
+      const track = await mk('tracks', { title: 'Phương pháp', titleEn: 'Method', description: 'Nền tảng' });
+      const level = await mk('levels', { trackId: track.id, title: 'Cấp 1', titleEn: 'Level 1' });
+      const section = await mk('sections', { levelId: level.id, title: 'Làm quen phím' }); // chưa dịch
+      const l1 = await mk('lessons', { sectionId: section.id, title: 'Bài 1', titleEn: 'Lesson 1', content: 'Nội dung', contentEn: 'Content' });
+      const l2 = await mk('lessons', { sectionId: section.id, title: 'Bài 2', content: 'Chỉ tiếng Việt' });
+      for (const [kind, id] of [['tracks', track.id], ['levels', level.id], ['sections', section.id], ['lessons', l1.id], ['lessons', l2.id]] as const) await setPub(kind, id, true);
+      const slug = track.slug!;
+
+      expect(publicTrackCardSchema.parse(((await api().get('/courses').expect(200)).body as unknown[])[0])).toMatchObject({ title: 'Phương pháp', description: 'Nền tảng' });
+      const en = (await api().get('/courses?locale=en').expect(200)).body as { title: string; description: string }[];
+      expect(en[0]).toMatchObject({ title: 'Method', description: 'Nền tảng' }); // mô tả chưa dịch -> tiếng Việt
+
+      const tree = publicTrackTreeSchema.parse((await api().get(`/courses/${slug}?locale=en`).expect(200)).body);
+      expect(tree.levels[0]!.title).toBe('Level 1');
+      expect(tree.levels[0]!.sections[0]!.title).toBe('Làm quen phím');
+      expect(tree.levels[0]!.sections[0]!.lessons.map((l) => l.title)).toEqual(['Lesson 1', 'Bài 2']);
+      expect(publicTrackTreeSchema.parse((await api().get(`/courses/${slug}`).expect(200)).body).levels[0]!.title).toBe('Cấp 1');
+
+      const detailEn = publicLessonSchema.parse((await api().get(`/courses/${slug}/lessons/${l1.id}?locale=en`).expect(200)).body);
+      expect(detailEn).toMatchObject({ title: 'Lesson 1', content: 'Content', track: { title: 'Method' }, level: { title: 'Level 1' }, next: { id: l2.id, title: 'Bài 2' } });
+      const detailVi = publicLessonSchema.parse((await api().get(`/courses/${slug}/lessons/${l1.id}?locale=vi`).expect(200)).body);
+      expect(detailVi).toMatchObject({ title: 'Bài 1', content: 'Nội dung' });
+      await api().get('/courses?locale=fr').expect(400);
+    });
+
+    it('bài chỉ có nội dung tiếng Anh không công khai được (quy tắc xét tiếng Việt)', async () => {
+      const { section } = await build();
+      const lesson = await mk('lessons', { sectionId: section.id, title: 'Chỉ EN', contentEn: 'Only English' });
+      const res = await setPub('lessons', lesson.id, true).expect(400);
+      expect(errorResponseSchema.parse(res.body).error.code).toBe('VALIDATION_FAILED');
+    });
+
+    it('level: chọn mức đặt tên chuẩn vi/en (bỏ qua title gửi lên); "Khác" cần tên; mức lạ 400; đổi mức đổi tên', async () => {
+      const track = await mk('tracks', { title: 'Kỹ thuật' });
+      const lv = (await sup(api().post('/admin/courses/levels').send({ trackId: track.id, preset: 'INTERMEDIATE', title: 'tự gõ' })).expect(201)).body;
+      expect(lv).toMatchObject({ preset: 'INTERMEDIATE', title: 'Trung cấp', titleEn: 'Intermediate' });
+      const other = (await sup(api().post('/admin/courses/levels').send({ trackId: track.id, preset: null, title: 'Chủ đề đặc biệt', titleEn: 'Special' })).expect(201)).body;
+      expect(other).toMatchObject({ preset: null, title: 'Chủ đề đặc biệt', titleEn: 'Special' });
+      await sup(api().post('/admin/courses/levels').send({ trackId: track.id })).expect(400); // Khác mà không có tên
+      await sup(api().post('/admin/courses/levels').send({ trackId: track.id, preset: 'GOD' })).expect(400);
+      const changed = (await sup(api().patch(`/admin/courses/levels/${lv.id}`).send({ preset: 'ADVANCED' })).expect(200)).body;
+      expect(changed).toMatchObject({ preset: 'ADVANCED', title: 'Cao cấp', titleEn: 'Advanced' });
+      // Hai level cùng mức trong một nhánh là hợp lệ.
+      await sup(api().post('/admin/courses/levels').send({ trackId: track.id, preset: 'ADVANCED' })).expect(201);
+    });
+
+    it('level có mức hiện tên chuẩn theo locale ở API công khai; contentEn giữ nguyên thụt lề; locale hoa/thường/rỗng', async () => {
+      const track = await mk('tracks', { title: 'Kỹ thuật' });
+      const level = await mk('levels', { trackId: track.id, preset: 'INTERMEDIATE' });
+      const section = await mk('sections', { levelId: level.id, title: 'Gam' });
+      const lesson = await mk('lessons', { sectionId: section.id, title: 'Bài 1', titleEn: 'Lesson 1', content: 'vi', contentEn: '    code\n\ntext\n' });
+      const second = await mk('lessons', { sectionId: section.id, title: 'Bài 2', titleEn: 'Lesson 2', content: 'vi2' });
+      for (const [kind, id] of [['tracks', track.id], ['levels', level.id], ['sections', section.id], ['lessons', lesson.id], ['lessons', second.id]] as const) await setPub(kind, id, true);
+      const slug = track.slug!;
+      const titleOf = async (q: string) => publicTrackTreeSchema.parse((await api().get(`/courses/${slug}${q}`).expect(200)).body).levels[0]!.title;
+      expect(await titleOf('')).toBe('Trung cấp');
+      expect(await titleOf('?locale=vi')).toBe('Trung cấp');
+      expect(await titleOf('?locale=en')).toBe('Intermediate');
+      expect(await titleOf('?locale=EN')).toBe('Intermediate');
+      expect(await titleOf('?locale=')).toBe('Trung cấp');
+      await api().get(`/courses/${slug}?locale=fr`).expect(400);
+      const detail = publicLessonSchema.parse((await api().get(`/courses/${slug}/lessons/${second.id}?locale=en`).expect(200)).body);
+      expect(detail).toMatchObject({ title: 'Lesson 2', level: { title: 'Intermediate' }, prev: { id: lesson.id, title: 'Lesson 1' } });
+      const first = publicLessonSchema.parse((await api().get(`/courses/${slug}/lessons/${lesson.id}?locale=en`).expect(200)).body);
+      expect(first.content).toBe('    code\n\ntext\n');
+      expect(first.next).toEqual({ id: second.id, title: 'Lesson 2' });
+      await api().get(`/courses/${slug}/lessons/${lesson.id}?locale=fr`).expect(400);
+    });
+  });
+
   describe('làm mới cache web', () => {
     it('mọi ghi thành công (tạo/sửa/công khai/đổi thứ tự/upload/gỡ nhạc/xoá) notify tag courses; thao tác lỗi thì không', async () => {
       const notify = vi.spyOn(app.get(CacheInvalidator), 'notify').mockResolvedValue(undefined);

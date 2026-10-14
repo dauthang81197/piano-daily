@@ -18,18 +18,18 @@ const SECTION_ID = '0192a000-0000-7000-8000-0000000000c1';
 const LESSON_ID = '0192a000-0000-7000-8000-0000000000d1';
 
 const track = (over: Record<string, unknown> = {}) => ({
-  id: TRACK_ID, slug: 'phuong-phap', title: 'Phương pháp', description: '', isPublished: true, sortOrder: 0,
+  id: TRACK_ID, slug: 'phuong-phap', title: 'Phương pháp', titleEn: null, description: '', descriptionEn: null, isPublished: true, sortOrder: 0,
   lessonCount: 2, publishedLessonCount: 1, createdAt: NOW, updatedAt: NOW, ...over,
 });
 const lesson = (over: Record<string, unknown> = {}) => ({
-  id: LESSON_ID, sectionId: SECTION_ID, title: 'Gam Đô', youtubeUrl: null, content: '', durationMinutes: null, midi: null,
+  id: LESSON_ID, sectionId: SECTION_ID, title: 'Gam Đô', titleEn: null, youtubeUrl: null, content: '', contentEn: null, durationMinutes: null, midi: null,
   isPublished: false, sortOrder: 0, createdAt: NOW, updatedAt: NOW, ...over,
 });
 const tree = (lessons: unknown[] = [lesson()]) => ({
   track: track(),
   levels: [{
-    id: LEVEL_ID, trackId: TRACK_ID, title: 'Cấp 1', description: '', isPublished: true, sortOrder: 0,
-    sections: [{ id: SECTION_ID, levelId: LEVEL_ID, title: 'Làm quen phím', description: '', isPublished: true, sortOrder: 0, lessons }],
+    id: LEVEL_ID, trackId: TRACK_ID, preset: null, title: 'Cấp 1', titleEn: null, description: '', descriptionEn: null, isPublished: true, sortOrder: 0,
+    sections: [{ id: SECTION_ID, levelId: LEVEL_ID, title: 'Làm quen phím', titleEn: null, description: '', descriptionEn: null, isPublished: true, sortOrder: 0, lessons }],
   }],
 });
 
@@ -80,7 +80,7 @@ describe('Trang /courses (danh sách nhánh)', () => {
     await user.click(within(dialog).getByLabelText(/Công khai/));
     await user.click(within(dialog).getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(calls(fetchMock, 'POST', '/admin/courses/tracks')).toHaveLength(1));
-    expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/tracks')[0]!)).toEqual({ title: 'Tác phẩm', description: '', isPublished: true });
+    expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/tracks')[0]!)).toEqual({ title: 'Tác phẩm', titleEn: null, description: '', descriptionEn: null, isPublished: true });
 
     await user.click(await screen.findByLabelText('Công khai Phương pháp'));
     await waitFor(() => expect(calls(fetchMock, 'PATCH', `/admin/courses/tracks/${TRACK_ID}/published`)).toHaveLength(1));
@@ -147,10 +147,22 @@ describe('Trình soạn cây một nhánh', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Thêm level' }));
     let dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Tên level'), 'Cấp 2');
+    // Mặc định chọn sẵn mức "Sơ cấp": không có ô tên; chọn "Khác" thì mới nhập tên (và tên English).
+    expect(within(dialog).queryByLabelText('Tên level')).toBeNull();
+    expect(within(dialog).getByLabelText('Mức')).toHaveValue('BEGINNER');
+    await user.selectOptions(within(dialog).getByLabelText('Mức'), 'INTERMEDIATE');
     await user.click(within(dialog).getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(calls(fetchMock, 'POST', '/admin/courses/levels')).toHaveLength(1));
-    expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/levels')[0]!)).toMatchObject({ trackId: TRACK_ID, title: 'Cấp 2', isPublished: false });
+    expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/levels')[0]!)).toMatchObject({ trackId: TRACK_ID, preset: 'INTERMEDIATE', isPublished: false });
+
+    await user.click(screen.getByRole('button', { name: 'Thêm level' }));
+    dialog = await screen.findByRole('dialog');
+    await user.selectOptions(within(dialog).getByLabelText('Mức'), '');
+    await user.type(within(dialog).getByLabelText('Tên level'), 'Cấp 2');
+    await user.type(within(dialog).getByLabelText('Tên level (English, tuỳ chọn)'), 'Stage 2');
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(calls(fetchMock, 'POST', '/admin/courses/levels')).toHaveLength(2));
+    expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/levels')[1]!)).toMatchObject({ trackId: TRACK_ID, preset: null, title: 'Cấp 2', titleEn: 'Stage 2' });
 
     await user.click(await screen.findByRole('button', { name: /Thêm section vào “Cấp 1”/ }));
     dialog = await screen.findByRole('dialog');
@@ -181,8 +193,24 @@ describe('Trình soạn cây một nhánh', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Lưu bài' }));
     await waitFor(() => expect(calls(fetchMock, 'POST', '/admin/courses/lessons')).toHaveLength(1));
     expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/lessons')[0]!)).toEqual({
-      title: 'Bài mới', youtubeUrl: null, content: '', durationMinutes: null, isPublished: false, sectionId: SECTION_ID,
+      title: 'Bài mới', titleEn: null, contentEn: null, youtubeUrl: null, content: '', durationMinutes: null, isPublished: false, sectionId: SECTION_ID,
     });
+  });
+
+  it('trường tiếng Anh: dấu EN ở cây; sửa bài gửi titleEn/contentEn, để trống thì gửi null', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', (url, init) =>
+      init.method === 'PATCH' ? jsonResponse(200, lesson()) : treeHandler(tree([lesson({ titleEn: 'C major scale', contentEn: 'EN body' })]))(url, init),
+    );
+    renderTrackPage();
+    const user = userEvent.setup();
+    expect(await screen.findByTitle('Đã có bản tiếng Anh')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Sửa Gam Đô' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Tên bài (English, tuỳ chọn)')).toHaveValue('C major scale');
+    await user.clear(within(dialog).getByLabelText('Tên bài (English, tuỳ chọn)'));
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu bài' }));
+    await waitFor(() => expect(calls(fetchMock, 'PATCH', `/admin/courses/lessons/${LESSON_ID}`)).toHaveLength(1));
+    expect(bodyOf(calls(fetchMock, 'PATCH', `/admin/courses/lessons/${LESSON_ID}`)[0]!)).toMatchObject({ titleEn: null, contentEn: 'EN body' });
   });
 
   it('bật công khai bài trống: hiện lỗi từ API ở nội dung; thời lượng sai bị chặn ở client', async () => {

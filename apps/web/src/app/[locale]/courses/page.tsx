@@ -23,7 +23,7 @@ export default async function CoursesPage({ params }: Props) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const [t, tracks] = await Promise.all([getTranslations({ locale, namespace: 'Courses' }), fetchTracks()]);
+  const [t, tracks] = await Promise.all([getTranslations({ locale, namespace: 'Courses' }), fetchTracks(locale)]);
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-8 px-margin-mobile py-section-gap md:px-margin-desktop">
       <header className="flex flex-col gap-3">

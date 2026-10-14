@@ -15,7 +15,7 @@ type Props = { params: Promise<{ locale: string; trackSlug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, trackSlug } = await params;
   if (!hasLocale(routing.locales, locale)) return {};
-  const track = await fetchTrack(trackSlug);
+  const track = await fetchTrack(trackSlug, locale);
   if (!track) return {};
   return pageMetadata({
     locale,
@@ -29,7 +29,7 @@ export default async function TrackPage({ params }: Props) {
   const { locale, trackSlug } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const track = await fetchTrack(trackSlug);
+  const track = await fetchTrack(trackSlug, locale);
   if (!track) notFound();
   return <TrackView track={track} />;
 }

@@ -226,7 +226,9 @@ model CourseTrack {
   id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   slug        String   @unique
   title       String
+  titleEn     String?  @map("title_en")
   description String   @default("")
+  descriptionEn String? @map("description_en")
   sortOrder   Int      @default(0) @map("sort_order")
   isPublished Boolean  @default(false) @map("is_published")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -241,8 +243,12 @@ model CourseTrack {
 model CourseLevel {
   id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   trackId     String   @map("track_id") @db.Uuid
+  /// Mức chọn từ danh sách (BEGINNER|INTERMEDIATE|ADVANCED|EXPERT); null = "Khác" (tự đặt tên).
+  preset      String?
   title       String
+  titleEn     String?  @map("title_en")
   description String   @default("")
+  descriptionEn String? @map("description_en")
   sortOrder   Int      @default(0) @map("sort_order")
   isPublished Boolean  @default(false) @map("is_published")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -259,7 +265,9 @@ model CourseSection {
   id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   levelId     String   @map("level_id") @db.Uuid
   title       String
+  titleEn     String?  @map("title_en")
   description String   @default("")
+  descriptionEn String? @map("description_en")
   sortOrder   Int      @default(0) @map("sort_order")
   isPublished Boolean  @default(false) @map("is_published")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -276,8 +284,10 @@ model CourseLesson {
   id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   sectionId           String   @map("section_id") @db.Uuid
   title               String
+  titleEn             String?  @map("title_en")
   youtubeUrl          String?  @map("youtube_url")
   content             String   @default("")
+  contentEn           String?  @map("content_en")
   durationMinutes     Int?     @map("duration_minutes")
   /// Nhạc của bài (upload MIDI): file gốc ở vùng private, note-JSON ở vùng public. Cùng null hoặc cùng có.
   midiStorageKey      String?  @map("midi_storage_key")

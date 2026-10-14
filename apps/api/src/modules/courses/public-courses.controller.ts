@@ -1,9 +1,13 @@
-import { Controller, Get, Header, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { PublicLesson, PublicTrackCard, PublicTrackTree } from '@piano-daily/shared';
+import { courseLocaleQuerySchema, type PublicLesson, type PublicTrackCard, type PublicTrackTree } from '@piano-daily/shared';
 import { UuidParamPipe } from '../catalog/catalog.helpers';
 import { Public } from '../identity/public.decorator';
 import { PublicCoursesService } from './public-courses.service';
+import { parseBody } from './courses.service';
+
+/** `?locale=vi|en` (vắng = vi); giá trị khác → 400. */
+const localeOf = (query: unknown) => parseBody(courseLocaleQuerySchema, query).locale;
 
 /** Khoá học công khai (C1): nhánh, lộ trình và bài học đã công khai. Web SSR gọi kèm secret nội bộ nên không bị throttle. */
 @Public()
@@ -14,19 +18,23 @@ export class PublicCoursesController {
   constructor(private readonly courses: PublicCoursesService) {}
 
   @Get()
-  list(): Promise<PublicTrackCard[]> {
-    return this.courses.listTracks();
+  list(@Query() query: unknown): Promise<PublicTrackCard[]> {
+    return this.courses.listTracks(localeOf(query));
   }
 
   /** Khai báo trước `:trackSlug` để `lessons` không bị bắt nhầm. */
   @Header('Cache-Control', 'no-store')
   @Get(':trackSlug/lessons/:id')
-  lesson(@Param('trackSlug') trackSlug: string, @Param('id', UuidParamPipe) id: string): Promise<PublicLesson> {
-    return this.courses.lesson(trackSlug, id);
+  lesson(
+    @Param('trackSlug') trackSlug: string,
+    @Param('id', UuidParamPipe) id: string,
+    @Query() query: unknown,
+  ): Promise<PublicLesson> {
+    return this.courses.lesson(trackSlug, id, localeOf(query));
   }
 
   @Get(':trackSlug')
-  tree(@Param('trackSlug') trackSlug: string): Promise<PublicTrackTree> {
-    return this.courses.tree(trackSlug);
+  tree(@Param('trackSlug') trackSlug: string, @Query() query: unknown): Promise<PublicTrackTree> {
+    return this.courses.tree(trackSlug, localeOf(query));
   }
 }

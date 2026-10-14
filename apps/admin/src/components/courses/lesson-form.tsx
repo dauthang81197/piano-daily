@@ -15,7 +15,8 @@ import { coursesApi } from '@/lib/api/courses';
 import { isApiError } from '@/lib/api/client';
 import { COURSE_READ_ONLY_REASON } from './node-form';
 
-const FIELDS = ['title', 'youtubeUrl', 'content', 'durationMinutes', 'isPublished'] as const;
+const FIELDS = ['title', 'titleEn', 'youtubeUrl', 'content', 'contentEn', 'durationMinutes', 'isPublished'] as const;
+const EN_HINT = 'Để trống thì web tiếng Anh dùng bản tiếng Việt.';
 type Field = (typeof FIELDS)[number];
 type Errors = Partial<Record<Field, string>>;
 const MIDI_LIKE = new Set(['', 'audio/mid', 'audio/x-midi', 'audio/sp-midi']);
@@ -50,6 +51,8 @@ export function LessonForm({
 }) {
   const [current, setCurrent] = useState<AdminLesson | null>(lesson);
   const [title, setTitle] = useState(lesson?.title ?? '');
+  const [titleEn, setTitleEn] = useState(lesson?.titleEn ?? '');
+  const [contentEn, setContentEn] = useState(lesson?.contentEn ?? '');
   const [youtubeUrl, setYoutubeUrl] = useState(lesson?.youtubeUrl ?? '');
   const [content, setContent] = useState(lesson?.content ?? '');
   const [duration, setDuration] = useState(lesson?.durationMinutes ? String(lesson.durationMinutes) : '');
@@ -78,7 +81,7 @@ export function LessonForm({
     setBusy(true);
     setFormError(null);
     try {
-      const body = { title: title.trim(), youtubeUrl: youtubeUrl.trim() || null, content, durationMinutes: minutes, isPublished };
+      const body = { title: title.trim(), titleEn: titleEn.trim() || null, contentEn: contentEn.trim() ? contentEn : null, youtubeUrl: youtubeUrl.trim() || null, content, durationMinutes: minutes, isPublished };
       if (current) await coursesApi.update('lessons', current.id, body);
       else await coursesApi.create('lessons', { ...body, sectionId });
       onSaved();
@@ -122,6 +125,15 @@ export function LessonForm({
       <FormError>{formError}</FormError>
       {!canWrite && <p className="text-sm text-muted-foreground">{COURSE_READ_ONLY_REASON}</p>}
       <FormField id="lesson-title" label="Tên bài" value={title} onChange={(e) => { setTitle(e.target.value); setErrors((v) => ({ ...v, title: undefined })); }} error={errors.title} disabled={!canWrite} />
+      <FormField
+        id="lesson-title-en"
+        label="Tên bài (English, tuỳ chọn)"
+        placeholder={EN_HINT}
+        value={titleEn}
+        onChange={(e) => { setTitleEn(e.target.value); setErrors((v) => ({ ...v, titleEn: undefined })); }}
+        error={errors.titleEn}
+        disabled={!canWrite}
+      />
       <FormField
         id="lesson-youtube"
         label="Link YouTube (tuỳ chọn)"
@@ -181,6 +193,12 @@ export function LessonForm({
         <MarkdownEditor id="lesson-content" value={content} onChange={(v) => { setContent(v); setErrors((e) => ({ ...e, content: undefined })); }} invalid={Boolean(errors.content)} describedBy={errors.content ? 'lesson-content-error' : undefined} />
         <p className="text-caption text-muted-foreground">{content.length}/{LESSON_CONTENT_MAX} ký tự.</p>
         <FormError id="lesson-content-error" size="sm">{errors.content}</FormError>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="lesson-content-en">Nội dung (English, Markdown, tuỳ chọn)</Label>
+        <MarkdownEditor id="lesson-content-en" value={contentEn} onChange={(v) => { setContentEn(v); setErrors((e) => ({ ...e, contentEn: undefined })); }} invalid={Boolean(errors.contentEn)} describedBy={errors.contentEn ? 'lesson-content-en-error' : undefined} />
+        <p className="text-caption text-muted-foreground">{EN_HINT} Nội dung tiếng Anh một mình không đủ để bật công khai.</p>
+        <FormError id="lesson-content-en-error" size="sm">{errors.contentEn}</FormError>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={isPublished} disabled={!canWrite} onChange={(e) => setIsPublished(e.target.checked)} />

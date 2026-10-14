@@ -222,3 +222,8 @@
 - (C1 review) Chưa từ chối MIDI 0 nốt; sort_order khi tạo đồng thời có thể trùng (chỉ thẩm mỹ, `move` chuẩn hoá lại); xoá/thay nhạc đồng thời với cùng nội dung có thể xoá nhầm object (khoá tất định); chưa GC object nhạc bài học mồ côi; nhánh/level/section công khai nhưng rỗng vẫn vào sitemap và hiện thẻ "0 bài"; sitemap chưa giới hạn 50k URL và lỗi khoá học làm hỏng cả sitemap; `lastmod` của nhánh không đổi khi bài đổi; cây admin chưa đánh dấu "ẩn do cha là nháp"; tạo bài mới không thể công khai chỉ với nhạc (cần lưu rồi upload); N+1 đếm bài ở danh sách nhánh; URL note-JSON của bài đã gỡ công khai vẫn truy cập được nếu biết đường dẫn.
 - (C1 review) Test chưa phủ: 403 cho publish/gỡ nhạc/tạo level-section-lesson, move nhánh/level/section, đường rollback khi commit lỗi, `lib/courses.ts` và ba trang web, link header, bài chỉ có YouTube; spec ghi MIDI hỏng 400 nhưng code trả 422 `FILE_PROCESSING_FAILED` (theo pipeline Sheet).
 
+## Khoá học song ngữ và level theo mức (feature/khoa-hoc-song-ngu)
+
+- Chỉ hai ngôn ngữ vi/en, nhập tay; chưa có chỉ báo "mục nào còn thiếu bản tiếng Anh" ngoài dấu EN ở cây admin; level cũ (preset null) không tự chuyển sang mức có sẵn.
+- Mô tả meta/SEO của trang bài `/en` dùng nội dung tiếng Anh nếu có; `hreflang` vẫn trỏ cặp URL vi/en như trước dù nội dung chưa dịch (trang `/en` hiện bản tiếng Việt).
+

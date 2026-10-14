@@ -7,6 +7,7 @@ import {
   type AdminTrack,
   cacheTags,
   type CourseKind,
+  type CourseLevelPreset,
   createLessonBodySchema,
   createLevelBodySchema,
   createSectionBodySchema,
@@ -97,7 +98,7 @@ export class CoursesService {
       track: await this.toTrack(track),
       levels: track.levels.map(
         (level): AdminLevel => ({
-          ...node(level),
+          ...levelNode(level),
           trackId: level.trackId,
           sections: level.sections.map(
             (section): AdminSection => ({
@@ -141,7 +142,7 @@ export class CoursesService {
       await this.requireParent(this.prisma.courseTrack.findUnique({ where: { id: trackId }, select: { id: true } }), TRACK_NOT_FOUND);
       const sortOrder = ((await this.prisma.courseLevel.aggregate({ where: { trackId }, _max: { sortOrder: true } }))._max.sortOrder ?? -1) + 1;
       const row = await this.prisma.courseLevel.create({ data: { ...body, trackId, sortOrder } });
-      return { ...node(row), trackId, sections: [] };
+      return { ...levelNode(row), trackId, sections: [] };
     }
     if (kind === 'sections') {
       const { levelId, ...body } = parseBody(createSectionBodySchema, raw);
@@ -174,7 +175,7 @@ export class CoursesService {
     if (kind === 'tracks') return this.toTrack(await this.prisma.courseTrack.update({ where: { id }, data: parseBody(trackBodySchema, raw) }));
     if (kind === 'levels') {
       const row = await this.prisma.courseLevel.update({ where: { id }, data: parseBody(levelBodySchema, raw) });
-      return { ...node(row), trackId: row.trackId, sections: [] };
+      return { ...levelNode(row), trackId: row.trackId, sections: [] };
     }
     if (kind === 'sections') {
       const row = await this.prisma.courseSection.update({ where: { id }, data: parseBody(sectionBodySchema, raw) });
@@ -195,7 +196,7 @@ export class CoursesService {
       if (kind === 'tracks') result = await this.toTrack(await this.prisma.courseTrack.update({ where: { id }, data: { isPublished } }));
       else if (kind === 'levels') {
         const row = await this.prisma.courseLevel.update({ where: { id }, data: { isPublished } });
-        result = { ...node(row), trackId: row.trackId, sections: [] };
+        result = { ...levelNode(row), trackId: row.trackId, sections: [] };
       } else if (kind === 'sections') {
         const row = await this.prisma.courseSection.update({ where: { id }, data: { isPublished } });
         result = { ...node(row), levelId: row.levelId, lessons: [] };
@@ -263,8 +264,10 @@ export class CoursesService {
       id: row.id,
       sectionId: row.sectionId,
       title: row.title,
+      titleEn: row.titleEn,
       youtubeUrl: row.youtubeUrl,
       content: row.content,
+      contentEn: row.contentEn,
       durationMinutes: row.durationMinutes,
       midi: row.noteJsonKey
         ? {
@@ -350,5 +353,18 @@ export class CoursesService {
 }
 
 function node(row: CourseTrack | CourseLevel | CourseSection) {
-  return { id: row.id, title: row.title, description: row.description, isPublished: row.isPublished, sortOrder: row.sortOrder };
+  return {
+    id: row.id,
+    title: row.title,
+    titleEn: row.titleEn,
+    description: row.description,
+    descriptionEn: row.descriptionEn,
+    isPublished: row.isPublished,
+    sortOrder: row.sortOrder,
+  };
+}
+
+/** Level: như `node` kèm mức (cột TEXT có CHECK ở DB nên ép kiểu an toàn). */
+function levelNode(row: CourseLevel) {
+  return { ...node(row), preset: row.preset as CourseLevelPreset | null };
 }

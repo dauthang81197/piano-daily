@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  CourseLocale,
   PublicLesson,
   PublicTrackCard,
   PublicTrackTree,
@@ -8,6 +9,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { notFound } from '../catalog/catalog.helpers';
 import { StorageService } from '../media/storage.service';
 import { LESSON_NOT_FOUND, ORDER, TRACK_NOT_FOUND, VISIBLE_LESSON } from './course-helpers';
+
+/** Bản tiếng Anh nếu có (và locale là en), không thì tiếng Việt: chọn từng trường một. */
+const pick = (locale: CourseLocale, vi: string, en: string | null): string => (locale === 'en' && en ? en : vi);
 
 /** Đọc công khai khoá học: chỉ phần đã công khai ở đủ bốn cấp. Không bao giờ lộ khoá private hay tên file gốc. */
 @Injectable()
@@ -18,38 +22,38 @@ export class PublicCoursesService {
   ) {}
 
   /** Các nhánh đã công khai kèm số bài công khai (thẻ ở `/courses`). */
-  async listTracks(): Promise<PublicTrackCard[]> {
+  async listTracks(locale: CourseLocale = 'vi'): Promise<PublicTrackCard[]> {
     const tracks = await this.prisma.courseTrack.findMany({ where: { isPublished: true }, orderBy: ORDER });
     return Promise.all(
       tracks.map(async (t) => ({
         slug: t.slug,
-        title: t.title,
-        description: t.description,
+        title: pick(locale, t.title, t.titleEn),
+        description: pick(locale, t.description, t.descriptionEn),
         lessonCount: await this.countVisible(t.id),
       })),
     );
   }
 
-  async tree(slug: string): Promise<PublicTrackTree> {
+  async tree(slug: string, locale: CourseLocale = 'vi'): Promise<PublicTrackTree> {
     const track = await this.prisma.courseTrack.findFirst({ where: { slug, isPublished: true } });
     if (!track) throw notFound(TRACK_NOT_FOUND);
     const levels = await this.visibleLevels(track.id);
     return {
       slug: track.slug,
-      title: track.title,
-      description: track.description,
+      title: pick(locale, track.title, track.titleEn),
+      description: pick(locale, track.description, track.descriptionEn),
       lessonCount: levels.reduce((n, l) => n + l.sections.reduce((m, s) => m + s.lessons.length, 0), 0),
       levels: levels.map((level) => ({
         id: level.id,
-        title: level.title,
-        description: level.description,
+        title: pick(locale, level.title, level.titleEn),
+        description: pick(locale, level.description, level.descriptionEn),
         sections: level.sections.map((section) => ({
           id: section.id,
-          title: section.title,
-          description: section.description,
+          title: pick(locale, section.title, section.titleEn),
+          description: pick(locale, section.description, section.descriptionEn),
           lessons: section.lessons.map((lesson) => ({
             id: lesson.id,
-            title: lesson.title,
+            title: pick(locale, lesson.title, lesson.titleEn),
             durationMinutes: lesson.durationMinutes,
             hasVideo: lesson.youtubeUrl !== null,
             hasMusic: lesson.noteJsonKey !== null,
@@ -60,7 +64,7 @@ export class PublicCoursesService {
   }
 
   /** Chi tiết một bài công khai; bài ẩn (bất kỳ cấp nào), bài không thuộc `trackSlug` hoặc id sai dạng → 404. */
-  async lesson(trackSlug: string, id: string): Promise<PublicLesson> {
+  async lesson(trackSlug: string, id: string, locale: CourseLocale = 'vi'): Promise<PublicLesson> {
     const row = await this.prisma.courseLesson.findFirst({
       where: { id, ...VISIBLE_LESSON, section: { ...VISIBLE_LESSON.section, level: { ...VISIBLE_LESSON.section.level, track: { isPublished: true, slug: trackSlug } } } },
       include: { section: { include: { level: { include: { track: true } } } } },
@@ -70,12 +74,12 @@ export class PublicCoursesService {
     const { level } = section;
     const flat = (await this.visibleLevels(level.track.id)).flatMap((l) => l.sections.flatMap((s) => s.lessons));
     const at = flat.findIndex((l) => l.id === row.id);
-    const neighbor = (i: number) => (flat[i] ? { id: flat[i]!.id, title: flat[i]!.title } : null);
+    const neighbor = (i: number) => (flat[i] ? { id: flat[i]!.id, title: pick(locale, flat[i]!.title, flat[i]!.titleEn) } : null);
     return {
       id: row.id,
-      title: row.title,
+      title: pick(locale, row.title, row.titleEn),
       youtubeUrl: row.youtubeUrl,
-      content: row.content,
+      content: pick(locale, row.content, row.contentEn),
       durationMinutes: row.durationMinutes,
       midi: row.noteJsonKey
         ? {
@@ -84,9 +88,9 @@ export class PublicCoursesService {
             noteCount: row.midiNoteCount ?? 0,
           }
         : null,
-      track: { slug: level.track.slug, title: level.track.title },
-      level: { id: level.id, title: level.title },
-      section: { id: section.id, title: section.title },
+      track: { slug: level.track.slug, title: pick(locale, level.track.title, level.track.titleEn) },
+      level: { id: level.id, title: pick(locale, level.title, level.titleEn) },
+      section: { id: section.id, title: pick(locale, section.title, section.titleEn) },
       prev: at > 0 ? neighbor(at - 1) : null,
       next: at >= 0 ? neighbor(at + 1) : null,
       updatedAt: row.updatedAt.toISOString(),
@@ -132,7 +136,7 @@ export class PublicCoursesService {
             lessons: {
               where: { isPublished: true },
               orderBy: ORDER,
-              select: { id: true, title: true, durationMinutes: true, youtubeUrl: true, noteJsonKey: true },
+              select: { id: true, title: true, titleEn: true, durationMinutes: true, youtubeUrl: true, noteJsonKey: true },
             },
           },
         },

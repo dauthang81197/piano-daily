@@ -27,6 +27,15 @@ const messageOf = (err: unknown) => {
   return message ?? fieldMessage;
 };
 
+/** Dấu cho biết nút đã có tên tiếng Anh (web `/en` dùng bản đó). */
+function EnBadge({ has }: { has: boolean }) {
+  return has ? (
+    <span className="rounded border px-1 text-[10px] font-medium text-muted-foreground" title="Đã có bản tiếng Anh">
+      EN
+    </span>
+  ) : null;
+}
+
 /** Một hàng của cây: tên, trạng thái công khai, lên/xuống, sửa, xoá. */
 function Row({
   label,
@@ -150,10 +159,10 @@ export function CourseTreeEditor({ trackId }: { trackId: string }) {
 
       {levels.map((level, li) => (
         <section key={level.id} aria-label={`Level ${level.title}`} className="flex flex-col gap-3 rounded-lg border p-4">
-          <Row label={level.title} kind="levels" id={level.id} isPublished={level.isPublished} isFirst={li === 0} isLast={li === levels.length - 1} canWrite={canWrite} busy={busy} onAction={(a) => void run(a)} onEdit={() => setDialog({ open: true, kind: 'levels', item: level, parent: { key: 'trackId', id: track.id } })} />
+          <Row label={level.title} extra={<EnBadge has={Boolean(level.titleEn)} />} kind="levels" id={level.id} isPublished={level.isPublished} isFirst={li === 0} isLast={li === levels.length - 1} canWrite={canWrite} busy={busy} onAction={(a) => void run(a)} onEdit={() => setDialog({ open: true, kind: 'levels', item: level, parent: { key: 'trackId', id: track.id } })} />
           {level.sections.map((section, si) => (
             <div key={section.id} className="ml-4 flex flex-col gap-2 border-l pl-4">
-              <Row label={section.title} kind="sections" id={section.id} isPublished={section.isPublished} isFirst={si === 0} isLast={si === level.sections.length - 1} canWrite={canWrite} busy={busy} onAction={(a) => void run(a)} onEdit={() => setDialog({ open: true, kind: 'sections', item: section, parent: { key: 'levelId', id: level.id } })} />
+              <Row label={section.title} extra={<EnBadge has={Boolean(section.titleEn)} />} kind="sections" id={section.id} isPublished={section.isPublished} isFirst={si === 0} isLast={si === level.sections.length - 1} canWrite={canWrite} busy={busy} onAction={(a) => void run(a)} onEdit={() => setDialog({ open: true, kind: 'sections', item: section, parent: { key: 'levelId', id: level.id } })} />
               {section.lessons.map((lesson, bi) => (
                 <div key={lesson.id} className="ml-4 border-l pl-4">
                   <Row
@@ -168,9 +177,12 @@ export function CourseTreeEditor({ trackId }: { trackId: string }) {
                     onAction={(a) => void run(a)}
                     onEdit={() => setDialog({ open: true, kind: 'lessons', item: lesson, sectionId: section.id })}
                     extra={
-                      <span className="text-caption text-muted-foreground">
-                        {[lesson.youtubeUrl ? 'Video' : null, lesson.midi ? 'Nhạc' : null, lesson.content.trim() ? 'Nội dung' : null].filter(Boolean).join(' · ') || 'Trống'}
-                      </span>
+                      <>
+                        <EnBadge has={Boolean(lesson.titleEn)} />
+                        <span className="text-caption text-muted-foreground">
+                          {[lesson.youtubeUrl ? 'Video' : null, lesson.midi ? 'Nhạc' : null, lesson.content.trim() ? 'Nội dung' : null].filter(Boolean).join(' · ') || 'Trống'}
+                        </span>
+                      </>
                     }
                   />
                 </div>

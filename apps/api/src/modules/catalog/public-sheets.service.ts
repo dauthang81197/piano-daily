@@ -357,6 +357,9 @@ export class PublicSheetsService {
       sheets: sheets.map((s) => ({ slug: s.slug, updatedAt: s.updatedAt.toISOString() })),
       composers: entries(composers, composerAt),
       genres: entries(genres, genreAt),
+      // Phần khoá học do module `courses` bổ sung ở controller (module chủ của các bảng đó).
+      courseTracks: [],
+      courseLessons: [],
     };
   }
 

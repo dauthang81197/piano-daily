@@ -16,6 +16,7 @@ import { AdsModule } from './modules/ads/ads.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { CoursesModule } from './modules/courses/courses.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { IdentityModule } from './modules/identity/identity.module';
@@ -57,6 +58,7 @@ import { PrismaModule } from './prisma/prisma.module';
     IdentityModule,
     CustomersModule,
     BillingModule,
+    CoursesModule,
     CatalogModule,
     SettingsModule,
     AdsModule,

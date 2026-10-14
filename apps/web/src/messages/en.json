@@ -16,7 +16,8 @@
       "advanced": "Advanced",
       "expert": "Expert"
     },
-    "pricing": "Pricing"
+    "pricing": "Pricing",
+    "courses": "Courses"
   },
   "Search": {
     "label": "Search sheet music",
@@ -393,5 +394,26 @@
         "sessionLost": "Your session expired so we cannot update the status. If you already transferred, your plan still activates automatically; log in again to check. Payment code: {code}."
       }
     }
+  },
+  "Courses": {
+    "title": "Piano courses",
+    "intro": "A step-by-step piano learning path: method, technique and repertoire. Each lesson can include a video, music with simulated hands playing the keys, and written guidance.",
+    "empty": "The courses are being prepared. Please check back soon, or browse the sheet library meanwhile.",
+    "progress": "{done}/{total} lessons · {percent}%",
+    "progressLabel": "Progress in {title}",
+    "lessonCount": "{count, plural, one {# lesson} other {# lessons}}",
+    "emptyTrack": "This track has no published lessons yet.",
+    "emptySection": "No lessons in this section yet.",
+    "hasMusic": "Music",
+    "hasVideo": "Video",
+    "minutes": "{count} min",
+    "breadcrumbLabel": "Breadcrumb",
+    "videoTitle": "Video",
+    "videoFrameTitle": "{title} video",
+    "playerTitle": "Listen and watch the hands play",
+    "lessonNav": "Lesson navigation",
+    "prev": "Previous",
+    "next": "Next",
+    "backToTrack": "Back to the path"
   }
 }

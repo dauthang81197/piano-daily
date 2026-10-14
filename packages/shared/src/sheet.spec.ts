@@ -394,9 +394,11 @@ describe('sitemapEntriesSchema', () => {
       sheets: [{ slug: 'fur-elise', updatedAt: '2026-10-07T00:00:00.000Z' }],
       composers: [],
       genres: [{ slug: 'pop', updatedAt: '2026-10-07T00:00:00.000Z' }],
+      courseTracks: [{ slug: 'ky-thuat', updatedAt: '2026-10-07T00:00:00.000Z' }],
+      courseLessons: [{ id: 'l1', trackSlug: 'ky-thuat', updatedAt: '2026-10-07T00:00:00.000Z' }],
     };
     expect(sitemapEntriesSchema.parse(ok)).toEqual(ok);
-    expect(sitemapEntriesSchema.parse({ sheets: [], composers: [], genres: [] }).sheets).toEqual([]);
+    expect(sitemapEntriesSchema.parse({ sheets: [], composers: [], genres: [] }).courseTracks).toEqual([]);
   });
   it('thiếu mảng hoặc entry thiếu trường thì từ chối', () => {
     expect(sitemapEntriesSchema.safeParse({ sheets: [], composers: [] }).success).toBe(false);

@@ -212,3 +212,13 @@
 - Thanh toán VietQR PENDING bỏ dở chưa có job dọn; chưa đối soát lại tự động các giao dịch SePay bị lỡ (chỉ có xác nhận thủ công).
 - Khách quốc tế (locale en) chưa thấy VietQR dù có thể dùng ngân hàng Việt Nam.
 - (S4 review) Chưa cộng dồn nhiều lần chuyển thiếu cùng một mã và chưa ghi số tiền thực nhận/mã tham chiếu ngân hàng từng giao dịch; chưa có thao tác admin hoàn tiền VietQR; panel VietQR dừng hỏi khi khách đổi sang PayPal hoặc đóng modal; chưa có bảng audit cho xác nhận thủ công (mới có log id admin).
+
+## Khoá học C1 (feature/khoa-hoc-noi-dung)
+
+- C1b: khuông nhạc (VexFlow) chạy nốt đồng bộ với player, khuông bên trái, bàn tay/phím bên phải; C1c: trình gõ nốt trong admin (+ nhập MIDI vào trình gõ), ghi cùng định dạng note-JSON.
+- C2 tiến độ học (thanh "x/y bài · %" hiện đang là chỗ giữ 0%), C3 nộp bài bằng link YouTube/Drive, C4 đánh giá/bình luận công khai kiểm duyệt sau, C5 gắn thuê bao (bài miễn phí/trả phí).
+- Admin chưa có xem trước bài nháp (player/video/nội dung như người học thấy); nội dung khoá chưa song ngữ; sắp xếp bằng nút lên/xuống, chưa kéo-thả.
+- (C1 review) `PATCH /admin/courses/...` có ngữ nghĩa thay toàn bộ (trường vắng về mặc định, `isPublished` về false); admin UI luôn gửi đủ trường nên chưa ảnh hưởng, cần chuyển sang cập nhật từng phần nếu có client khác.
+- (C1 review) Chưa từ chối MIDI 0 nốt; sort_order khi tạo đồng thời có thể trùng (chỉ thẩm mỹ, `move` chuẩn hoá lại); xoá/thay nhạc đồng thời với cùng nội dung có thể xoá nhầm object (khoá tất định); chưa GC object nhạc bài học mồ côi; nhánh/level/section công khai nhưng rỗng vẫn vào sitemap và hiện thẻ "0 bài"; sitemap chưa giới hạn 50k URL và lỗi khoá học làm hỏng cả sitemap; `lastmod` của nhánh không đổi khi bài đổi; cây admin chưa đánh dấu "ẩn do cha là nháp"; tạo bài mới không thể công khai chỉ với nhạc (cần lưu rồi upload); N+1 đếm bài ở danh sách nhánh; URL note-JSON của bài đã gỡ công khai vẫn truy cập được nếu biết đường dẫn.
+- (C1 review) Test chưa phủ: 403 cho publish/gỡ nhạc/tạo level-section-lesson, move nhánh/level/section, đường rollback khi commit lỗi, `lib/courses.ts` và ba trang web, link header, bài chỉ có YouTube; spec ghi MIDI hỏng 400 nhưng code trả 422 `FILE_PROCESSING_FAILED` (theo pipeline Sheet).
+

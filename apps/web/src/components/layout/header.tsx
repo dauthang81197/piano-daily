@@ -41,6 +41,9 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
               {t(`levels.${level}`)}
             </Link>
           ))}
+          <Link href="/courses" className={navLink}>
+            {t('courses')}
+          </Link>
           <Link href="/pricing" className={navLink}>
             {t('pricing')}
           </Link>

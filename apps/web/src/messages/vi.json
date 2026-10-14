@@ -16,7 +16,8 @@
       "advanced": "Nâng cao",
       "expert": "Chuyên nghiệp"
     },
-    "pricing": "Bảng giá"
+    "pricing": "Bảng giá",
+    "courses": "Khoá học"
   },
   "Search": {
     "label": "Tìm kiếm bản nhạc",
@@ -393,5 +394,26 @@
         "sessionLost": "Phiên đăng nhập đã hết hạn nên không cập nhật được trạng thái. Nếu bạn đã chuyển khoản, gói vẫn được kích hoạt tự động; hãy đăng nhập lại để kiểm tra. Mã thanh toán: {code}."
       }
     }
+  },
+  "Courses": {
+    "title": "Khoá học piano",
+    "intro": "Lộ trình học piano từng bước: phương pháp, kỹ thuật và tác phẩm. Mỗi bài có thể có video, nhạc có bàn tay mô phỏng đánh phím và nội dung hướng dẫn.",
+    "empty": "Khoá học đang được soạn. Bạn quay lại sau nhé, hoặc xem thư viện sheet trong lúc chờ.",
+    "progress": "{done}/{total} bài · {percent}%",
+    "progressLabel": "Tiến độ {title}",
+    "lessonCount": "{count, plural, other {# bài}}",
+    "emptyTrack": "Nhánh này chưa có bài nào được công khai.",
+    "emptySection": "Phần này chưa có bài.",
+    "hasMusic": "Nhạc",
+    "hasVideo": "Video",
+    "minutes": "{count} phút",
+    "breadcrumbLabel": "Đường dẫn",
+    "videoTitle": "Video",
+    "videoFrameTitle": "Video bài {title}",
+    "playerTitle": "Nghe và xem tay đánh phím",
+    "lessonNav": "Chuyển bài",
+    "prev": "Bài trước",
+    "next": "Bài tiếp",
+    "backToTrack": "Về lộ trình"
   }
 }

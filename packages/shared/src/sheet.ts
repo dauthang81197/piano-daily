@@ -457,6 +457,9 @@ export const sitemapEntriesSchema = z.object({
   sheets: z.array(sitemapEntrySchema),
   composers: z.array(sitemapEntrySchema),
   genres: z.array(sitemapEntrySchema),
+  /** Khoá học (C1): nhánh công khai và bài học công khai (đủ cả cha). Mặc định rỗng cho phản hồi API cũ. */
+  courseTracks: z.array(sitemapEntrySchema).default([]),
+  courseLessons: z.array(z.object({ id: z.string(), trackSlug: z.string(), updatedAt: z.string() })).default([]),
 });
 export type SitemapEntries = z.infer<typeof sitemapEntriesSchema>;
 

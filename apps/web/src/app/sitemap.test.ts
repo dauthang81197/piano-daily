@@ -16,10 +16,13 @@ describe('app/sitemap', () => {
       sheets: [{ slug: 'fur-elise', updatedAt: '2026-10-01T00:00:00.000Z' }],
       composers: [],
       genres: [],
+      courseTracks: [{ slug: 'ky-thuat', updatedAt: '2026-10-04T00:00:00.000Z' }],
+      courseLessons: [{ trackSlug: 'ky-thuat', id: 'abc123', updatedAt: '2026-10-05T00:00:00.000Z' }],
     });
     const urls = (await sitemap()).map((e) => e.url);
     expect(urls.some((u) => u.endsWith('/vi/sheet/fur-elise'))).toBe(true);
     expect(urls.some((u) => u.endsWith('/en/sheet/fur-elise'))).toBe(true);
+    expect(urls.some((u) => u.endsWith('/vi/courses/ky-thuat/abc123'))).toBe(true);
   });
 
   it('API lỗi thì ném (giữ cache cũ), không trả sitemap rỗng', async () => {

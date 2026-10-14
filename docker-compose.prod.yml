@@ -46,6 +46,11 @@ services:
       PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
       # Đăng nhập Google của khách (tuỳ chọn): thiếu thì nút Google bị ẩn.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # VietQR qua SePay (tuỳ chọn): thiếu thì VietQR không khả dụng.
+      SEPAY_API_KEY: ${SEPAY_API_KEY:-}
+      SEPAY_BANK_ACCOUNT: ${SEPAY_BANK_ACCOUNT:-}
+      SEPAY_BANK_NAME: ${SEPAY_BANK_NAME:-}
+      SEPAY_ACCOUNT_HOLDER: ${SEPAY_ACCOUNT_HOLDER:-}
       # Email link tải (Story 3.7): thiếu khoá Resend thì API bỏ qua việc gửi email (chỉ log cảnh báo).
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}

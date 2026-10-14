@@ -87,6 +87,8 @@ export type PublicPlan = z.infer<typeof publicPlanSchema>;
 /** Response `GET /plans`. */
 export const publicPlansResponseSchema = z.object({
   subscriptionsEnabled: z.boolean(),
+  /** VietQR (SePay) đã được cấu hình ở server: web chỉ hiện lựa chọn này khi true. */
+  vietqrEnabled: z.boolean().default(false),
   plans: z.array(publicPlanSchema),
 });
 export type PublicPlansResponse = z.infer<typeof publicPlansResponseSchema>;
@@ -155,3 +157,27 @@ export const subscriptionPaymentSchema = z.object({
   createdAt: z.string(),
 });
 export type SubscriptionPayment = z.infer<typeof subscriptionPaymentSchema>;
+
+/** Body `POST /customer/subscriptions/vietqr/create`. */
+export const createVietqrRequestSchema = z.object({ planId: z.uuid({ error: 'Gói không hợp lệ.' }) });
+export type CreateVietqrRequest = z.infer<typeof createVietqrRequestSchema>;
+
+/** Thông tin để khách chuyển khoản: nội dung gọn không dấu gạch, số tiền VND nguyên, ảnh QR dựng sẵn. */
+export const createVietqrResponseSchema = z.object({
+  paymentCode: z.string(),
+  transferContent: z.string(),
+  amount: z.number().int().positive(),
+  currency: z.literal('VND'),
+  qrUrl: z.url(),
+  bankAccount: z.string(),
+  bankName: z.string(),
+  accountHolder: z.string().nullable(),
+});
+export type CreateVietqrResponse = z.infer<typeof createVietqrResponseSchema>;
+
+/** Response `GET /customer/subscriptions/payments/:code`: web polling; `entitlement` có khi đã PAID. */
+export const paymentStatusResponseSchema = z.object({
+  status: subscriptionPaymentStatusSchema,
+  entitlement: entitlementSchema.nullable(),
+});
+export type PaymentStatusResponse = z.infer<typeof paymentStatusResponseSchema>;

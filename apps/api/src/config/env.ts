@@ -169,6 +169,15 @@ export const envSchema = z.object({
    * `POST /customer/auth/google` trả 503 và web ẩn nút Google (đăng ký bằng email vẫn chạy).
    */
   GOOGLE_CLIENT_ID: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  /**
+   * VietQR qua SePay (S4 thuê bao): đối soát chuyển khoản tự động. Tuỳ chọn: thiếu `SEPAY_API_KEY`, `SEPAY_BANK_ACCOUNT` hoặc
+   * `SEPAY_BANK_NAME` thì VietQR không khả dụng (tạo thanh toán 503, web ẩn lựa chọn, webhook 503). Không bao giờ ghi vào log.
+   */
+  SEPAY_API_KEY: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  SEPAY_BANK_ACCOUNT: z.preprocess(emptyAsUndefined, z.string().min(1).max(40).optional()),
+  /** Mã ngắn ngân hàng theo SePay/VietQR (vd. `Vietcombank`, `MBBank`). */
+  SEPAY_BANK_NAME: z.preprocess(emptyAsUndefined, z.string().min(1).max(60).optional()),
+  SEPAY_ACCOUNT_HOLDER: z.preprocess(emptyAsUndefined, z.string().min(1).max(100).optional()),
   SITE_URL: z.preprocess(
     emptyAsUndefined,
     z
@@ -187,6 +196,13 @@ export const envSchema = z.object({
   })
   // Production: PayPal và email là bắt buộc (ngoài production vẫn tuỳ chọn). Báo đúng tên từng biến thiếu.
   .superRefine((env, ctx) => {
+    // SePay: cấu hình dở dang (có một vài biến) sẽ âm thầm tắt VietQR; dừng khởi động với thông báo rõ.
+    const sepay = [env.SEPAY_API_KEY, env.SEPAY_BANK_ACCOUNT, env.SEPAY_BANK_NAME];
+    if (sepay.some(Boolean) && !sepay.every(Boolean)) {
+      for (const name of ['SEPAY_API_KEY', 'SEPAY_BANK_ACCOUNT', 'SEPAY_BANK_NAME'] as const) {
+        if (!env[name]) ctx.addIssue({ code: 'custom', path: [name], message: 'cần đặt cùng SEPAY_API_KEY, SEPAY_BANK_ACCOUNT và SEPAY_BANK_NAME (hoặc bỏ trống cả ba)' });
+      }
+    }
     if (env.NODE_ENV !== 'production') return;
     for (const name of PRODUCTION_REQUIRED) {
       if (!env[name]) ctx.addIssue({ code: 'custom', path: [name], message: 'bắt buộc khi NODE_ENV=production' });

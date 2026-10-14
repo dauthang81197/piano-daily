@@ -15,7 +15,7 @@ const plan = (over: Record<string, unknown> = {}) => ({
   downloadQuota: null,
   ...over,
 });
-const data = (over: Partial<PublicPlansResponse> = {}): PublicPlansResponse => ({ subscriptionsEnabled: true, plans: [plan()], ...over });
+const data = (over: Partial<PublicPlansResponse> = {}): PublicPlansResponse => ({ subscriptionsEnabled: true, vietqrEnabled: false, plans: [plan()], ...over });
 
 describe('PricingView', () => {
   it('tiếng Việt: giá VND, thời hạn, không giới hạn; nút chọn gói bị vô hiệu kèm chú thích thanh toán sắp có', () => {

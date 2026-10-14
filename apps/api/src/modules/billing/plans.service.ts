@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { cacheTags, type Plan, type PlanBody, type PublicPlansResponse } from '@piano-daily/shared';
 import type { Plan as PlanRow } from '../../generated/client';
+import type { Env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheInvalidator } from '../catalog/cache-invalidator';
 import { inUse, notFound } from '../catalog/catalog.helpers';
 import { isPrismaError } from '../catalog/prisma-errors';
 import { SettingsService } from '../settings/settings.service';
+import { readSepayConfig } from './sepay';
 
 const NOT_FOUND = 'Không tìm thấy gói.';
 const ORDER = [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }, { id: 'asc' as const }];
@@ -17,6 +20,7 @@ export class PlansService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly cache: CacheInvalidator,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /** Mọi gói (kể cả đang tắt) kèm số Subscription ACTIVE, cho admin. */
@@ -84,6 +88,7 @@ export class PlansService {
     ]);
     return {
       subscriptionsEnabled,
+      vietqrEnabled: readSepayConfig(this.config) !== null,
       plans: rows.map((row) => ({
         id: row.id,
         name: { vi: row.nameVi, en: row.nameEn },

@@ -16,7 +16,8 @@ import { OrderRepository } from './order.repository';
 import { OrderService } from './order.service';
 import { PendingOrderCleanupService } from './pending-order-cleanup.service';
 import { PlanPaymentService } from './plan-payment.service';
-import { PlanPaymentsController } from './plan-payments.controller';
+import { PlanPaymentsController, VietqrPaymentsController } from './plan-payments.controller';
+import { SepayWebhookService } from './sepay-webhook.service';
 import { PaidDownloadsController } from './paid-downloads.controller';
 import { PaidDownloadsService } from './paid-downloads.service';
 import { PAYMENT_PROVIDER } from './payment-provider';
@@ -30,7 +31,7 @@ import { WebhooksController } from './webhooks.controller';
 /** Module chủ của bảng `download_logs`, `orders`, `download_tokens`, `download_token_files` và `payment_events` (AD-1, AD-20). */
 @Module({
   imports: [BillingModule, CatalogModule, CustomersModule, IdentityModule, MediaModule, NotifyModule, SettingsModule],
-  controllers: [AdminOrdersController, DownloadsController, PaidDownloadsController, PaymentsController, PlanPaymentsController, WebhooksController],
+  controllers: [AdminOrdersController, DownloadsController, PaidDownloadsController, PaymentsController, PlanPaymentsController, VietqrPaymentsController, WebhooksController],
   providers: [
     AdminOrdersService,
     DownloadLogRepository,
@@ -40,6 +41,7 @@ import { WebhooksController } from './webhooks.controller';
     OrderService,
     PaidDownloadsService,
     PlanPaymentService,
+    SepayWebhookService,
     PaymentEventRepository,
     PendingOrderCleanupService,
     TokenService,

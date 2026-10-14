@@ -364,7 +364,34 @@
         "verify": "Bạn cần xác minh email trước khi mua gói.",
         "generic": "Không hoàn tất được thanh toán. Vui lòng thử lại; nếu vẫn lỗi, hãy liên hệ kèm email tài khoản."
       },
-      "comingSoon": "Sắp có"
+      "comingSoon": "Sắp có",
+      "vietqrLabel": "Chuyển khoản VietQR (ngân hàng trong nước)",
+      "vietqrPanel": {
+        "loading": "Đang tạo mã thanh toán…",
+        "retry": "Thử lại",
+        "instructions": "Quét mã QR bằng ứng dụng ngân hàng, hoặc chuyển khoản đúng số tiền và nội dung bên dưới.",
+        "qrAlt": "Mã QR chuyển khoản",
+        "bank": "Ngân hàng",
+        "account": "Số tài khoản",
+        "holder": "Chủ tài khoản",
+        "amount": "Số tiền",
+        "content": "Nội dung chuyển khoản",
+        "copy": "Sao chép {field}",
+        "copied": "Đã sao chép",
+        "contentWarning": "Giữ nguyên nội dung chuyển khoản để hệ thống tự nhận tiền. Gói được kích hoạt tự động sau khi tiền về (thường trong vài giây đến vài phút).",
+        "waiting": "Đang chờ nhận tiền…",
+        "timedOut": "Chưa thấy tiền về sau 15 phút. Nếu bạn đã chuyển khoản, đừng chuyển lại; hãy liên hệ kèm mã {code} và ảnh chụp giao dịch. Trang này vẫn tiếp tục kiểm tra và sẽ báo ngay khi tiền về.",
+        "errors": {
+          "unavailable": "Chuyển khoản VietQR chưa khả dụng. Vui lòng dùng PayPal hoặc thử lại sau.",
+          "paymentsDisabled": "Thanh toán trực tuyến tạm thời không khả dụng. Vui lòng thử lại sau.",
+          "network": "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
+          "tooMany": "Bạn thao tác quá nhanh. Vui lòng đợi một phút rồi thử lại.",
+          "verify": "Bạn cần xác minh email trước khi mua gói.",
+          "generic": "Không tạo được mã thanh toán. Vui lòng thử lại."
+        },
+        "closed": "Thanh toán {code} đã được hoàn tiền hoặc huỷ. Nếu bạn vẫn muốn mua gói, hãy tạo thanh toán mới.",
+        "sessionLost": "Phiên đăng nhập đã hết hạn nên không cập nhật được trạng thái. Nếu bạn đã chuyển khoản, gói vẫn được kích hoạt tự động; hãy đăng nhập lại để kiểm tra. Mã thanh toán: {code}."
+      }
     }
   }
 }

@@ -1,15 +1,20 @@
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   type CapturePlanOrderRequest,
   type CreatePlanOrderResponse,
+  type CreateVietqrResponse,
+  type PaymentStatusResponse,
   type Entitlement,
   ErrorCode,
   formatUsd,
 } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
+import type { Env } from '../../config/env';
 import type { SubscriptionPayment as PaymentRow } from '../../generated/client';
 import { EntitlementService } from '../billing/entitlement.service';
 import { PlansService } from '../billing/plans.service';
+import { buildQrUrl, compactPaymentCode, readSepayConfig } from '../billing/sepay';
 import { SubscriptionActivationService } from '../billing/subscription-activation.service';
 import { SubscriptionPaymentService } from '../billing/subscription-payment.service';
 import { notFound } from '../catalog/catalog.helpers';
@@ -23,6 +28,9 @@ import {
   type PaymentProvider,
   ProviderOrderNotFoundError,
 } from './payment-provider';
+
+/** Payment VietQR PENDING còn được tái dùng trong khoảng này. */
+const VIETQR_REUSE_MS = 24 * 60 * 60 * 1000;
 
 const unavailable = (): AppException => new AppException(ErrorCode.SERVICE_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE);
 
@@ -43,6 +51,7 @@ export class PlanPaymentService {
     private readonly access: CustomerAccessService,
     private readonly settings: SettingsService,
     private readonly alerts: AlertService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   async createPaypalOrder(customerId: string, planId: string): Promise<CreatePlanOrderResponse> {
@@ -77,6 +86,53 @@ export class PlanPaymentService {
       await this.payments.failIfPending(payment.id).catch(() => undefined);
       throw unavailable();
     }
+  }
+
+  /**
+   * Tạo (hoặc tái dùng trong 24 giờ) thanh toán VietQR cho một gói: số tiền VND của gói, nội dung chuyển khoản là mã gọn.
+   * Chưa cấu hình SePay → 503 trước mọi thứ khác.
+   */
+  async createVietqr(customerId: string, planId: string, now = new Date()): Promise<CreateVietqrResponse> {
+    const sepay = readSepayConfig(this.config);
+    if (!sepay) throw unavailable();
+    if (!(await this.settings.paymentsEnabled())) throw new AppException(ErrorCode.PAYMENTS_DISABLED, HttpStatus.FORBIDDEN);
+    await this.access.requireDownloadAccess(customerId);
+    const plan = await this.plans.findActiveRow(planId);
+    if (!plan) throw notFound('Không tìm thấy gói.');
+    if (plan.priceVnd <= 0) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, [
+        { path: 'planId', message: 'Gói này không có giá VND nên không thanh toán bằng VietQR được.' },
+      ]);
+    }
+    const since = new Date(now.getTime() - VIETQR_REUSE_MS);
+    // Tái dùng chỉ khi giá gói không đổi kể từ lúc tạo (QR cũ có số tiền cũ); tạo mới được serialize theo khách+gói.
+    const payment = await this.payments.findOrCreatePending(
+      { customerId, plan, provider: 'VIETQR', amount: plan.priceVnd, currency: 'VND', compactRef: true },
+      since,
+    );
+    const content = compactPaymentCode(payment.code);
+    return {
+      paymentCode: payment.code,
+      transferContent: content,
+      amount: payment.amount,
+      currency: 'VND',
+      qrUrl: buildQrUrl(sepay, payment.amount, content),
+      bankAccount: sepay.bankAccount,
+      bankName: sepay.bankName,
+      accountHolder: sepay.accountHolder,
+    };
+  }
+
+  /** Trạng thái thanh toán của chính khách (web polling); kèm entitlement khi đã PAID. Mã của khách khác/lạ → 404. */
+  async paymentStatus(customerId: string, code: string): Promise<PaymentStatusResponse> {
+    const wanted = code.trim().toUpperCase();
+    // Chấp nhận cả dạng có dấu gạch (PS-ABC234) lẫn dạng gọn dùng làm nội dung chuyển khoản (PSABC234).
+    const payment = (await this.payments.findByCode(wanted)) ?? (await this.payments.findByProviderRef(compactPaymentCode(wanted)));
+    if (!payment || payment.customerId !== customerId) throw notFound('Không tìm thấy đơn thanh toán.');
+    return {
+      status: payment.status,
+      entitlement: payment.status === 'PAID' ? await this.entitlement.getEntitlement(customerId) : null,
+    };
   }
 
   /** Capture rồi kích hoạt. Đơn không thuộc khách này hoặc lạ → 404 trước khi gọi PayPal. Gọi lại an toàn. */

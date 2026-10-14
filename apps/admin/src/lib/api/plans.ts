@@ -13,6 +13,8 @@ export const plansApi = {
   remove: (id: string) => apiFetch<void>(item(id), { method: 'DELETE' }),
   /** `GET /admin/subscription-payments` — thanh toán gói gần đây (chỉ đọc), mới nhất trước. */
   payments: (signal?: AbortSignal) => apiFetch<SubscriptionPayment[]>('/admin/subscription-payments', { signal }),
+  /** `POST /admin/subscription-payments/:id/confirm` — xác nhận thủ công đã nhận tiền VietQR (khách ghi sai nội dung). Chỉ SUPER_ADMIN. */
+  confirmPayment: (id: string) => apiFetch<{ status: 'PAID' }>(`/admin/subscription-payments/${encodeURIComponent(id)}/confirm`, { method: 'POST' }),
   /** `POST /admin/subscriptions/grant` — cấp tay một gói cho khách theo email (thử nghiệm khi chưa có thanh toán). */
   grant: (body: GrantPlanBody) => apiFetch<GrantPlanResponse>('/admin/subscriptions/grant', { method: 'POST', json: body }),
 };

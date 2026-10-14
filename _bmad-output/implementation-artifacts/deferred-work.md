@@ -196,3 +196,11 @@
 - (S2 review) Quota theo kỳ chưa tự đặt lại, `EXPIRED` chưa được ghi, Subscription chưa chụp giá/quota/thời hạn lúc mua: giải quyết cùng gia hạn ở S3/S4.
 - (S2 review) Chưa có cửa sổ chống trùng/hoàn lượt khi tải lại cùng file hoặc nhấp đúp; chưa ghi người cấp gói; cấp gói chưa có chế độ gia hạn (đang thay gói cũ).
 - (S2 review) Cân nhắc bắt đầu dùng thử từ lúc bật cưỡng chế cho khách cũ; từ chối bật cưỡng chế khi chưa có gói; cảnh báo sắp hết dùng thử; throttle `GET /plans` và `/customer/entitlement`.
+
+## Thanh toán gói bằng PayPal (feature/thanh-toan-goi-paypal)
+
+- PayPal Billing Subscriptions (tự gia hạn) chưa làm: hiện trả trước theo kỳ, hết hạn khách mua lại. Cần tạo gói bên PayPal cho từng `Plan` và webhook `BILLING.SUBSCRIPTION.*` nếu muốn tự gia hạn.
+- Hoàn tiền gói từ admin (gọi PayPal refund) chưa có: hiện hoàn trên PayPal rồi webhook `REFUNDED` cập nhật trạng thái.
+- Thanh toán PENDING bị bỏ dở chưa có job dọn như đơn mua lẻ (`pending-order-cleanup`).
+- Giá gói USD và VND nhập riêng, PayPal luôn thu USD: khách tiếng Việt trả USD cho tới khi có VietQR (S4).
+- (S3 review) Webhook `PAYMENT.CAPTURE.REVERSED` / `CUSTOMER.DISPUTE.*` và cộng dồn nhiều lần hoàn một phần chưa xử lý; thanh toán PENDING bỏ dở chưa có job dọn; chưa có email biên lai, chưa hiện mã `PS-` cho khách, chưa có công cụ capture lại cho admin; bảng thanh toán admin chưa phân trang/lọc; thay gói khác làm mất ngày còn lại (chưa cảnh báo/tỉ lệ); mã đơn mua lẻ `PD-` có ký tự lặp trong bảng chữ cái.

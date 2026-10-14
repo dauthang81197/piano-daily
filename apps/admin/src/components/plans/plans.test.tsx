@@ -33,10 +33,28 @@ async function signIn(role: 'SUPER_ADMIN' | 'EDITOR', handler: Handler) {
   return stubFetch((raw, init) => handler(new URL(raw), init) ?? jsonResponse(404, errorBody('NOT_FOUND')));
 }
 
+const PAYMENT = {
+  id: '0192a000-0000-7000-8000-0000000000b1',
+  code: 'PS-ABC234',
+  customerEmail: 'khach@example.com',
+  planNameVi: 'Gói tháng',
+  provider: 'PAYPAL',
+  status: 'PAID',
+  amount: 499,
+  currency: 'USD',
+  reviewRequired: false,
+  paidAt: NOW,
+  createdAt: NOW,
+};
+
 const listHandler =
-  (plans: unknown[]): Handler =>
+  (plans: unknown[], payments: unknown[] = []): Handler =>
   (url, init) =>
-    url.pathname === '/admin/plans' && (init.method ?? 'GET') === 'GET' ? jsonResponse(200, plans) : undefined;
+    url.pathname === '/admin/plans' && (init.method ?? 'GET') === 'GET'
+      ? jsonResponse(200, plans)
+      : url.pathname === '/admin/subscription-payments'
+        ? jsonResponse(200, payments)
+        : undefined;
 
 const calls = (fetchMock: Awaited<ReturnType<typeof signIn>>, method: string, path: string) =>
   fetchMock.mock.calls.filter(([input, init]) => new URL(String(input)).pathname === path && init?.method === method);
@@ -142,6 +160,24 @@ describe('Trang /plans', () => {
     await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
     expect(await screen.findByText('Gói đã có người đăng ký nên không xoá được.')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Danh sách gói thuê bao' })).toHaveTextContent('Gói tháng');
+  });
+
+  it('bảng thanh toán gói: mã, khách, gói, cách trả, số tiền USD/VND theo tiền tệ, trạng thái, cờ cần xem xét', async () => {
+    await signIn('SUPER_ADMIN', listHandler([plan()], [
+      PAYMENT,
+      { ...PAYMENT, id: '0192a000-0000-7000-8000-0000000000b2', code: 'PS-XYZ789', provider: 'VIETQR', currency: 'VND', amount: 99000, status: 'PENDING', reviewRequired: true, paidAt: null },
+    ]));
+    renderPage();
+    const table = await screen.findByRole('table', { name: 'Danh sách thanh toán gói' });
+    const rows = await within(table).findAllByRole('row');
+    expect(rows[1]).toHaveTextContent('PS-ABC234');
+    expect(rows[1]).toHaveTextContent('khach@example.com');
+    expect(rows[1]).toHaveTextContent('PayPal');
+    expect(rows[1]).toHaveTextContent('$4.99');
+    expect(rows[1]).toHaveTextContent('Đã thanh toán');
+    expect(rows[2]).toHaveTextContent('VietQR');
+    expect(rows[2]).toHaveTextContent(/99\.000\s*₫/);
+    expect(rows[2]).toHaveTextContent('Cần xem xét');
   });
 
   it('EDITOR chỉ xem: không có nút tạo/xoá, checkbox bị khoá, form cấp gói bị vô hiệu', async () => {

@@ -1,6 +1,7 @@
 import { PAYWALL_REASONS, type PaywallReason, type PublicPlansResponse } from '@piano-daily/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatPlanPrice } from '@/lib/plan-format';
+import { PlanChooseButton } from './plan-checkout';
 
 export function paywallReason(value: string | string[] | undefined): PaywallReason | null {
   const first = Array.isArray(value) ? value[0] : value;
@@ -44,14 +45,7 @@ export function PricingView({ data, reason }: { data: PublicPlansResponse; reaso
                   <li>{t('duration', { days: plan.durationDays })}</li>
                   <li>{plan.downloadQuota === null ? t('unlimited') : t('quota', { count: plan.downloadQuota })}</li>
                 </ul>
-                <button
-                  type="button"
-                  disabled
-                  aria-describedby="pricing-soon"
-                  className="mt-auto inline-flex min-h-11 items-center justify-center rounded-md bg-secondary px-6 py-2 text-body-md font-semibold text-on-secondary opacity-50"
-                >
-                  {t('choose')}
-                </button>
+                <PlanChooseButton plan={plan} />
               </li>
             ))}
           </ul>

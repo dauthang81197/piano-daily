@@ -74,10 +74,11 @@ model Customer {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  subscriptions Subscription[]
-  refreshTokens CustomerRefreshToken[]
-  tokens        CustomerToken[]
-  downloadLogs  DownloadLog[]
+  subscriptions        Subscription[]
+  subscriptionPayments SubscriptionPayment[]
+  refreshTokens        CustomerRefreshToken[]
+  tokens               CustomerToken[]
+  downloadLogs         DownloadLog[]
 
   @@map("customers")
 }
@@ -138,6 +139,7 @@ model Plan {
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   subscriptions Subscription[]
+  payments      SubscriptionPayment[]
 
   @@index([isActive, sortOrder])
   @@map("plans")
@@ -160,16 +162,60 @@ model Subscription {
   currentPeriodStart    DateTime           @map("current_period_start") @db.Timestamptz(6)
   currentPeriodEnd      DateTime           @map("current_period_end") @db.Timestamptz(6)
   downloadsUsedInPeriod Int                @default(0) @map("downloads_used_in_period")
+  /// Hạn mức tải của kỳ, chụp lúc kích hoạt/cấp (sửa `plans.download_quota` sau đó không ảnh hưởng). null = không giới hạn.
+  downloadQuota         Int?               @map("download_quota")
   provider              String?
   createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  plan     Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+  customer Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  plan     Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments SubscriptionPayment[]
 
   @@index([customerId, status])
   @@index([planId])
   @@map("subscriptions")
+}
+
+/// Phải trùng enum `SubscriptionPaymentStatus` trong packages/shared (có test kiểm tra).
+enum SubscriptionPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+/// Thanh toán gói (S3 PayPal, S4 VietQR). Chỉ module `billing` ghi. `amount` là đơn vị nhỏ nhất của `currency`
+/// (USD cents / VND). `terms` chụp điều khoản gói lúc mua. `provider_ref`: PayPal order id hoặc mã đối soát VietQR.
+model SubscriptionPayment {
+  id              String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Dạng `PS-XXXXXX` (base32); cũng là `custom_id` của đơn PayPal.
+  code            String                    @unique
+  customerId      String                    @map("customer_id") @db.Uuid
+  planId          String                    @map("plan_id") @db.Uuid
+  provider        String
+  status          SubscriptionPaymentStatus @default(PENDING)
+  amount          Int
+  currency        String
+  terms           Json
+  providerRef     String?                   @unique @map("provider_ref")
+  paypalCaptureId String?                   @map("paypal_capture_id")
+  payerEmail      String?                   @map("payer_email")
+  reviewRequired  Boolean                   @default(false) @map("review_required")
+  subscriptionId  String?                   @map("subscription_id") @db.Uuid
+  paidAt          DateTime?                 @map("paid_at") @db.Timestamptz(6)
+  refundedAt      DateTime?                 @map("refunded_at") @db.Timestamptz(6)
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  plan         Plan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@map("subscription_payments")
 }
 
 // ── catalog ──────────────────────────────────────────────────

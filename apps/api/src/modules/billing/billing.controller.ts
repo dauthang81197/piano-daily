@@ -8,6 +8,7 @@ import {
   type PlanBody,
   planBodySchema,
   type PublicPlansResponse,
+  type SubscriptionPayment,
   type SetPlanActiveBody,
   setPlanActiveBodySchema,
 } from '@piano-daily/shared';
@@ -18,6 +19,7 @@ import { Public } from '../identity/public.decorator';
 import { BillingSuperAdminGuard } from './super-admin.guard';
 import { EntitlementService } from './entitlement.service';
 import { PlansService } from './plans.service';
+import { SubscriptionPaymentService } from './subscription-payment.service';
 import { SubscriptionsService } from './subscriptions.service';
 
 /** Gói thuê bao cho admin. Xem: mọi admin đã đăng nhập; ghi: chỉ SUPER_ADMIN. */
@@ -69,6 +71,17 @@ export class AdminSubscriptionsController {
   @HttpCode(HttpStatus.OK)
   grant(@Body({ schema: grantPlanBodySchema }) body: GrantPlanBody): Promise<GrantPlanResponse> {
     return this.subscriptions.grant(body);
+  }
+}
+
+/** Danh sách thanh toán gói (chỉ đọc, mọi admin). Hoàn tiền gói từ admin để sau. */
+@Controller('admin/subscription-payments')
+export class AdminSubscriptionPaymentsController {
+  constructor(private readonly payments: SubscriptionPaymentService) {}
+
+  @Get()
+  list(): Promise<SubscriptionPayment[]> {
+    return this.payments.listForAdmin();
   }
 }
 

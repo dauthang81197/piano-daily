@@ -2,7 +2,7 @@
 title: 'Khoá học piano C1b: khuông nhạc chạy nốt đồng bộ với player (khuông trái, bàn tay/phím phải)'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-review'
+status: 'done'
 baseline_commit: '42303f2'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -92,3 +92,9 @@ context:
 - Kiểm chứng: lint, typecheck, build xanh; web 784 test xanh (có test mới: quantize/layout/active, NotationView, tích hợp MidiPlayer, bundle).
 
 ## Review Triage Log
+
+Ba reviewer, một lỗi nghiêm trọng đã vá, không còn phát hiện chặn.
+
+**Đã vá:** cuộn tới dòng hiện tại sai vị trí (`offsetTop` không tính theo khung cuộn → thêm `relative`); màu khuông baked lúc vẽ (đổi sáng/tối không cập nhật → dùng `currentColor`, đã kiểm bằng ảnh Chrome nền tối); ô nhịp quá dày làm dòng rộng hơn khung (giới hạn bề rộng ô ≤ bề rộng dòng, tối thiểu 160px); resize không gộp khung hình (rAF); một dòng VexFlow lỗi ẩn cả khuông (nay chỉ bỏ dòng lỗi, chỉ ẩn hết khi chưa vẽ được dòng nào); chunk lazy lỗi/ném lỗi khi render có thể làm hỏng player (thêm `NotationBoundary`); `buildNotation` ném lỗi trong render (bọc try/catch → thông báo); bản đồ tempo/nhịp không bắt đầu ở tick 0 bị ngoại suy sai (thêm mục mặc định ở tick 0); nhịp lạ/khổng lồ (255/1, 7/3) gây ô nhịp khổng lồ (bỏ khi phân tích header). Test thêm: header/tick/nhịp lạ ở `note-json`, tempo đổi giữa bài, ô dày, `playheadX`/`vexKey`, boundary lỗi, localStorage lỗi.
+
+**Hoãn (`deferred-work.md`):** gần đúng về nhịp điệu (triplet/swing/nốt ngắn trộn thành hợp âm, thời điểm tô lệch tới nửa móc kép, hợp âm nhiều độ dài), cắt nhóm theo phách, ô nhịp mở đầu không tròn (anacrusis) và đổi nhịp giữa ô, nốt ngoài dải khuông bị cắt, dấu luyến giữa hai dòng, tinh chỉnh dấu hoá, hiệu năng ở 30fps (ref callback, cấp phát mỗi khung), tiếp cận bàn phím (tab vào khung cuộn, tua theo ô nhịp bằng phím), nhấp nháy khi đọc lựa chọn bật/tắt sau hydration, bố cục phím 88 phím khi không có 3D trong cột hẹp, CSP `style-src` với thuộc tính style của VexFlow chưa kiểm với CSP production, test VexFlow thật (hiện mock `renderSystem`).

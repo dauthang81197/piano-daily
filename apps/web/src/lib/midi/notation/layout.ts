@@ -35,9 +35,10 @@ export function packSystems(measures: readonly NotationMeasure[], maxWidth: numb
     used = 0;
   };
   for (const measure of measures) {
-    const width = estimateMeasureWidth(measure, current.length === 0);
+    // Một ô quá dày không được rộng hơn dòng (VexFlow nén khoảng cách): tránh thanh cuộn ngang.
+    const width = Math.min(maxWidth, estimateMeasureWidth(measure, current.length === 0));
     if (current.length > 0 && used + width > maxWidth) flush(true);
-    const own = current.length === 0 ? estimateMeasureWidth(measure, true) : width;
+    const own = current.length === 0 ? Math.min(maxWidth, estimateMeasureWidth(measure, true)) : width;
     current.push({ index: measure.index, width: own });
     used += own;
   }

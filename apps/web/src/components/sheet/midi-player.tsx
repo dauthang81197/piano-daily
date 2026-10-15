@@ -20,6 +20,7 @@ import {
 import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
 import { PianoKeyboard } from './piano-keyboard';
+import { NotationBoundary } from './notation-boundary';
 import { ViewSettingsPanel } from './view-settings-panel';
 
 // Cảnh 3D (kéo theo `three` và model bàn tay) chỉ được nạp khi player đã sẵn sàng sau lần bấm Play đầu tiên.
@@ -413,7 +414,9 @@ export function MidiPlayer({
         {notation && notationPref ? (
           parsed ? (
             <Suspense fallback={null}>
-              <NotationView parsed={parsed} position={position} onSeek={onSeek} title={title} />
+              <NotationBoundary fallback={<p role="status" className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationError')}</p>}>
+                <NotationView parsed={parsed} position={position} onSeek={onSeek} title={title} />
+              </NotationBoundary>
             </Suspense>
           ) : (
             <p className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationHint')}</p>

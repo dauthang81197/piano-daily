@@ -236,3 +236,4 @@
 - Màu khuông lấy theo chủ đề lúc vẽ (đổi chủ đề giữa chừng cần tải lại); dòng nhạc đã vẽ giữ trong bộ nhớ đến khi đổi bề rộng; dấu luyến giữa hai dòng chỉ vẽ phần đầu.
 - Chưa có bàn phím/điều hướng bằng phím cho việc tua theo ô nhịp (thanh tua vẫn dùng được); chưa kiểm thử khuông trên trình duyệt thật trong CI (kiểm tay bằng ảnh chụp Chrome headless).
 
+- (C1b review) Gần đúng nhịp điệu: triplet/swing/nốt ngắn cùng đơn vị 1/16 trộn thành hợp âm, hợp âm nhiều độ dài vẽ theo nốt dài nhất, thời điểm tô lệch tới nửa móc kép; chia độ dài tham lam không theo phách; chưa có anacrusis hay đổi nhịp giữa ô; nốt ngoài dải khuông bị cắt; dấu luyến giữa hai dòng chỉ nửa; hiệu năng khung hình (ref callback/cấp phát); tab vào khung cuộn và tua theo ô nhịp bằng phím; nhấp nháy bật/tắt khuông sau hydration; phím 88 phím trong cột hẹp khi không có 3D; kiểm `style-src` với CSP production; chưa có test dùng VexFlow thật (renderSystem bị mock).

@@ -175,6 +175,17 @@ describe('active / measureAt', () => {
   });
 });
 
+describe('buildNotation: tempo đổi giữa bài', () => {
+  it('giây của sự kiện theo bản đồ tempo (nửa sau chậm gấp đôi)', () => {
+    const h = header({ tempos: [{ ticks: 0, bpm: 120 }, { ticks: 960, bpm: 60 }] });
+    const n = buildNotation({ notes: [note(72, 0, 4), note(72, 12, 4)], header: h })!;
+    const events = n.measures[0]!.treble.filter((e) => e.keys.length);
+    expect(events[0]!.startSec).toBeCloseTo(0);
+    // đơn vị 8 = tick 960 = 1 giây; đơn vị 12 = 1 giây + 4 đơn vị ở 60 BPM (0,25 giây mỗi đơn vị)
+    expect(events[1]!.startSec).toBeCloseTo(2);
+  });
+});
+
 describe('packSystems', () => {
   const n = buildNotation({
     notes: Array.from({ length: 40 }, (_, i) => note(72, i * 4, 4)),
@@ -186,6 +197,11 @@ describe('packSystems', () => {
     expect(systems.flatMap((s) => s.measures)).toEqual(n.measures.map((m) => m.index));
     expect(systems.every((s) => s.measures.length >= 1)).toBe(true);
     expect(systemOfMeasure(systems, n.measures.at(-1)!.index)).toBe(systems.length - 1);
+  });
+  it('ô quá dày không rộng hơn dòng', () => {
+    const dense = buildNotation({ notes: Array.from({ length: 16 }, (_, i) => note(72 + (i % 2), i, 1)), header: header() })!;
+    const systems = packSystems(dense.measures, 300);
+    expect(Math.max(...systems.flatMap((s) => s.widths))).toBeLessThanOrEqual(300);
   });
   it('dòng rất hẹp vẫn xếp mỗi ô một dòng, không lặp vô hạn', () => {
     const systems = packSystems(n.measures, 10);

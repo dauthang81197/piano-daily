@@ -81,12 +81,19 @@ function parseHeader(raw: unknown): NoteHeader | undefined {
   if (!parsed.success) return undefined;
   const { ppq, tempos, timeSignatures } = parsed.data;
   const byTicks = <T extends { ticks: number }>(xs: T[]) => [...xs].sort((a, b) => a.ticks - b.ticks);
+  // Bản đồ luôn bắt đầu từ tick 0 (thiếu thì dùng mặc định) để thời gian trước mục đầu tiên không bị ngoại suy sai.
+  const withStart = <T extends { ticks: number }>(xs: T[], fallback: T): T[] => {
+    const sorted = byTicks(xs);
+    return sorted.length === 0 || sorted[0]!.ticks > 0 ? [fallback, ...sorted] : sorted;
+  };
+  // Chỉ nhận nhịp hợp lý (mẫu số lũy thừa của 2 tới 32, tử số tới 32); lạ thì bỏ để khỏi dựng ô nhịp khổng lồ.
+  const sigs = (timeSignatures ?? [])
+    .map((t) => ({ ticks: t.ticks, numerator: t.timeSignature[0], denominator: t.timeSignature[1] }))
+    .filter((t) => [1, 2, 4, 8, 16, 32].includes(t.denominator) && t.numerator <= 32);
   return {
     ppq,
-    tempos: tempos?.length ? byTicks(tempos) : [{ ticks: 0, bpm: 120 }],
-    timeSignatures: timeSignatures?.length
-      ? byTicks(timeSignatures.map((t) => ({ ticks: t.ticks, numerator: t.timeSignature[0], denominator: t.timeSignature[1] })))
-      : [{ ticks: 0, numerator: 4, denominator: 4 }],
+    tempos: withStart(tempos ?? [], { ticks: 0, bpm: 120 }),
+    timeSignatures: withStart(sigs, { ticks: 0, numerator: 4, denominator: 4 }),
   };
 }
 

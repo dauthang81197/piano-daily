@@ -27,7 +27,13 @@ interface Props {
  */
 export default function NotationView({ parsed, position, onSeek, title }: Props) {
   const t = useTranslations('Player');
-  const notation = useMemo(() => buildNotation(parsed), [parsed]);
+  const notation = useMemo(() => {
+    try {
+      return buildNotation(parsed);
+    } catch {
+      return null;
+    }
+  }, [parsed]);
   const [vex, setVex] = useState<Vex | null>(null);
   const [failed, setFailed] = useState(false);
   const [width, setWidth] = useState(0);
@@ -36,6 +42,7 @@ export default function NotationView({ parsed, position, onSeek, title }: Props)
   const wrappers = useRef<(HTMLDivElement | null)[]>([]);
   const rendered = useRef(new Map<number, RenderedSystem>());
   const lit = useRef<Set<SVGElement>>(new Set());
+  const broken = useRef<Set<number>>(new Set());
   const [renderTick, setRenderTick] = useState(0);
   const lastSystem = useRef(-1);
 
@@ -57,19 +64,28 @@ export default function NotationView({ parsed, position, onSeek, title }: Props)
     const measure = () => setWidth(Math.floor(el.clientWidth));
     measure();
     if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
+    // Gộp các lần đổi kích thước trong cùng một khung hình (kéo cửa sổ, thanh cuộn hiện/ẩn).
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, []);
 
   const systems = useMemo(
-    () => (notation && width > 0 ? packSystems(notation.measures, Math.max(220, width - PADDING * 2)) : []),
+    () => (notation && width > 0 ? packSystems(notation.measures, Math.max(160, width - PADDING * 2)) : []),
     [notation, width],
   );
 
   // Xếp lại dòng: bỏ mọi dòng đã vẽ.
   useEffect(() => {
     rendered.current.clear();
+    broken.current.clear();
     lit.current.clear();
     lastSystem.current = -1;
   }, [systems]);
@@ -79,19 +95,22 @@ export default function NotationView({ parsed, position, onSeek, title }: Props)
   // Vẽ dòng đang xem ± RENDER_AHEAD (khi VexFlow sẵn sàng).
   useEffect(() => {
     if (!vex || !notation || systems.length === 0) return;
-    const color = scroller.current ? getComputedStyle(scroller.current).color : '#222';
-    try {
-      let drew = false;
-      for (let i = Math.max(0, current - RENDER_AHEAD); i <= Math.min(systems.length - 1, current + RENDER_AHEAD); i++) {
-        const holder = holders.current[i];
-        if (!holder || rendered.current.has(i)) continue;
-        rendered.current.set(i, renderSystem(vex, holder, notation, systems[i]!, color));
+    let drew = false;
+    for (let i = Math.max(0, current - RENDER_AHEAD); i <= Math.min(systems.length - 1, current + RENDER_AHEAD); i++) {
+      const holder = holders.current[i];
+      if (!holder || rendered.current.has(i) || broken.current.has(i)) continue;
+      try {
+        // `currentColor`: nốt theo màu chữ của khung nên đổi chủ đề sáng/tối không cần vẽ lại.
+        rendered.current.set(i, renderSystem(vex, holder, notation, systems[i]!, 'currentColor'));
         drew = true;
+      } catch {
+        // Một dòng lỗi thì bỏ riêng dòng đó; chỉ khi chưa vẽ được dòng nào mới ẩn cả khuông.
+        holder.replaceChildren();
+        broken.current.add(i);
+        if (rendered.current.size === 0) setFailed(true);
       }
-      if (drew) setRenderTick((n) => n + 1);
-    } catch {
-      setFailed(true);
     }
+    if (drew) setRenderTick((n) => n + 1);
   }, [vex, notation, systems, current]);
 
   // Tô hợp âm đang vang (đổi thuộc tính trên phần tử đã vẽ, không dựng lại).
@@ -146,7 +165,7 @@ export default function NotationView({ parsed, position, onSeek, title }: Props)
         ref={scroller}
         role="img"
         aria-label={t('notationLabel', { title })}
-        className="notation-scroll max-h-[26rem] overflow-y-auto rounded-md border border-outline-variant bg-surface-container-lowest p-2 text-on-surface"
+        className="notation-scroll relative max-h-[26rem] overflow-y-auto rounded-md border border-outline-variant bg-surface-container-lowest p-2 text-on-surface"
       >
         {!vex ? <p className="p-2 text-caption text-on-surface-variant">{t('notationLoading')}</p> : null}
         <div aria-hidden="true">

@@ -5,12 +5,16 @@ import { resetAudioClaims } from '@/lib/midi/audio-exclusive';
 import type { AudioPort } from '@/lib/midi/player-core';
 import { MidiPlayer, type MidiPlayerDeps } from './midi-player';
 
+let throwInView = false;
 vi.mock('./notation-view', () => ({
-  default: ({ title, position }: { title: string; position: number }) => (
-    <div data-testid="notation" data-position={position}>
-      {title}
-    </div>
-  ),
+  default: ({ title, position }: { title: string; position: number }) => {
+    if (throwInView) throw new Error('chunk/draw failed');
+    return (
+      <div data-testid="notation" data-position={position}>
+        {title}
+      </div>
+    );
+  },
 }));
 
 const note = (midi: number, time: number, duration = 1) => ({ midi, time, duration, velocity: 0.8, name: 'x', ticks: time * 960, durationTicks: duration * 960 });
@@ -32,7 +36,10 @@ describe('MidiPlayer với khuông nhạc (C1b)', () => {
     vi.stubGlobal('AudioContext', class {});
     localStorage.clear();
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    throwInView = false;
+  });
 
   it('không bật `notation`: không nút Staff notation, không khuông (trang sheet không đổi)', async () => {
     render(withIntl(<MidiPlayer noteJsonUrl="u" title="t" deps={deps()} />));
@@ -62,5 +69,23 @@ describe('MidiPlayer với khuông nhạc (C1b)', () => {
     fireEvent.click(screen.getByRole('button', { name: FIRST }));
     await screen.findByRole('button', { name: 'Pause' });
     expect(screen.queryByTestId('notation')).toBeNull();
+  });
+
+  it('khuông ném lỗi (hoặc chunk lazy không tải được): chỉ hiện thông báo, player và nút vẫn chạy', async () => {
+    throwInView = true;
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(withIntl(<MidiPlayer noteJsonUrl="u" title="t" notation deps={deps()} />));
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    expect(await screen.findByText(/Could not build the notation/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('localStorage ném lỗi: mặc định bật khuông, không vỡ', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    render(withIntl(<MidiPlayer noteJsonUrl="u" title="t" notation deps={deps()} />));
+    expect(screen.getByRole('button', { name: 'Staff notation' })).toHaveAttribute('aria-pressed', 'true');
+    vi.restoreAllMocks();
   });
 });

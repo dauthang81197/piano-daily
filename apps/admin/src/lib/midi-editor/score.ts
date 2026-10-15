@@ -113,6 +113,12 @@ export const setBpm = (score: Score, bpm: number): Score => ({
   bpm: Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(Number.isFinite(bpm) ? bpm : 100))),
 });
 
+/** Đổi `before` → `after` có làm mất hoặc cắt ngắn nốt nào không (để hỏi xác nhận). */
+export function losesNotes(before: Score, after: Score): boolean {
+  if (after.notes.length < before.notes.length) return true;
+  return before.notes.some((n, i) => after.notes[i]?.duration !== n.duration);
+}
+
 /** Số ô nhịp nhỏ nhất chứa hết nốt (≥ 1). */
 export function measuresNeeded(notes: readonly EditorNote[], sig: TimeSignature): number {
   const end = Math.max(0, ...notes.map((n) => n.start + n.duration));

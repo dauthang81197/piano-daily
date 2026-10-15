@@ -221,10 +221,72 @@ describe('MusicEditor', () => {
     renderEditor();
     const user = userEvent.setup();
     clickGrid(72, 30);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     await user.selectOptions(screen.getByLabelText('Nhịp'), '3/4');
     await user.clear(screen.getByLabelText('Số ô nhịp'));
     await user.type(screen.getByLabelText('Số ô nhịp'), '2');
     expect(screen.getByText(/2 ô nhịp 3\/4/)).toBeInTheDocument();
     expect(screen.getByText(/0 nốt/)).toBeInTheDocument();
+  });
+
+  it('ô số có bản nháp: xoá hết chữ không cắt nốt; gõ tempo 120 được 120', async () => {
+    await signIn('SUPER_ADMIN');
+    renderEditor();
+    const user = userEvent.setup();
+    clickGrid(72, 40); // ô nhịp 3
+    const measures = screen.getByLabelText('Số ô nhịp');
+    await user.clear(measures);
+    expect(screen.getByText(/1 nốt/)).toBeInTheDocument();
+    await user.type(measures, '6');
+    expect(screen.getByText(/6 ô nhịp/)).toBeInTheDocument();
+    const bpm = screen.getByLabelText('Tempo (BPM)');
+    await user.clear(bpm);
+    await user.type(bpm, '120');
+    expect(bpm).toHaveValue(120);
+  });
+
+  it('đổi nhịp/số ô nhịp sẽ cắt nốt thì hỏi xác nhận; từ chối giữ nguyên', async () => {
+    await signIn('SUPER_ADMIN');
+    renderEditor();
+    const user = userEvent.setup();
+    clickGrid(72, 60); // ô nhịp 4, vị trí 13
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await user.selectOptions(screen.getByLabelText('Nhịp'), '3/4');
+    expect(confirm).toHaveBeenCalled();
+    expect(screen.getByLabelText('Nhịp')).toHaveValue('4/4');
+    expect(screen.getByText(/1 nốt/)).toBeInTheDocument();
+    confirm.mockReturnValue(true);
+    await user.selectOptions(screen.getByLabelText('Nhịp'), '3/4');
+    expect(screen.getByText(/0 nốt/)).toBeInTheDocument();
+  });
+
+  it('bảng nốt: vị trí trong ô được kẹp khi đổi nhịp', async () => {
+    await signIn('SUPER_ADMIN');
+    renderEditor();
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText('Vị trí trong ô'), '15');
+    await user.selectOptions(screen.getByLabelText('Nhịp'), '3/4');
+    expect(screen.getByLabelText('Vị trí trong ô')).toHaveValue('11');
+    await user.click(screen.getByRole('button', { name: 'Thêm nốt' }));
+    const row = within(screen.getByRole('table')).getByText('C4').closest('tr')!;
+    expect(within(row).getAllByRole('cell')[1]).toHaveTextContent('1');
+    expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('12');
+  });
+
+  it('còn thay đổi chưa lưu: bấm liên kết bất kỳ hỏi xác nhận', async () => {
+    await signIn('SUPER_ADMIN');
+    render(
+      <AuthProvider>
+        <a href="#elsewhere">Nơi khác</a>
+        <MusicEditor lessonId={LESSON_ID} lessonTitle="Gam Đô" hasMidi={false} canWrite />
+      </AuthProvider>,
+    );
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await user.click(screen.getByText('Nơi khác'));
+    expect(confirm).not.toHaveBeenCalled();
+    clickGrid(72, 0);
+    await user.click(screen.getByText('Nơi khác'));
+    expect(confirm).toHaveBeenCalledTimes(1);
   });
 });

@@ -12,6 +12,7 @@ import {
   DURATIONS,
   type EditorNote,
   emptyScore,
+  losesNotes,
   MAX_BPM,
   MAX_MEASURES,
   MIN_BPM,
@@ -34,6 +35,47 @@ const field = 'h-8 rounded-lg border border-input bg-transparent px-2 text-sm';
 const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 export const UNSAVED_MESSAGE = 'Bạn có thay đổi chưa lưu. Rời trang sẽ mất các thay đổi này. Tiếp tục?';
 
+/**
+ * Ô số có bản nháp: gõ dở (rỗng, "1" khi định gõ "120") không làm đổi bản nhạc; chỉ ghi nhận khi giá trị nguyên nằm trong dải,
+ * và khi rời ô thì trả về giá trị đang áp dụng.
+ */
+function NumberField({
+  id,
+  value,
+  min,
+  max,
+  disabled,
+  className,
+  onCommit,
+}: {
+  id: string;
+  value: number;
+  min: number;
+  max: number;
+  disabled: boolean;
+  className: string;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      id={id}
+      type="number"
+      min={min}
+      max={max}
+      className={className}
+      disabled={disabled}
+      value={draft ?? String(value)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value.trim() !== '' && Number.isInteger(n) && n >= min && n <= max && n !== value) onCommit(n);
+      }}
+      onBlur={() => setDraft(null)}
+    />
+  );
+}
+
 /** Mô tả những gì bị bỏ/đổi khi nhập MIDI; rỗng nếu nhập nguyên vẹn. */
 export function describeImport(report: ImportReport): string[] {
   const out: string[] = [];
@@ -41,6 +83,7 @@ export function describeImport(report: ImportReport): string[] {
   if (report.outOfRange > 0) out.push(`${report.outOfRange} nốt ngoài dải A0–C8 đã bị bỏ.`);
   if (report.dropped > 0) out.push(`${report.dropped} nốt bị bỏ vì vượt giới hạn (tối đa 5.000 nốt, ${MAX_MEASURES} ô nhịp).`);
   if (report.timeSignatureChanged) out.push('Nhịp của file không có trong danh sách nên đã đặt 4/4.');
+  if (report.tempoChanged) out.push('File có nhiều tempo/nhịp hoặc tempo ngoài 30–240; chỉ giữ giá trị đầu tiên (đã đưa về dải cho phép).');
   return out;
 }
 
@@ -74,6 +117,7 @@ export function MusicEditor({
   const [hasSaved, setHasSaved] = useState(hasMidi);
   const fileInput = useRef<HTMLInputElement>(null);
   const readOnly = !canWrite;
+  const locked = readOnly || busy;
   const durationUnits = DURATIONS.find((d) => d.id === durationId)!.units;
   const pages = Math.max(1, Math.ceil(score.measures / MEASURES_PER_PAGE));
   const safePage = Math.min(page, pages - 1);
@@ -89,12 +133,20 @@ export function MusicEditor({
     return () => window.removeEventListener('beforeunload', handler);
   }, [dirty]);
 
-  // Báo cho liên kết "Về cây khoá học" biết còn thay đổi chưa lưu (liên kết nằm ngoài component này).
+  // Bấm bất kỳ liên kết nội bộ nào (thanh bên, "Về cây khoá học"…) khi còn thay đổi chưa lưu: hỏi xác nhận.
   useEffect(() => {
-    document.body.dataset.musicDirty = dirty ? 'true' : 'false';
-    return () => {
-      delete document.body.dataset.musicDirty;
+    if (!dirty) return;
+    const handler = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest?.('a[href]');
+      if (!anchor || (anchor.getAttribute('target') ?? '_self') !== '_self') return;
+      if (!window.confirm(UNSAVED_MESSAGE)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
   }, [dirty]);
 
   const change = useCallback((next: Score) => {
@@ -117,6 +169,12 @@ export function MusicEditor({
     [score, change],
   );
   const remove = useCallback((note: EditorNote) => change(removeNote(score, note.midi, note.start)), [score, change]);
+
+  /** Đổi nhịp/số ô nhịp có thể cắt nốt: hỏi trước khi áp dụng. */
+  const restructure = (next: Score) => {
+    if (losesNotes(score, next) && !window.confirm('Thay đổi này sẽ xoá hoặc cắt ngắn một số nốt ở cuối bài và không hoàn tác được. Tiếp tục?')) return;
+    change(next);
+  };
 
   const confirmReplace = () => score.notes.length === 0 || window.confirm('Thay toàn bộ nốt đang có bằng nhạc nhập vào?');
 
@@ -219,7 +277,7 @@ export function MusicEditor({
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="me-bpm">Tempo (BPM)</Label>
-          <input id="me-bpm" type="number" min={MIN_BPM} max={MAX_BPM} className={`${field} w-24`} value={score.bpm} disabled={readOnly} onChange={(e) => change(setBpm(score, Number(e.target.value)))} />
+          <NumberField id="me-bpm" min={MIN_BPM} max={MAX_BPM} className={`${field} w-24`} value={score.bpm} disabled={locked} onCommit={(v) => change(setBpm(score, v))} />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="me-sig">Nhịp</Label>
@@ -227,8 +285,8 @@ export function MusicEditor({
             id="me-sig"
             className={field}
             value={sigLabel(score.timeSignature)}
-            disabled={readOnly}
-            onChange={(e) => change(setTimeSignature(score, TIME_SIGNATURES.find((s) => sigLabel(s) === e.target.value)!))}
+            disabled={locked}
+            onChange={(e) => restructure(setTimeSignature(score, TIME_SIGNATURES.find((s) => sigLabel(s) === e.target.value)!))}
           >
             {TIME_SIGNATURES.map((s) => (
               <option key={sigLabel(s)} value={sigLabel(s)}>
@@ -239,11 +297,11 @@ export function MusicEditor({
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="me-measures">Số ô nhịp</Label>
-          <input id="me-measures" type="number" min={1} max={MAX_MEASURES} className={`${field} w-20`} value={score.measures} disabled={readOnly} onChange={(e) => change(setMeasures(score, Number(e.target.value) || 1))} />
+          <NumberField id="me-measures" min={1} max={MAX_MEASURES} className={`${field} w-20`} value={score.measures} disabled={locked} onCommit={(v) => restructure(setMeasures(score, v))} />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="me-duration">Độ dài nốt khi bấm</Label>
-          <select id="me-duration" className={field} value={durationId} disabled={readOnly} onChange={(e) => setDurationId(e.target.value as typeof durationId)}>
+          <select id="me-duration" className={field} value={durationId} disabled={locked} onChange={(e) => setDurationId(e.target.value as typeof durationId)}>
             {DURATIONS.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.label} ({d.units}/16)
@@ -268,9 +326,9 @@ export function MusicEditor({
         </Button>
       </div>
 
-      <PianoRoll score={score} page={safePage} readOnly={readOnly} onAdd={(midi, start) => add(midi, start, durationUnits)} onRemove={remove} />
+      <PianoRoll score={score} page={safePage} readOnly={locked} onAdd={(midi, start) => add(midi, start, durationUnits)} onRemove={remove} />
 
-      <NoteTable score={score} readOnly={readOnly} durationUnits={durationUnits} onAdd={add} onRemove={remove} />
+      <NoteTable score={score} readOnly={locked} durationUnits={durationUnits} onAdd={add} onRemove={remove} />
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-4">
         <Button onClick={() => void save()} disabled={busy || readOnly} title={readOnly ? COURSE_READ_ONLY_REASON : undefined}>

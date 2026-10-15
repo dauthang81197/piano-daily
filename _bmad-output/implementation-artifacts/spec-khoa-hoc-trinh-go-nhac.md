@@ -2,7 +2,7 @@
 title: 'Khoá học piano C1c: trình gõ nốt (piano-roll) trong admin để soạn nhạc cho bài học'
 type: 'feature'
 created: '2026-10-15'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'f00b031'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -68,7 +68,7 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] API: `StorageService.getObject`, `GET /admin/courses/lessons/:id/midi/file` + integration test (nội dung khớp file đã upload, 404 khi không có nhạc/id lạ, EDITOR đọc được, chưa đăng nhập 401)
+- [x] API: `StorageService.getObject`, `GET /admin/courses/lessons/:id/midi/file` + integration test (nội dung khớp file đã upload, 404 khi không có nhạc/id lạ, EDITOR đọc được, chưa đăng nhập 401)
 - [x] `lib/midi-editor/score.ts` + `midi-io.ts` + test (thêm/xoá/thay thế/cắt nốt, vòng lặp `scoreToMidi`→`midiToScore` giữ nốt/tempo/nhịp, nhập làm tròn/bỏ nốt/giới hạn, MIDI hỏng)
 - [x] `music-editor/` (lưới, bảng nốt, trình gõ) + trang + nút ở cây + `coursesApi.midiFile` + test component (gõ/xoá, độ dài, EDITOR chỉ xem, lưu gửi file MIDI hợp lệ, lưu rỗng bị chặn, nhập, cảnh báo thay đổi chưa lưu, lỗi API)
 - [x] `README.md`, `deferred-work.md`
@@ -89,3 +89,16 @@ context:
 - Kiểm chứng: lint, typecheck, build xanh; admin 251 test, API integration 614 xanh.
 
 ## Review Triage Log
+
+Ba reviewer (Blind Hunter, Edge Case Hunter, Verification Gap), không có phát hiện chặn.
+
+**Đã vá:**
+- Ô tempo / số ô nhịp có bản nháp (`NumberField`): gõ dở, xoá trống hay gõ "120" không còn bị kẹp/cắt tức thì; xoá ô số ô nhịp không còn xoá nốt âm thầm.
+- Đổi nhịp hoặc giảm số ô nhịp mà sẽ xoá/cắt nốt thì hỏi xác nhận (`losesNotes`).
+- Bảng nốt: ô nhịp và vị trí trong ô luôn được kẹp theo nhịp/số ô nhịp hiện tại (không còn lệch sang ô nhịp kế).
+- Đang lưu/nhập thì khoá toàn bộ chỗ sửa (tránh mất thay đổi giữa chừng và tắt cảnh báo sai).
+- Cảnh báo rời trang: mọi liên kết nội bộ khi còn thay đổi chưa lưu (không chỉ "Về cây khoá học"); `MusicEditor` có `key` theo bài.
+- Nhập MIDI: nốt cùng cao độ chồng nhau bị cắt tại nốt sau (như `addNote`), nốt bị cắt ở ô cuối tính vào "làm tròn", báo thêm khi file có nhiều tempo/nhịp hoặc tempo ngoài 30–240.
+- Test mới: chồng nốt/nhiều tempo, vượt 5.000 nốt, ô số có nháp, xác nhận khi cắt nốt, kẹp bảng nốt, xác nhận khi bấm liên kết; tick checkbox spec.
+
+**Hoãn (`deferred-work.md`):** nút Back của trình duyệt khi còn thay đổi; số ô nhịp trống ở cuối không lưu trong MIDI; file chỉ có trống báo lỗi chung; `getObject` chưa giới hạn kích thước (đã có trần upload 2MB); lưới hiện A0–C8 thay vì C2–C7 và `role="group"`; test chưa phủ `MusicEditorPage`, phân trang, các độ dài chấm, đường lỗi 404/API của "Mở nhạc hiện tại", EDITOR với nốt có sẵn, `apiFetch` binary, `getObject`/Content-Disposition `attachment`, ca lưu nhạc mới đè lên bài công khai chỉ có nhạc.

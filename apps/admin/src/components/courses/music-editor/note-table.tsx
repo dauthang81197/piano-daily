@@ -45,6 +45,9 @@ export function NoteTable({
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const used = duration ?? durationUnits;
+  // Đổi nhịp/số ô nhịp có thể làm giá trị đã chọn vượt dải: luôn dùng giá trị đã kẹp.
+  const shownMeasure = Math.min(measure, score.measures);
+  const shownOffset = Math.min(offset, len - 1);
   const notes = sortNotes(score.notes);
 
   return (
@@ -57,7 +60,7 @@ export function NoteTable({
           className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            setError(onAdd(midi, unitOf(score, measure, offset), used));
+            setError(onAdd(midi, unitOf(score, shownMeasure, shownOffset), used));
           }}
         >
           <div className="flex flex-col gap-1">
@@ -72,11 +75,11 @@ export function NoteTable({
           </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="nt-measure">Ô nhịp</Label>
-            <input id="nt-measure" type="number" min={1} max={score.measures} className={`${field} w-20`} value={measure} onChange={(e) => setMeasure(Math.min(score.measures, Math.max(1, Number(e.target.value) || 1)))} />
+            <input id="nt-measure" type="number" min={1} max={score.measures} className={`${field} w-20`} value={shownMeasure} onChange={(e) => setMeasure(Math.min(score.measures, Math.max(1, Number(e.target.value) || 1)))} />
           </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="nt-offset">Vị trí trong ô</Label>
-            <select id="nt-offset" className={field} value={offset} onChange={(e) => setOffset(Number(e.target.value))}>
+            <select id="nt-offset" className={field} value={shownOffset} onChange={(e) => setOffset(Number(e.target.value))}>
               {Array.from({ length: len }, (_, i) => (
                 <option key={i} value={i}>
                   {i + 1}/{len}

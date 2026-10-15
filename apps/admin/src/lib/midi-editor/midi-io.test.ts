@@ -33,7 +33,7 @@ describe('scoreToMidi / midiToScore', () => {
     const { score, report } = await midiToScore(await scoreToMidi(original));
     expect(sortNotes(score.notes)).toEqual(sortNotes(original.notes));
     expect(score).toMatchObject({ bpm: 90, timeSignature: { n: 3, d: 4 }, measures: 3 });
-    expect(report).toEqual({ rounded: 0, outOfRange: 0, dropped: 0, timeSignatureChanged: false });
+    expect(report).toEqual({ rounded: 0, outOfRange: 0, dropped: 0, timeSignatureChanged: false, tempoChanged: false });
   });
 
   it('nhập làm tròn về lưới 1/16 và báo số nốt làm tròn; nhịp lạ đặt 4/4', async () => {
@@ -66,6 +66,32 @@ describe('scoreToMidi / midiToScore', () => {
     expect(score.notes.map((n) => n.midi).sort()).toEqual([60, 67]);
     expect(score.measures).toBe(64);
     expect(report.dropped).toBe(1);
+  });
+
+  it('nốt cùng cao độ chồng nhau bị cắt tại nốt sau và được báo; nhiều tempo/nhịp được báo', async () => {
+    const midi = new Midi();
+    midi.header.setTempo(120);
+    midi.header.tempos.push({ ticks: 480 * 4, bpm: 90 });
+    const t = midi.addTrack();
+    t.addNote({ midi: 60, ticks: 0, durationTicks: 480 * 2 });
+    t.addNote({ midi: 60, ticks: 480, durationTicks: 480 });
+    const { score, report } = await midiToScore(midi.toArray());
+    const sorted = [...score.notes].sort((a, b) => a.start - b.start);
+    expect(sorted).toEqual([
+      { midi: 60, start: 0, duration: 4 },
+      { midi: 60, start: 4, duration: 4 },
+    ]);
+    expect(report.rounded).toBe(1);
+    expect(report.tempoChanged).toBe(true);
+  });
+
+  it('vượt 5.000 nốt: cắt và tính vào dropped', async () => {
+    const midi = new Midi();
+    const t = midi.addTrack();
+    for (let i = 0; i < 5100; i += 1) t.addNote({ midi: 21 + (i % 80), ticks: Math.floor(i / 80) * 480, durationTicks: 120 });
+    const { score, report } = await midiToScore(midi.toArray());
+    expect(score.notes).toHaveLength(5000);
+    expect(report.dropped).toBe(100);
   });
 
   it('file hỏng hoặc không có nốt: MidiImportError', async () => {

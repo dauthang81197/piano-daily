@@ -8,7 +8,7 @@ import { FormError } from '@/components/form-error';
 import { loadErrorMessage } from '@/components/taxonomy/server-error';
 import { coursesApi } from '@/lib/api/courses';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { MusicEditor, UNSAVED_MESSAGE } from './music-editor';
+import { MusicEditor } from './music-editor';
 
 /** Trang soạn nhạc của một bài: tải cây nhánh để lấy bài, rồi hiện trình gõ nốt. */
 export function MusicEditorPage({ trackId, lessonId }: { trackId: string; lessonId: string }) {
@@ -38,10 +38,6 @@ export function MusicEditorPage({ trackId, lessonId }: { trackId: string; lesson
         <Link
           href={`/courses/${encodeURIComponent(trackId)}`}
           className="inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
-          onClick={(event) => {
-            // Rời trang bằng liên kết khi còn thay đổi chưa lưu: hỏi xác nhận (đóng tab đã có `beforeunload`).
-            if (document.body.dataset.musicDirty === 'true' && !window.confirm(UNSAVED_MESSAGE)) event.preventDefault();
-          }}
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           Về cây khoá học
@@ -51,7 +47,7 @@ export function MusicEditorPage({ trackId, lessonId }: { trackId: string; lesson
       <FormError>{error}</FormError>
       {!error && !lesson && <p className="text-body-md text-muted-foreground">Đang tải…</p>}
       {lesson && (
-        <MusicEditor lessonId={lesson.id} lessonTitle={lesson.title} hasMidi={lesson.midi !== null} canWrite={canWrite} onSaved={() => setLesson({ ...lesson, midi: lesson.midi ?? { noteJsonUrl: '', durationSeconds: 0, noteCount: 0, originalName: null } })} />
+        <MusicEditor key={lesson.id} lessonId={lesson.id} lessonTitle={lesson.title} hasMidi={lesson.midi !== null} canWrite={canWrite} onSaved={() => setLesson({ ...lesson, midi: lesson.midi ?? { noteJsonUrl: '', durationSeconds: 0, noteCount: 0, originalName: null } })} />
       )}
     </section>
   );

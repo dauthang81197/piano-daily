@@ -28,6 +28,8 @@ export interface ImportReport {
   dropped: number;
   /** Nhịp của file không có trong danh sách nên đặt 4/4. */
   timeSignatureChanged: boolean;
+  /** File có nhiều tempo/nhịp, hoặc tempo ngoài 30–240: chỉ giữ giá trị đầu (đã kẹp vào dải). */
+  tempoChanged: boolean;
 }
 
 export class MidiImportError extends Error {
@@ -69,13 +71,15 @@ export async function midiToScore(bytes: ArrayBuffer | Uint8Array): Promise<{ sc
   }
   const ppq = midi.header.ppq || PPQ;
   const unit = ppq / 4;
-  const report: ImportReport = { rounded: 0, outOfRange: 0, dropped: 0, timeSignatureChanged: false };
+  const report: ImportReport = { rounded: 0, outOfRange: 0, dropped: 0, timeSignatureChanged: false, tempoChanged: false };
 
   const sig0 = midi.header.timeSignatures[0]?.timeSignature;
   const match = sig0 ? TIME_SIGNATURES.find((s) => s.n === sig0[0] && s.d === sig0[1]) : DEFAULT_TIME_SIGNATURE;
   const timeSignature = match ?? DEFAULT_TIME_SIGNATURE;
   report.timeSignatureChanged = !match;
-  const bpm = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(midi.header.tempos[0]?.bpm ?? 100)));
+  const rawBpm = midi.header.tempos[0]?.bpm ?? 100;
+  const bpm = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(rawBpm)));
+  report.tempoChanged = midi.header.tempos.length > 1 || midi.header.timeSignatures.length > 1 || rawBpm < MIN_BPM || rawBpm > MAX_BPM;
 
   const byKey = new Map<string, EditorNote>();
   for (const track of midi.tracks) {
@@ -101,6 +105,18 @@ export async function midiToScore(bytes: ArrayBuffer | Uint8Array): Promise<{ sc
   const measures = Math.min(MAX_MEASURES, needed);
   const total = len * measures;
   let notes = all.filter((n) => n.start < total).map((n) => ({ ...n, duration: Math.min(n.duration, total - n.start) }));
+  report.rounded += notes.filter((n, i) => n.duration !== all[i]!.duration).length;
+  // Cùng cao độ chồng nhau: cắt nốt trước tại điểm bắt đầu nốt sau (như `addNote`), tính là đã sửa.
+  const nextStart = new Map<number, number>();
+  for (let i = notes.length - 1; i >= 0; i -= 1) {
+    const n = notes[i]!;
+    const next = nextStart.get(n.midi);
+    if (next !== undefined && n.start + n.duration > next) {
+      notes[i] = { ...n, duration: next - n.start };
+      report.rounded += 1;
+    }
+    nextStart.set(n.midi, n.start);
+  }
   if (notes.length > MAX_NOTES) notes = notes.slice(0, MAX_NOTES);
   report.dropped = all.length - notes.length;
 

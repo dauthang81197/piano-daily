@@ -190,7 +190,14 @@
     "viewReset": "Reset to default",
     "unsupported": "Your browser does not support Web Audio, so this piece cannot be played here. Try a newer browser.",
     "errorLoad": "The note data could not be loaded. Check your connection and press the button again to retry.",
-    "errorEmpty": "This piece has no notes to play."
+    "errorEmpty": "This piece has no notes to play.",
+    "notationToggle": "Staff notation",
+    "notationLabel": "Staff notation for {title}",
+    "notationHint": "The staff notation appears when you press play. Click a measure to jump to it.",
+    "notationLoading": "Building the notation…",
+    "notationError": "Could not build the notation for this piece. You can still listen and watch the keys.",
+    "notationTruncated": "The notation shows only the first {count} measures; the piece still plays in full.",
+    "notationNote": "The notation is an approximate rendering for learning (rounded to sixteenth notes, no triplets)."
   },
   "Preview": {
     "title": "Preview: {title}",

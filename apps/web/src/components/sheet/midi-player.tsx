@@ -20,10 +20,13 @@ import {
 import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
 import { PianoKeyboard } from './piano-keyboard';
+import { NotationBoundary } from './notation-boundary';
 import { ViewSettingsPanel } from './view-settings-panel';
 
 // Cảnh 3D (kéo theo `three` và model bàn tay) chỉ được nạp khi player đã sẵn sàng sau lần bấm Play đầu tiên.
 const PianoView = lazy(() => import('./piano-view'));
+// Khuông nhạc (VexFlow) cũng chỉ nạp sau lần bấm Play đầu tiên của player có bật `notation`.
+const NotationView = lazy(() => import('./notation-view'));
 
 export interface MidiPlayerDeps {
   /**
@@ -59,6 +62,7 @@ type Phase = 'idle' | 'loading' | 'ready' | 'error';
 const PLAYER_WIDTH = 'relative left-1/2 flex w-[77vw] -translate-x-1/2 flex-col gap-3';
 
 const HANDS_PREF_KEY = 'piano-daily:show-hands';
+const NOTATION_PREF_KEY = 'piano-daily:show-notation';
 
 /** Bàn tay bật mặc định; chỉ khi người dùng từng tắt thì mới tắt. Bộ nhớ trình duyệt có thể bị chặn nên bọc try/catch. */
 function readHandsPref(): boolean {
@@ -66,6 +70,23 @@ function readHandsPref(): boolean {
     return localStorage.getItem(HANDS_PREF_KEY) !== 'off';
   } catch {
     return true;
+  }
+}
+
+/** Khuông nhạc bật mặc định; chỉ khi người dùng từng tắt thì mới tắt. */
+function readNotationPref(): boolean {
+  try {
+    return localStorage.getItem(NOTATION_PREF_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function writeNotationPref(on: boolean) {
+  try {
+    localStorage.setItem(NOTATION_PREF_KEY, on ? 'on' : 'off');
+  } catch {
+    // Không lưu được thì thôi: lần sau vẫn bật mặc định.
   }
 }
 
@@ -88,10 +109,13 @@ const control =
 export function MidiPlayer({
   noteJsonUrl,
   title,
+  notation = false,
   deps = defaultDeps,
 }: {
   noteJsonUrl: string;
   title: string;
+  /** Hiện khuông nhạc bên trái, cảnh bàn tay/phím bên phải (trang bài học). Mặc định tắt: trang sheet không đổi. */
+  notation?: boolean;
   deps?: MidiPlayerDeps;
 }) {
   const t = useTranslations('Player');
@@ -110,6 +134,7 @@ export function MidiPlayer({
   /** Góc nhìn và màu của cảnh 3D: mặc định, rồi đọc từ trình duyệt sau khi mount (tránh lệch hydration). */
   const [viewSettings, setViewSettings] = useState<ViewSettings>({ ...DEFAULT_VIEW_SETTINGS });
   const [viewOpen, setViewOpen] = useState(false);
+  const [notationPref, setNotationPref] = useState(true);
   const use3d = view3dAvailable && phase === 'ready' && parsed !== null;
   const handsOn = use3d && handsPref;
   const mounted = useRef(true);
@@ -125,6 +150,7 @@ export function MidiPlayer({
     setSupported(hasWebAudio());
     setView3dAvailable(canShowHands());
     setHandsPref(readHandsPref());
+    setNotationPref(readNotationPref());
     setViewSettings(readViewSettings());
     return () => {
       mounted.current = false;
@@ -263,6 +289,11 @@ export function MidiPlayer({
     setHandsPref(next);
     writeHandsPref(next);
   };
+  const onToggleNotation = () => {
+    const next = !notationPref;
+    setNotationPref(next);
+    writeNotationPref(next);
+  };
   const onViewChange = (next: ViewSettings) => {
     const clean = sanitizeViewSettings(next);
     setViewSettings(clean);
@@ -332,6 +363,12 @@ export function MidiPlayer({
           </button>
         ) : null}
 
+        {notation ? (
+          <button type="button" onClick={onToggleNotation} aria-pressed={notationPref} className={control}>
+            {t('notationToggle')}
+          </button>
+        ) : null}
+
         {use3d ? (
           <button
             type="button"
@@ -373,23 +410,36 @@ export function MidiPlayer({
         </span>
       </div>
 
-      {use3d && parsed ? (
-        <Suspense fallback={null}>
-          <PianoView
-            notes={parsed.notes}
-            layout={layout}
-            playing={playing}
-            position={position}
-            getTime={getTime}
-            showHands={handsPref}
-            label={t('keyboardLabel', { title })}
-            onUnavailable={onViewUnavailable}
-            view={viewSettings}
-          />
-        </Suspense>
-      ) : (
-        <PianoKeyboard layout={layout} active={activeMidi} falling={view.falling} label={t('keyboardLabel', { title })} />
-      )}
+      <div className={notation && notationPref ? 'grid gap-4 lg:grid-cols-2' : 'contents'}>
+        {notation && notationPref ? (
+          parsed ? (
+            <Suspense fallback={null}>
+              <NotationBoundary fallback={<p role="status" className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationError')}</p>}>
+                <NotationView parsed={parsed} position={position} onSeek={onSeek} title={title} />
+              </NotationBoundary>
+            </Suspense>
+          ) : (
+            <p className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationHint')}</p>
+          )
+        ) : null}
+        {use3d && parsed ? (
+          <Suspense fallback={null}>
+            <PianoView
+              notes={parsed.notes}
+              layout={layout}
+              playing={playing}
+              position={position}
+              getTime={getTime}
+              showHands={handsPref}
+              label={t('keyboardLabel', { title })}
+              onUnavailable={onViewUnavailable}
+              view={viewSettings}
+            />
+          </Suspense>
+        ) : (
+          <PianoKeyboard layout={layout} active={activeMidi} falling={view.falling} label={t('keyboardLabel', { title })} />
+        )}
+      </div>
 
       <p className="text-body-md text-on-surface" aria-live="off">
         <span className="text-on-surface-variant">{t('nowPlaying')}</span>{' '}

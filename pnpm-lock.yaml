@@ -441,6 +441,9 @@ importers:
       tone:
         specifier: 15.1.22
         version: 15.1.22
+      vexflow:
+        specifier: 5.0.0
+        version: 5.0.0
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -5525,6 +5528,9 @@ packages:
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
+
+  vexflow@5.0.0:
+    resolution: {integrity: sha512-rjB7TV4ygKE5Fl3W5OlG+0dHv22CFufUJdMG6oNgvcn0zp34u+sOboZsadQXnF1O3tZ3myXThaUIaLkJlpNM2Q==}
 
   vfile-message@4.0.3:
     resolution: {integrity: sha512-QTHzsGd1EhbZs4AsQ20JX1rC3cOlt/IWJruk893DfLRr57lcnOeMaWG4K0JrRta4mIJZKth2Au3mM3u03/JWKw==}
@@ -10827,6 +10833,8 @@ snapshots:
   validate-npm-package-name@7.0.2: {}
 
   vary@1.1.2: {}
+
+  vexflow@5.0.0: {}
 
   vfile-message@4.0.3:
     dependencies:

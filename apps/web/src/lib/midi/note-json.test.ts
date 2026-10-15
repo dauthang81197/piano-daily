@@ -91,3 +91,50 @@ describe('parseNoteJson', () => {
     expect(long.duration).toBe(MAX_SECONDS);
   });
 });
+
+describe('parseNoteJson: header và tick (khuông nhạc)', () => {
+  const note = { midi: 60, time: 0, duration: 1, velocity: 0.5, ticks: 0, durationTicks: 480 };
+  const base = { tracks: [{ instrument: {}, notes: [note] }] };
+
+  it('JSON cũ không có header: không có `header`, nốt vẫn phát', () => {
+    const parsed = parseNoteJson(base);
+    expect(parsed.header).toBeUndefined();
+    expect(parsed.notes).toHaveLength(1);
+  });
+
+  it('đọc ppq, tempo và nhịp; chuyển timeSignature [n, d]; giữ tick của nốt', () => {
+    const parsed = parseNoteJson({
+      ...base,
+      header: { ppq: 480, tempos: [{ ticks: 0, bpm: 90 }], timeSignatures: [{ ticks: 0, timeSignature: [3, 4] }] },
+    });
+    expect(parsed.header).toEqual({
+      ppq: 480,
+      tempos: [{ ticks: 0, bpm: 90 }],
+      timeSignatures: [{ ticks: 0, numerator: 3, denominator: 4 }],
+    });
+    expect(parsed.notes[0]).toMatchObject({ ticks: 0, durationTicks: 480 });
+  });
+
+  it('thiếu tempo/nhịp: mặc định 120 BPM và 4/4 từ tick 0; mục đầu không ở tick 0 thì thêm mặc định phía trước', () => {
+    expect(parseNoteJson({ ...base, header: { ppq: 480 } }).header).toMatchObject({
+      tempos: [{ ticks: 0, bpm: 120 }],
+      timeSignatures: [{ ticks: 0, numerator: 4, denominator: 4 }],
+    });
+    const late = parseNoteJson({ ...base, header: { ppq: 480, tempos: [{ ticks: 960, bpm: 60 }] } }).header!;
+    expect(late.tempos).toEqual([{ ticks: 0, bpm: 120 }, { ticks: 960, bpm: 60 }]);
+  });
+
+  it('nhịp lạ (mẫu số không phải lũy thừa 2, tử số quá lớn) bị bỏ; header sai dạng bị bỏ mà vẫn phát', () => {
+    const odd = parseNoteJson({ ...base, header: { ppq: 480, timeSignatures: [{ ticks: 0, timeSignature: [255, 1] }, { ticks: 0, timeSignature: [7, 3] }] } });
+    expect(odd.header!.timeSignatures).toEqual([{ ticks: 0, numerator: 4, denominator: 4 }]);
+    const bad = parseNoteJson({ ...base, header: { ppq: -1 } });
+    expect(bad.header).toBeUndefined();
+    expect(bad.notes).toHaveLength(1);
+  });
+
+  it('nốt có ticks nhưng thiếu durationTicks thì không giữ tick nào', () => {
+    const parsed = parseNoteJson({ tracks: [{ instrument: {}, notes: [{ midi: 60, time: 0, duration: 1, ticks: 0 }] }] });
+    expect(parsed.notes[0]!.ticks).toBeUndefined();
+    expect(parsed.notes[0]!.durationTicks).toBeUndefined();
+  });
+});

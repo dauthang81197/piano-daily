@@ -10,7 +10,7 @@ const nav =
   'inline-flex min-h-11 items-center rounded-md border border-outline-variant px-4 py-2 text-body-md font-semibold text-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /**
- * Trang bài học: nhạc (nếu có) nhúng nguyên `MidiPlayer` của trang sheet (phím, bàn tay mô phỏng, nốt rơi; Tone.js và
+ * Trang bài học: nhạc (nếu có) nhúng `MidiPlayer` của trang sheet có bật khuông nhạc (khuông trái; phím, bàn tay mô phỏng, nốt rơi bên phải; Tone.js và
  * note-JSON chỉ tải khi bấm phát), rồi video, rồi nội dung. Phần vắng thì không có khối.
  */
 export function LessonView({ lesson }: { lesson: PublicLesson }) {
@@ -41,7 +41,7 @@ export function LessonView({ lesson }: { lesson: PublicLesson }) {
             {t('playerTitle')}
           </h2>
           {/* `key` theo URL: sang bài khác phải dựng player mới, không giữ lõi/âm thanh của bài trước. */}
-          <MidiPlayer key={lesson.midi.noteJsonUrl} noteJsonUrl={lesson.midi.noteJsonUrl} title={lesson.title} />
+          <MidiPlayer key={lesson.midi.noteJsonUrl} noteJsonUrl={lesson.midi.noteJsonUrl} title={lesson.title} notation />
         </section>
       ) : null}
 

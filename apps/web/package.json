@@ -25,6 +25,7 @@
     "server-only": "0.0.1",
     "three": "0.170.0",
     "tone": "15.1.22",
+    "vexflow": "5.0.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

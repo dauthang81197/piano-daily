@@ -49,6 +49,7 @@ function Row({
   onAction,
   onEdit,
   extra,
+  musicHref,
 }: {
   label: string;
   kind: CourseKind;
@@ -61,6 +62,8 @@ function Row({
   onAction: (action: () => Promise<unknown>) => void;
   onEdit: () => void;
   extra?: React.ReactNode;
+  /** Chỉ bài học: liên kết tới trang soạn nhạc. */
+  musicHref?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -79,6 +82,11 @@ function Row({
             <ArrowDown aria-hidden="true" />
           </Button>
         </>
+      )}
+      {musicHref && (
+        <Link href={musicHref} aria-label={`Soạn nhạc ${label}`} className="inline-flex h-7 items-center rounded-lg border border-input px-2.5 text-[0.8rem] font-medium hover:bg-muted">
+          Soạn nhạc
+        </Link>
       )}
       <Button size="sm" variant="outline" aria-label={`${canWrite ? 'Sửa' : 'Xem'} ${label}`} onClick={onEdit}>
         {canWrite ? 'Sửa' : 'Xem'}
@@ -176,6 +184,7 @@ export function CourseTreeEditor({ trackId }: { trackId: string }) {
                     busy={busy}
                     onAction={(a) => void run(a)}
                     onEdit={() => setDialog({ open: true, kind: 'lessons', item: lesson, sectionId: section.id })}
+                    musicHref={`/courses/${encodeURIComponent(track.id)}/lessons/${encodeURIComponent(lesson.id)}/music`}
                     extra={
                       <>
                         <EnBadge has={Boolean(lesson.titleEn)} />

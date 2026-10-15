@@ -8,6 +8,8 @@ import {
 } from '@piano-daily/shared';
 import { AppException } from '../../common/http-exception.filter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { notFound } from '../catalog/catalog.helpers';
+import { StorageService } from '../media/storage.service';
 import { MidiProcessingError, type MediaUpload, SheetMediaService, StorageWriteError } from '../media/sheet-media.service';
 import { CoursesService } from './courses.service';
 import { assertLessonHasPart } from './course-helpers';
@@ -26,7 +28,17 @@ export class LessonMidiService {
     private readonly prisma: PrismaService,
     private readonly media: SheetMediaService,
     private readonly courses: CoursesService,
+    private readonly storage: StorageService,
   ) {}
+
+  /** File `.mid` gốc của bài (để trình gõ nốt của admin mở lại); bài lạ hoặc chưa có nhạc → 404. */
+  async readOriginal(lessonId: string): Promise<{ buffer: Buffer; name: string }> {
+    const row = await this.prisma.courseLesson.findUnique({ where: { id: lessonId }, select: { midiStorageKey: true } });
+    if (!row?.midiStorageKey) throw notFound('Bài học chưa có nhạc.');
+    const buffer = await this.storage.getObject(row.midiStorageKey);
+    if (!buffer) throw notFound('Bài học chưa có nhạc.');
+    return { buffer, name: `bai-${lessonId}.mid` };
+  }
 
   async attach(lessonId: string, upload: MediaUpload): Promise<AdminLesson> {
     const exists = await this.prisma.courseLesson.findUnique({ where: { id: lessonId }, select: { id: true } });

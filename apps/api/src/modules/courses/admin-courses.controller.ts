@@ -6,6 +6,7 @@ import {
   Delete,
   type ExecutionContext,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Injectable,
@@ -14,6 +15,7 @@ import {
   Patch,
   PayloadTooLargeException,
   Post,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -115,6 +117,14 @@ export class AdminCoursesController {
       ]);
     }
     return this.lessonMidi.attach(id, { buffer: file.buffer, originalName: file.originalname });
+  }
+
+  /** File `.mid` gốc của bài cho trình gõ nốt (mọi admin xem được; không có URL private nên đi qua API). */
+  @Header('Cache-Control', 'no-store')
+  @Get('lessons/:id/midi/file')
+  async midiFile(@Param('id', UuidParamPipe) id: string): Promise<StreamableFile> {
+    const { buffer, name } = await this.lessonMidi.readOriginal(id);
+    return new StreamableFile(buffer, { type: 'application/octet-stream', disposition: `attachment; filename="${name}"`, length: buffer.length });
   }
 
   @Delete('lessons/:id/midi')

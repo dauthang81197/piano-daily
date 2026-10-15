@@ -7,12 +7,14 @@ export type ApiFetchInit = Omit<RequestInit, 'body'> & {
   /** Body JSON (tự `JSON.stringify` và đặt `Content-Type`). */
   json?: unknown;
   body?: RequestInit['body'];
+  /** Trả `ArrayBuffer` thay vì parse JSON (tải file nhị phân như MIDI). */
+  binary?: boolean;
 };
 
 const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
 
 function buildInit(path: string, init: ApiFetchInit, token: string | null): RequestInit {
-  const { json, headers: rawHeaders, ...rest } = init;
+  const { json, binary: _binary, headers: rawHeaders, ...rest } = init;
   const headers = new Headers(rawHeaders);
   if (token) headers.set('Authorization', `Bearer ${token}`);
   let body = rest.body;
@@ -56,5 +58,6 @@ export async function apiFetch<T = unknown>(path: string, init: ApiFetchInit = {
   }
 
   if (!res.ok) throw await toApiError(res);
+  if (init.binary) return (await res.arrayBuffer()) as T;
   return parseBody<T>(res);
 }

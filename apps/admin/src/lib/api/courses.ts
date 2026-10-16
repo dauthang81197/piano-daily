@@ -1,4 +1,4 @@
-import type { AdminCourseTree, AdminLesson, AdminLevel, AdminSection, AdminTrack, CourseKind } from '@piano-daily/shared';
+import type { AdminCourseTree, AdminLesson, AdminLevel, AdminSection, AdminSubmission, AdminTrack, CourseKind, MySubmission } from '@piano-daily/shared';
 import { apiFetch } from './client';
 import { type UploadProgress, uploadMultipart } from './upload';
 
@@ -32,4 +32,11 @@ export const coursesApi = {
   /** `GET /admin/courses/lessons/:id/midi/file` — file `.mid` gốc của bài (cho trình gõ nốt); 404 nếu bài chưa có nhạc. */
   midiFile: (lessonId: string) => apiFetch<ArrayBuffer>(`${PATH}/lessons/${encodeURIComponent(lessonId)}/midi/file`, { binary: true }),
   removeMidi: (lessonId: string) => apiFetch<AdminLesson>(`${PATH}/lessons/${encodeURIComponent(lessonId)}/midi`, { method: 'DELETE' }),
+  /** C3: bài nộp của khách cho một bài (mới nhất trước). Mọi admin xem được. */
+  submissions: (lessonId: string, signal?: AbortSignal) =>
+    apiFetch<AdminSubmission[]>(`${PATH}/lessons/${encodeURIComponent(lessonId)}/submissions`, { signal }),
+  /** Ẩn/hiện bài nộp (chỉ SUPER_ADMIN). */
+  setSubmissionHidden: (id: string, hidden: boolean) =>
+    apiFetch<MySubmission>(`${PATH}/submissions/${encodeURIComponent(id)}`, { method: 'PATCH', json: { hidden } }),
+  removeSubmission: (id: string) => apiFetch<void>(`${PATH}/submissions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

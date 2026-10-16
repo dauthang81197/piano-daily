@@ -250,3 +250,12 @@
 - Chỉ đánh dấu tay (chưa tự đánh dấu khi xem hết video/nghe hết nhạc); chưa chứng chỉ, huy hiệu, chuỗi ngày học, thống kê cho admin; chưa đồng bộ tiến độ giữa nhiều tab ngay lập tức (tải lại khi mở trang); chưa lưu tiến độ cho khách chưa đăng nhập.
 - Tiến độ tải sau khi trang hiện (thẻ nhảy từ 0% lên giá trị thật khi phiên khôi phục xong); chưa có skeleton.
 - (C2 review) Thẻ nhánh nhấp nháy 0% → giá trị thật khi phiên khôi phục; chưa tự thử lại khi tải tiến độ lỗi; cây cache cũ có thể trỏ tới bài vừa ẩn (404 tạm); "Tiếp tục học" luôn tới bài chưa học đầu tiên (không theo bài học gần nhất); `GET progress` chưa phân trang; số nhiều tiếng Anh "1/1 lessons"; chưa test throttle 429 và HTML SSR.
+
+## Khoá học C3: nộp bài (feature/khoa-hoc-nop-bai)
+
+- Mỗi bài chỉ một bài nộp mỗi khách (sửa là ghi đè, không giữ lịch sử); chưa nhiều lần nộp, chấm điểm/nhận xét của giáo viên, thông báo email khi có bài nộp, hiển thị bài nộp công khai hay bình luận (C4).
+- Không kiểm tra link có thật hay có công khai (Drive riêng tư vẫn nộp được; chỉ có gợi ý chia sẻ); không nhúng/xem trước video; danh sách admin tối đa 200 bài mới nhất, chưa phân trang hay lọc theo khách.
+- Admin chưa có trang tổng hợp bài nộp mọi bài (chỉ theo từng bài); ẩn bài nộp chưa gửi thông báo cho khách.
+- Chưa kiểm thử khối nộp bài và trang admin trên trình duyệt thật (kiểm bằng test jsdom).
+- (C3 review) `/open?id=` và `/uc?id=` nhận cả id thư mục/Docs (không phân biệt được khi chỉ kiểm tra chuỗi); trần 200 dòng admin chưa test, chưa phân trang/báo bị cắt; throttle ghi theo IP nên người dùng chung NAT dùng chung 10/phút; chưa audit/thông báo khi admin ẩn-xoá và `updated_at` đổi khi admin ẩn; chưa có nút thử lại khi tải bài nộp lỗi; PATCH admin trả `MySubmission` không kèm khách.
+

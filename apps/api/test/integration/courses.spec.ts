@@ -4,9 +4,11 @@ import { JwtService } from '@nestjs/jwt';
 import {
   adminCourseTreeSchema,
   adminLessonSchema,
+  adminSubmissionSchema,
   adminTrackSchema,
   courseProgressSchema,
   errorResponseSchema,
+  lessonSubmissionSchema,
   loginResponseSchema,
   publicLessonSchema,
   publicTrackCardSchema,
@@ -617,6 +619,154 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       expect(await prisma.courseLessonProgress.count()).toBe(1);
       await prisma.customer.delete({ where: { id: bob.id } });
       expect(await prisma.courseLessonProgress.count()).toBe(0);
+    });
+  });
+
+  describe('bài nộp của khách (C3)', () => {
+    let alice: { id: string; token: string };
+    let bob: { id: string; token: string };
+    const DRIVE = 'https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp';
+    const DRIVE_CANON = 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view';
+    const cust = async (email: string) => {
+      const c = await prisma.customer.create({ data: { email, passwordHash: 'x', name: email, emailVerifiedAt: new Date() } });
+      return { id: c.id, token: await app.get(JwtService).signAsync({ sub: c.id, typ: 'customer' }) };
+    };
+    const ip = () => `198.51.100.${(ipSeq += 1) + 100}`;
+    const path = (lessonId: string) => `/customer/courses/lessons/${lessonId}/submission`;
+    const getSub = (token: string | null, lessonId: string) => as(token, api().get(path(lessonId)).set('CF-Connecting-IP', ip()));
+    const putSub = (token: string | null, lessonId: string, body: unknown, address = ip()) =>
+      as(token, api().put(path(lessonId)).set('CF-Connecting-IP', address).send(body as object));
+    const delSub = (token: string | null, lessonId: string) => as(token, api().delete(path(lessonId)).set('CF-Connecting-IP', ip()));
+    const firstPath = (body: unknown) => (errorResponseSchema.parse(body).error.details as { path: string }[])[0]?.path;
+    const adminList = (lessonId: string, token: string | null = superToken) => as(token, api().get(`/admin/courses/lessons/${lessonId}/submissions`));
+
+    beforeEach(async () => {
+      await prisma.$executeRawUnsafe('TRUNCATE TABLE customers CASCADE');
+      alice = await cust('alice@example.com');
+      bob = await cust('bob@example.com');
+    });
+    afterAll(async () => {
+      await prisma?.$executeRawUnsafe('TRUNCATE TABLE customers CASCADE');
+    });
+
+    it('chưa đăng nhập / token admin -> 401; chưa nộp -> submission null, no-store', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      await getSub(null, id).expect(401);
+      await getSub(superToken, id).expect(401);
+      await putSub(null, id, { url: YT }).expect(401);
+      await delSub(null, id).expect(401);
+      const res = await getSub(alice.token, id).expect(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(lessonSubmissionSchema.parse(res.body)).toEqual({ submission: null });
+    });
+
+    it('nộp mới (YouTube), nộp lại sang Drive thay link, giữ một dòng và giữ cờ ẩn', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const first = lessonSubmissionSchema.parse((await putSub(alice.token, id, { url: 'youtu.be/dQw4w9WgXcQ', note: '  Lần 1  ' }).expect(200)).body);
+      expect(first.submission).toMatchObject({ kind: 'YOUTUBE', url: YT, note: 'Lần 1', isHidden: false });
+      await sup(api().patch(`/admin/courses/submissions/${first.submission!.id}`).send({ hidden: true })).expect(200);
+      const second = lessonSubmissionSchema.parse((await putSub(alice.token, id, { url: DRIVE }).expect(200)).body);
+      expect(second.submission).toMatchObject({ id: first.submission!.id, kind: 'DRIVE', url: DRIVE_CANON, note: null, isHidden: true });
+      expect(await prisma.courseSubmission.count()).toBe(1);
+      expect(lessonSubmissionSchema.parse((await getSub(alice.token, id).expect(200)).body).submission?.isHidden).toBe(true);
+    });
+
+    it('link lạ, thư mục Drive, ghi chú dài, body thừa -> 400 tại đúng trường, không ghi', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      for (const url of ['https://evil.com/watch?v=dQw4w9WgXcQ', 'javascript:alert(1)', 'https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp', 'https://drive.google.com.evil.com/file/d/1AbCdEfGhIjKlMnOp/view', 'https://user:pw@drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view', '']) {
+        const res = await putSub(alice.token, id, { url }).expect(400);
+        expect(firstPath(res.body)).toBe('url');
+      }
+      await putSub(alice.token, id, {}).expect(400);
+      expect(firstPath((await putSub(alice.token, id, { url: YT, note: 'x'.repeat(501) }).expect(400)).body)).toBe('note');
+      await putSub(alice.token, id, { url: YT, extra: 1 }).expect(400);
+      expect(await prisma.courseSubmission.count()).toBe(0);
+    });
+
+    it('bài nháp, cha ẩn, id lạ, không phải uuid -> 404 và không ghi; tài khoản đã xoá -> 401', async () => {
+      const a = await build({ publish: false });
+      await putSub(alice.token, a.lessons[0]!.id, { url: YT }).expect(404);
+      await getSub(alice.token, a.lessons[0]!.id).expect(404);
+      await putSub(alice.token, MISSING, { url: YT }).expect(404);
+      await putSub(alice.token, 'khong-phai-uuid', { url: YT }).expect(404);
+      expect(await prisma.courseSubmission.count()).toBe(0);
+      const b = await build();
+      await prisma.customer.delete({ where: { id: bob.id } });
+      await putSub(bob.token, b.lessons[0]!.id, { url: YT }).expect(401);
+    });
+
+    it('cô lập giữa khách; DELETE idempotent; xoá bài/khách thì bài nộp xoá theo', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      const [l1, l2] = a.lessons.map((l) => l.id) as [string, string];
+      await putSub(alice.token, l1, { url: YT }).expect(200);
+      await putSub(bob.token, l2, { url: DRIVE }).expect(200);
+      expect(lessonSubmissionSchema.parse((await getSub(bob.token, l1).expect(200)).body)).toEqual({ submission: null });
+      await delSub(bob.token, l1).expect(204); // chưa nộp: vẫn 204
+      expect(await prisma.courseSubmission.count()).toBe(2); // xoá của Bob không đụng bài của Alice
+      await delSub(alice.token, l1).expect(204);
+      await delSub(alice.token, l1).expect(204);
+      expect(await prisma.courseSubmission.count()).toBe(1);
+      await prisma.courseLesson.delete({ where: { id: l2 } });
+      expect(await prisma.courseSubmission.count()).toBe(0);
+      await putSub(alice.token, l1, { url: YT }).expect(200);
+      await prisma.customer.delete({ where: { id: alice.id } });
+      expect(await prisma.courseSubmission.count()).toBe(0);
+    });
+
+    it('bài bị ẩn sau khi có bài nộp: khách sửa -> 404, vẫn xoá được; admin vẫn liệt kê', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      await putSub(alice.token, id, { url: YT }).expect(200);
+      await setPub('lessons', id, false);
+      await putSub(alice.token, id, { url: DRIVE }).expect(404);
+      expect((await adminList(id).expect(200)).body).toHaveLength(1);
+      await delSub(alice.token, id).expect(204);
+      expect(await prisma.courseSubmission.count()).toBe(0);
+    });
+
+    it('admin: liệt kê mới nhất trước kèm khách; ẩn/hiện, xoá; EDITOR chỉ xem; id lạ 404', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const mine = lessonSubmissionSchema.parse((await putSub(alice.token, id, { url: YT }).expect(200)).body).submission!;
+      await putSub(bob.token, id, { url: DRIVE, note: 'Bob' }).expect(200);
+      const list = adminSubmissionSchema.array().parse((await adminList(id).expect(200)).body);
+      expect(list.map((s) => s.customer.email)).toEqual(['bob@example.com', 'alice@example.com']);
+      await adminList(id, null).expect(401);
+      await adminList(id, alice.token).expect(401);
+      expect(adminSubmissionSchema.array().parse((await adminList(id, editorToken).expect(200)).body)).toHaveLength(2);
+      await adminList(MISSING).expect(404);
+
+      const patch = (token: string | null, sid: string, body: unknown) => as(token, api().patch(`/admin/courses/submissions/${sid}`).send(body as object));
+      await patch(editorToken, mine.id, { hidden: true }).expect(403);
+      await patch(superToken, mine.id, { hidden: 'x' }).expect(400);
+      expect((await patch(superToken, mine.id, { hidden: true }).expect(200)).body).toMatchObject({ id: mine.id, isHidden: true });
+      expect((await patch(superToken, mine.id, { hidden: false }).expect(200)).body).toMatchObject({ isHidden: false });
+      await patch(superToken, MISSING, { hidden: true }).expect(404);
+      await as(editorToken, api().delete(`/admin/courses/submissions/${mine.id}`)).expect(403);
+      await sup(api().delete(`/admin/courses/submissions/${mine.id}`)).expect(204);
+      await sup(api().delete(`/admin/courses/submissions/${mine.id}`)).expect(404);
+      expect(await prisma.courseSubmission.count()).toBe(1);
+    });
+
+    it('ghi quá 10 lần/phút từ cùng một địa chỉ -> 429 (PUT và DELETE)', async () => {
+      const a = await build();
+      const address = ip();
+      for (let i = 0; i < 10; i += 1) await putSub(alice.token, a.lessons[0]!.id, { url: YT }, address).expect(200);
+      await putSub(alice.token, a.lessons[0]!.id, { url: YT }, address).expect(429);
+      const other = ip();
+      for (let i = 0; i < 10; i += 1) await as(alice.token, api().delete(path(a.lessons[0]!.id)).set('CF-Connecting-IP', other)).expect(204);
+      await as(alice.token, api().delete(path(a.lessons[0]!.id)).set('CF-Connecting-IP', other)).expect(429);
+    });
+
+    it('hai lần nộp đầu tiên song song không gây 500 (đua khoá duy nhất)', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const results = await Promise.all([putSub(alice.token, id, { url: YT }), putSub(alice.token, id, { url: DRIVE })]);
+      expect(results.map((r) => r.status)).toEqual([200, 200]);
+      expect(await prisma.courseSubmission.count()).toBe(1);
     });
   });
 

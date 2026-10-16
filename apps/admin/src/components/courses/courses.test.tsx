@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CourseTreeEditor } from '@/components/courses/course-tree-editor';
+import { LessonSubmissionsPage } from '@/components/courses/lesson-submissions';
 import CoursesPage from '@/app/(admin)/courses/page';
 import { AuthProvider } from '@/lib/auth/auth-provider';
 import { login, resetSessionForTests } from '@/lib/auth/session';
@@ -220,6 +221,13 @@ describe('Trình soạn cây một nhánh', () => {
     expect(link).toHaveAttribute('href', `/courses/${TRACK_ID}/lessons/${LESSON_ID}/music`);
   });
 
+  it('mỗi bài có liên kết "Bài nộp" tới danh sách bài nộp', async () => {
+    await signIn('EDITOR', (url, init) => treeHandler(tree())(url, init));
+    renderTrackPage();
+    const link = await screen.findByRole('link', { name: 'Bài nộp Gam Đô' });
+    expect(link).toHaveAttribute('href', `/courses/${TRACK_ID}/lessons/${LESSON_ID}/submissions`);
+  });
+
   it('bật công khai bài trống: hiện lỗi từ API ở nội dung; thời lượng sai bị chặn ở client', async () => {
     const fetchMock = await signIn('SUPER_ADMIN', (url, init) =>
       init.method === 'PATCH' ? jsonResponse(400, { error: { code: 'VALIDATION_FAILED', message: 'x', details: [{ path: 'content', message: 'Bài công khai cần ít nhất một trong video, nhạc (MIDI) hoặc nội dung.' }] } }) : treeHandler(tree())(url, init),
@@ -280,3 +288,92 @@ describe('Trình soạn cây một nhánh', () => {
     expect(within(dialog).queryByLabelText('Chọn file MIDI')).toBeNull();
   });
 });
+
+describe('Bài nộp của khách (C3)', () => {
+  const SUB_ID = '0192a000-0000-7000-8000-0000000000e1';
+  const sub = (over: Record<string, unknown> = {}) => ({
+    id: SUB_ID, kind: 'YOUTUBE', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', note: 'Em tập lần 1', isHidden: false, createdAt: NOW, updatedAt: NOW,
+    customer: { id: 'c1', name: 'Lan', email: 'lan@example.com' }, ...over,
+  });
+  const listPath = `/admin/courses/lessons/${LESSON_ID}/submissions`;
+  const handler = (rows: unknown[]): Handler => (url, init) => {
+    if (url.pathname === listPath) return jsonResponse(200, rows);
+    if (url.pathname === `/admin/courses/tracks/${TRACK_ID}/tree`) return jsonResponse(200, tree());
+    if (url.pathname === `/admin/courses/submissions/${SUB_ID}` && init.method === 'PATCH') return jsonResponse(200, sub());
+    if (url.pathname === `/admin/courses/submissions/${SUB_ID}` && init.method === 'DELETE') return new Response(null, { status: 204 });
+    return undefined;
+  };
+  const renderPage = () => wrap(<LessonSubmissionsPage trackId={TRACK_ID} lessonId={LESSON_ID} />);
+
+  it('liệt kê khách, loại link (mở tab mới an toàn) và ghi chú; rỗng thì báo chưa có', async () => {
+    await signIn('SUPER_ADMIN', handler([sub(), sub({ id: 'x2', kind: 'DRIVE', url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view', note: null, customer: { id: 'c2', name: 'Minh', email: 'minh@example.com' } })]));
+    renderPage();
+    expect(await screen.findByText('Lan (lan@example.com)')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Bài nộp: Gam Đô' })).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText('Em tập lần 1')).toBeInTheDocument();
+    expect(screen.getByText('Drive')).toBeInTheDocument();
+  });
+
+  it('chưa có bài nộp: hiện thông báo trống', async () => {
+    await signIn('SUPER_ADMIN', handler([]));
+    renderPage();
+    expect(await screen.findByText('Chưa có bài nộp nào.')).toBeInTheDocument();
+  });
+
+  it('SUPER_ADMIN ẩn bài nộp (PATCH hidden:true) rồi tải lại; xoá có xác nhận gọi DELETE', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', handler([sub()]));
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' }));
+    await waitFor(() => expect(calls(fetchMock, 'PATCH', `/admin/courses/submissions/${SUB_ID}`)).toHaveLength(1));
+    expect(bodyOf(calls(fetchMock, 'PATCH', `/admin/courses/submissions/${SUB_ID}`)[0]!)).toEqual({ hidden: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Xoá' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+    await waitFor(() => expect(calls(fetchMock, 'DELETE', `/admin/courses/submissions/${SUB_ID}`)).toHaveLength(1));
+  });
+
+  it('bài nộp đã ẩn có nhãn và nút Hiện gửi hidden:false', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', handler([sub({ isHidden: true })]));
+    renderPage();
+    expect(await screen.findByText('Đã ẩn')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Hiện bài nộp của Lan (lan@example.com)' }));
+    await waitFor(() => expect(bodyOf(calls(fetchMock, 'PATCH', `/admin/courses/submissions/${SUB_ID}`)[0]!)).toEqual({ hidden: false }));
+  });
+
+  it('EDITOR chỉ xem: nút ẩn bị khoá, không có nút xoá', async () => {
+    await signIn('EDITOR', handler([sub()]));
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Xoá' })).toBeNull();
+  });
+
+  it('lỗi 403 khi ẩn hiện thông báo lỗi', async () => {
+    await signIn('SUPER_ADMIN', (url, init) =>
+      init.method === 'PATCH' ? jsonResponse(403, errorBody('FORBIDDEN', 'Không đủ quyền.')) : handler([sub()])(url, init),
+    );
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' }));
+    expect(await screen.findByText(/quyền/i)).toBeInTheDocument();
+  });
+
+  it('PATCH trả 404 (bài nộp đã bị xoá nơi khác): hiện lỗi và tải lại danh sách', async () => {
+    let listed = 0;
+    await signIn('SUPER_ADMIN', (url, init) => {
+      if (init.method === 'PATCH') return jsonResponse(404, errorBody('NOT_FOUND'));
+      if (url.pathname === listPath) {
+        listed += 1;
+        return jsonResponse(200, listed === 1 ? [sub()] : []);
+      }
+      return handler([])(url, init);
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' }));
+    expect(await screen.findByText('Chưa có bài nộp nào.')).toBeInTheDocument();
+    expect(listed).toBeGreaterThanOrEqual(2);
+  });
+});
+

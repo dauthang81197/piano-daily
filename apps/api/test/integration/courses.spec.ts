@@ -4,11 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import {
   adminCourseTreeSchema,
   adminLessonSchema,
+  adminCommentPageSchema,
   adminSubmissionSchema,
   adminTrackSchema,
   courseProgressSchema,
   errorResponseSchema,
   lessonSubmissionSchema,
+  myCommunitySchema,
+  publicCommunitySchema,
   loginResponseSchema,
   publicLessonSchema,
   publicTrackCardSchema,
@@ -767,6 +770,245 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       const results = await Promise.all([putSub(alice.token, id, { url: YT }), putSub(alice.token, id, { url: DRIVE })]);
       expect(results.map((r) => r.status)).toEqual([200, 200]);
       expect(await prisma.courseSubmission.count()).toBe(1);
+    });
+  });
+
+  describe('cộng đồng: đánh giá và bình luận (C4)', () => {
+    let alice: { id: string; token: string };
+    let bob: { id: string; token: string };
+    const cust = async (email: string, name: string, verified = true) => {
+      const c = await prisma.customer.create({ data: { email, passwordHash: 'x', name, emailVerifiedAt: verified ? new Date() : null } });
+      return { id: c.id, token: await app.get(JwtService).signAsync({ sub: c.id, typ: 'customer' }) };
+    };
+    let communityIp = 0;
+    /** Địa chỉ riêng cho từng request (dải 10.x, không đụng các dải của login/C2/C3) để không dính throttle của nhau. */
+    const ip = () => `10.${((communityIp += 1) >> 8) & 255}.${communityIp & 255}.7`;
+    const base = (lessonId: string) => `/customer/courses/lessons/${lessonId}`;
+    const pub = (lessonId: string, query = '') => api().get(`/courses/lessons/${lessonId}/community${query}`).set('CF-Connecting-IP', ip());
+    const mine = (token: string | null, lessonId: string) => as(token, api().get(`${base(lessonId)}/community/mine`).set('CF-Connecting-IP', ip()));
+    const rate = (token: string | null, lessonId: string, body: unknown, address = ip()) => as(token, api().put(`${base(lessonId)}/rating`).set('CF-Connecting-IP', address).send(body as object));
+    const post = (token: string | null, lessonId: string, body: unknown, address = ip()) => as(token, api().post(`${base(lessonId)}/comments`).set('CF-Connecting-IP', address).send(body as object));
+    const edit = (token: string | null, id: string, body: unknown) => as(token, api().patch(`/customer/courses/comments/${id}`).set('CF-Connecting-IP', ip()).send(body as object));
+    const del = (token: string | null, id: string) => as(token, api().delete(`/customer/courses/comments/${id}`).set('CF-Connecting-IP', ip()));
+    const hide = (id: string, hidden: boolean, token: string | null = superToken) => as(token, api().patch(`/admin/courses/comments/${id}`).send({ hidden }));
+    const view = async (lessonId: string, query = '') => publicCommunitySchema.parse((await pub(lessonId, query).expect(200)).body);
+
+    beforeEach(async () => {
+      await prisma.$executeRawUnsafe('TRUNCATE TABLE customers CASCADE');
+      alice = await cust('alice@example.com', 'Alice');
+      bob = await cust('bob@example.com', 'Bob');
+    });
+    afterAll(async () => {
+      await prisma?.$executeRawUnsafe('TRUNCATE TABLE customers CASCADE');
+    });
+
+    it('đọc công khai không cần đăng nhập: rỗng ban đầu, no-store; ghi cần token khách', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const res = await pub(id).expect(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(publicCommunitySchema.parse(res.body)).toEqual({ rating: { average: null, count: 0 }, comments: [], nextCursor: null });
+      await post(null, id, { body: 'x' }).expect(401);
+      await post(superToken, id, { body: 'x' }).expect(401);
+      await rate(null, id, { stars: 3 }).expect(401);
+      await mine(null, id).expect(401);
+    });
+
+    it('chấm sao: ghi đè một dòng, trung bình/số lượng, gỡ idempotent, 400 với sao sai', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      expect((await rate(alice.token, id, { stars: 4 }).expect(200)).body).toEqual({ myRating: 4, rating: { average: 4, count: 1 } });
+      expect((await rate(alice.token, id, { stars: 5 }).expect(200)).body).toEqual({ myRating: 5, rating: { average: 5, count: 1 } });
+      expect((await rate(bob.token, id, { stars: 2 }).expect(200)).body).toEqual({ myRating: 2, rating: { average: 3.5, count: 2 } });
+      expect(await prisma.courseRating.count()).toBe(2);
+      expect((await view(id)).rating).toEqual({ average: 3.5, count: 2 });
+      expect(myCommunitySchema.parse((await mine(alice.token, id).expect(200)).body).myRating).toBe(5);
+      for (const bad of [{ stars: 0 }, { stars: 6 }, { stars: 1.5 }, { stars: '3' }, {}, { stars: 3, x: 1 }]) await rate(alice.token, id, bad).expect(400);
+      const gone = await as(alice.token, api().delete(`${base(id)}/rating`).set('CF-Connecting-IP', ip())).expect(200);
+      expect(gone.body).toEqual({ myRating: null, rating: { average: 2, count: 1 } });
+      await as(alice.token, api().delete(`${base(id)}/rating`).set('CF-Connecting-IP', ip())).expect(200);
+    });
+
+    it('chưa xác minh email -> 403 EMAIL_NOT_VERIFIED, không ghi; tài khoản bị khoá hoặc đã xoá -> 401', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const carol = await cust('carol@example.com', 'Carol', false);
+      expect(errorResponseSchema.parse((await post(carol.token, id, { body: 'hi' }).expect(403)).body).error.code).toBe('EMAIL_NOT_VERIFIED');
+      await rate(carol.token, id, { stars: 3 }).expect(403);
+      expect(await prisma.courseComment.count()).toBe(0);
+      await prisma.customer.update({ where: { id: bob.id }, data: { isActive: false } });
+      await post(bob.token, id, { body: 'hi' }).expect(401);
+      await prisma.customer.delete({ where: { id: alice.id } });
+      await post(alice.token, id, { body: 'hi' }).expect(401);
+    });
+
+    it('bình luận: tạo, hiện công khai với tên (không lộ email), trả lời một cấp, thứ tự mới nhất trước / trả lời cũ trước', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const c1 = (await post(alice.token, id, { body: '  Bài hay\n\n\n\nquá  ' }).expect(201)).body as { id: string; body: string; isHidden: boolean };
+      expect(c1).toMatchObject({ body: 'Bài hay\n\nquá', isHidden: false, authorName: 'Alice' });
+      const c2 = (await post(bob.token, id, { body: '<script>x</script> **b**' }).expect(201)).body as { id: string };
+      await post(bob.token, id, { body: 'Cảm ơn', parentId: c1.id }).expect(201);
+      await post(alice.token, id, { body: 'Không có gì', parentId: c1.id }).expect(201);
+      const v = await view(id);
+      expect(v.comments.map((c) => c.id)).toEqual([c2.id, c1.id]);
+      expect(v.comments[0]!.body).toBe('<script>x</script> **b**');
+      expect(v.comments[1]!.replies.map((r) => r.body)).toEqual(['Cảm ơn', 'Không có gì']);
+      expect(JSON.stringify(v)).not.toContain('@example.com');
+      expect(JSON.stringify(v)).not.toContain('customerId');
+    });
+
+    it('kiểm tra nội dung: rỗng, dài, quá 2 link, trùng nguyên văn -> lỗi; trả lời sai gốc -> 404', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      const [l1, l2] = a.lessons.map((l) => l.id) as [string, string];
+      for (const body of ['', '   ', 'x'.repeat(1001), 'https://a.com https://b.com https://c.com']) await post(alice.token, l1, { body }).expect(400);
+      await post(alice.token, l1, { body: 'a', hidden: true }).expect(400);
+      const root = (await post(alice.token, l1, { body: 'gốc' }).expect(201)).body as { id: string };
+      await post(alice.token, l1, { body: 'gốc' }).expect(409);
+      await post(bob.token, l1, { body: 'gốc' }).expect(201); // người khác được viết giống
+      const reply = (await post(bob.token, l1, { body: 'tl', parentId: root.id }).expect(201)).body as { id: string };
+      await post(alice.token, l1, { body: 'tl2', parentId: reply.id }).expect(404); // trả lời của trả lời
+      await post(alice.token, l2, { body: 'tl3', parentId: root.id }).expect(404); // gốc ở bài khác
+      await post(alice.token, l1, { body: 'tl4', parentId: '01920000-0000-7000-8000-000000000999' }).expect(404);
+      await post(alice.token, l1, { body: 'tl5', parentId: 'khong-phai-uuid' }).expect(400);
+    });
+
+    it('sửa/xoá chỉ của mình: người khác 404; sửa đặt cờ edited; trùng nguyên văn 409; xoá gốc xoá cả trả lời; xoá idempotent', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const root = (await post(alice.token, id, { body: 'gốc' }).expect(201)).body as { id: string };
+      const other = (await post(alice.token, id, { body: 'khác' }).expect(201)).body as { id: string };
+      await post(bob.token, id, { body: 'tl', parentId: root.id }).expect(201);
+      await edit(bob.token, root.id, { body: 'hack' }).expect(404);
+      await del(bob.token, root.id).expect(204);
+      expect(await prisma.courseComment.count()).toBe(3);
+      expect((await edit(alice.token, root.id, { body: 'gốc đã sửa' }).expect(200)).body).toMatchObject({ body: 'gốc đã sửa', edited: true });
+      await edit(alice.token, root.id, { body: 'khác' }).expect(409);
+      await edit(alice.token, root.id, { body: '' }).expect(400);
+      await del(alice.token, root.id).expect(204);
+      await del(alice.token, root.id).expect(204);
+      expect(await prisma.courseComment.count()).toBe(1);
+      expect((await view(id)).comments.map((c) => c.id)).toEqual([other.id]);
+    });
+
+    it('kiểm duyệt: ẩn gốc ẩn cả nhánh trả lời với người khác; người viết vẫn thấy kèm cờ ẩn; sửa không bỏ cờ; hiện lại', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const root = (await post(alice.token, id, { body: 'gốc' }).expect(201)).body as { id: string };
+      const reply = (await post(bob.token, id, { body: 'tl', parentId: root.id }).expect(201)).body as { id: string };
+      expect((await hide(root.id, true).expect(200)).body).toEqual({ id: root.id, isHidden: true });
+      expect((await view(id)).comments).toEqual([]);
+      const aliceMine = myCommunitySchema.parse((await mine(alice.token, id).expect(200)).body).comments;
+      expect(aliceMine).toMatchObject([{ id: root.id, isHidden: true }]);
+      expect(myCommunitySchema.parse((await mine(bob.token, id).expect(200)).body).comments).toMatchObject([{ id: reply.id, isHidden: true }]); // gốc ẩn kéo theo trả lời
+      expect((await edit(alice.token, root.id, { body: 'sửa khi bị ẩn' }).expect(200)).body).toMatchObject({ isHidden: true });
+      await post(bob.token, id, { body: 'tl mới', parentId: root.id }).expect(404); // không trả lời vào bình luận đang ẩn
+      await hide(root.id, false).expect(200);
+      expect((await view(id)).comments[0]!.replies).toHaveLength(1);
+      await hide(reply.id, true).expect(200);
+      expect((await view(id)).comments[0]!.replies).toHaveLength(0);
+    });
+
+    it('bài ẩn: công khai/ghi 404 (không lộ), gỡ đánh giá/xoá bình luận của mình vẫn được; admin vẫn thấy; bài hiện lại thì dữ liệu còn', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      await rate(alice.token, id, { stars: 5 }).expect(200);
+      const c = (await post(alice.token, id, { body: 'hi' }).expect(201)).body as { id: string };
+      await setPub('lessons', id, false);
+      await pub(id).expect(404);
+      await mine(alice.token, id).expect(404);
+      await rate(alice.token, id, { stars: 1 }).expect(404);
+      await post(alice.token, id, { body: 'mới' }).expect(404);
+      await edit(alice.token, c.id, { body: 'sửa' }).expect(404);
+      const adminView = adminCommentPageSchema.parse((await sup(api().get(`/admin/courses/comments?lessonId=${id}`)).expect(200)).body);
+      expect(adminView.items.map((i) => i.id)).toEqual([c.id]);
+      await setPub('lessons', id, true);
+      expect(await view(id)).toMatchObject({ rating: { average: 5, count: 1 } });
+      await setPub('lessons', id, false);
+      await del(alice.token, c.id).expect(204);
+      await as(alice.token, api().delete(`${base(id)}/rating`).set('CF-Connecting-IP', ip())).expect(200);
+      expect(await prisma.courseComment.count()).toBe(0);
+      expect(await prisma.courseRating.count()).toBe(0);
+    });
+
+    it('bài nháp/cha ẩn/id lạ/không phải uuid -> 404 ở mọi đường ghi và đọc; không ghi gì', async () => {
+      const a = await build({ publish: false });
+      for (const id of [a.lessons[0]!.id, MISSING]) {
+        await pub(id).expect(404);
+        await rate(alice.token, id, { stars: 3 }).expect(404);
+        await post(alice.token, id, { body: 'x' }).expect(404);
+      }
+      await api().get('/courses/lessons/khong-phai-uuid/community').set('CF-Connecting-IP', ip()).expect(404);
+      expect(await prisma.courseComment.count()).toBe(0);
+    });
+
+    it('phân trang công khai bằng cursor (20/trang), không trùng không sót; cursor hỏng 400', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const bulk = Array.from({ length: 25 }, (_, i) => ({ lessonId: id, customerId: alice.id, body: `c${String(i).padStart(2, '0')}`, createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)), updatedAt: new Date() }));
+      await prisma.courseComment.createMany({ data: bulk });
+      const first = await view(id);
+      expect(first.comments).toHaveLength(20);
+      expect(first.comments[0]!.body).toBe('c24');
+      expect(first.nextCursor).toBeTruthy();
+      const second = await view(id, `?cursor=${encodeURIComponent(first.nextCursor!)}`);
+      expect(second.comments.map((c) => c.body)).toEqual(['c04', 'c03', 'c02', 'c01', 'c00']);
+      expect(second.nextCursor).toBeNull();
+      await pub(id, '?cursor=@@@').expect(400);
+    });
+
+    it('cô lập và cascade: xoá bài / khách xoá đánh giá + bình luận theo', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      const [l1, l2] = a.lessons.map((l) => l.id) as [string, string];
+      await rate(alice.token, l1, { stars: 5 }).expect(200);
+      await post(alice.token, l1, { body: 'a' }).expect(201);
+      await rate(bob.token, l2, { stars: 3 }).expect(200);
+      await post(bob.token, l2, { body: 'b' }).expect(201);
+      expect(myCommunitySchema.parse((await mine(bob.token, l1).expect(200)).body)).toEqual({ myRating: null, comments: [] });
+      await prisma.courseLesson.delete({ where: { id: l1 } });
+      expect([await prisma.courseRating.count(), await prisma.courseComment.count()]).toEqual([1, 1]);
+      await prisma.customer.delete({ where: { id: bob.id } });
+      expect([await prisma.courseRating.count(), await prisma.courseComment.count()]).toEqual([0, 0]);
+    });
+
+    it('admin: liệt kê mới nhất trước kèm khách/bài, lọc theo bài và theo ẩn, phân trang; EDITOR chỉ xem; ẩn/xoá chỉ SUPER_ADMIN', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      const [l1, l2] = a.lessons.map((l) => l.id) as [string, string];
+      const c1 = (await post(alice.token, l1, { body: 'một' }).expect(201)).body as { id: string };
+      const c2 = (await post(bob.token, l2, { body: 'hai' }).expect(201)).body as { id: string };
+      const list = async (query = '', token: string | null = superToken) => adminCommentPageSchema.parse((await as(token, api().get(`/admin/courses/comments${query}`)).expect(200)).body);
+      const all = await list();
+      expect(all.items.map((i) => i.id)).toEqual([c2, c1].map((c) => c.id));
+      expect(all.items[0]).toMatchObject({ lessonTitle: 'A2', customer: { name: 'Bob', email: 'bob@example.com' }, isHidden: false });
+      expect((await list(`?lessonId=${l1}`)).items.map((i) => i.id)).toEqual([c1.id]);
+      await hide(c1.id, true).expect(200);
+      expect((await list('?hidden=true')).items.map((i) => i.id)).toEqual([c1.id]);
+      expect((await list('?hidden=false')).items.map((i) => i.id)).toEqual([c2.id]);
+      const page = await list('?limit=1');
+      expect(page.items).toHaveLength(1);
+      expect((await list(`?limit=1&cursor=${encodeURIComponent(page.nextCursor!)}`)).items.map((i) => i.id)).toEqual([c1.id]);
+      expect((await list('', editorToken)).items).toHaveLength(2);
+      await as(null, api().get('/admin/courses/comments')).expect(401);
+      await as(alice.token, api().get('/admin/courses/comments')).expect(401);
+      await api().get('/admin/courses/comments?hidden=maybe').set('Authorization', `Bearer ${superToken}`).expect(400);
+      await api().get(`/admin/courses/comments?lessonId=${MISSING}`).set('Authorization', `Bearer ${superToken}`).expect(404);
+      await hide(c1.id, false, editorToken).expect(403);
+      await hide(c1.id, 'x' as never).expect(400);
+      await hide(MISSING, true).expect(404);
+      await as(editorToken, api().delete(`/admin/courses/comments/${c1.id}`)).expect(403);
+      await sup(api().delete(`/admin/courses/comments/${c1.id}`)).expect(204);
+      await sup(api().delete(`/admin/courses/comments/${c1.id}`)).expect(404);
+    });
+
+    it('ghi quá 10 lần/phút từ một địa chỉ -> 429 (bình luận, đánh giá)', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const address = ip();
+      for (let i = 0; i < 10; i += 1) await post(alice.token, id, { body: `c${i}` }, address).expect(201);
+      await post(alice.token, id, { body: 'c-extra' }, address).expect(429);
+      const other = ip();
+      for (let i = 0; i < 10; i += 1) await rate(alice.token, id, { stars: (i % 5) + 1 }, other).expect(200);
+      await rate(alice.token, id, { stars: 3 }, other).expect(429);
     });
   });
 

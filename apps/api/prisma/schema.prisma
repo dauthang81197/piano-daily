@@ -81,6 +81,8 @@ model Customer {
   downloadLogs         DownloadLog[]
   courseProgress       CourseLessonProgress[]
   courseSubmissions    CourseSubmission[]
+  courseRatings        CourseRating[]
+  courseComments       CourseComment[]
 
   @@map("customers")
 }
@@ -305,6 +307,8 @@ model CourseLesson {
   section     CourseSection          @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   progress    CourseLessonProgress[]
   submissions CourseSubmission[]
+  ratings     CourseRating[]
+  comments    CourseComment[]
 
   @@index([sectionId, sortOrder])
   @@map("course_lessons")
@@ -343,6 +347,46 @@ model CourseSubmission {
   @@unique([customerId, lessonId])
   @@index([lessonId, createdAt(sort: Desc)])
   @@map("course_submissions")
+}
+
+/// Đánh giá sao của khách cho bài học (C4): một dòng mỗi (khách, bài); `stars` 1..5 (CHECK ở DB).
+model CourseRating {
+  customerId String   @map("customer_id") @db.Uuid
+  lessonId   String   @map("lesson_id") @db.Uuid
+  stars      Int      @db.SmallInt
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lesson   CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, lessonId])
+  @@index([lessonId])
+  @@map("course_ratings")
+}
+
+/// Bình luận bài học (C4): văn bản thuần ≤ 1000 ký tự, trả lời một cấp (`parent_id` trỏ bình luận gốc), kiểm duyệt sau bằng `is_hidden`.
+model CourseComment {
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  lessonId   String    @map("lesson_id") @db.Uuid
+  customerId String    @map("customer_id") @db.Uuid
+  parentId   String?   @map("parent_id") @db.Uuid
+  body       String
+  isHidden   Boolean   @default(false) @map("is_hidden")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  editedAt   DateTime? @map("edited_at") @db.Timestamptz(6)
+
+  lesson   CourseLesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  customer Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  parent   CourseComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  CourseComment[] @relation("CommentReplies")
+
+  @@index([lessonId, parentId, createdAt(sort: Desc)])
+  @@index([parentId])
+  @@index([customerId])
+  @@index([createdAt(sort: Desc)])
+  @@map("course_comments")
 }
 
 // ── catalog ──────────────────────────────────────────────────

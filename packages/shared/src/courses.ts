@@ -347,3 +347,94 @@ export const adminSubmissionSchema = z.object({
   customer: z.object({ id: z.string(), name: z.string(), email: z.string() }),
 });
 export type AdminSubmission = z.infer<typeof adminSubmissionSchema>;
+
+// ── Cộng đồng: đánh giá và bình luận (C4) ────────────────────
+
+export const COMMENT_MAX = 1000;
+export const COMMENT_MAX_LINKS = 2;
+export const COMMENT_PAGE_SIZE = 20;
+export const ADMIN_COMMENT_PAGE_SIZE = 30;
+
+/** Số link (`http(s)://` hoặc `www.`) trong một đoạn văn bản. */
+export function countLinks(text: string): number {
+  return text.match(/(?:https?:\/\/|www\.)\S+/gi)?.length ?? 0;
+}
+
+const COMMENT_ERROR = `Bình luận từ 1 đến ${COMMENT_MAX} ký tự, tối đa ${COMMENT_MAX_LINKS} link.`;
+/** Bình luận văn bản thuần: chuẩn hoá xuống dòng, gộp ≥3 dòng trống liên tiếp, giới hạn độ dài và số link. */
+export const commentTextSchema = z
+  .string({ error: COMMENT_ERROR })
+  .transform((v) => v.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim())
+  .pipe(
+    z
+      .string()
+      .min(1, { error: COMMENT_ERROR })
+      .max(COMMENT_MAX, { error: COMMENT_ERROR })
+      .refine((v) => !v.includes('\u0000'), { error: COMMENT_ERROR })
+      .refine((v) => countLinks(v) <= COMMENT_MAX_LINKS, { error: COMMENT_ERROR }),
+  );
+
+/** `PUT /customer/courses/lessons/:id/rating`. */
+export const ratingBodySchema = z
+  .object({ stars: z.number({ error: 'Số sao phải từ 1 đến 5.' }).int({ error: 'Số sao phải từ 1 đến 5.' }).min(1, { error: 'Số sao phải từ 1 đến 5.' }).max(5, { error: 'Số sao phải từ 1 đến 5.' }) })
+  .strict();
+export type RatingBody = z.infer<typeof ratingBodySchema>;
+
+/** `POST /customer/courses/lessons/:id/comments` (`parentId` = trả lời một bình luận gốc). */
+export const createCommentSchema = z.object({ body: commentTextSchema, parentId: z.uuid({ error: 'Bình luận gốc không hợp lệ.' }).transform((v) => v.toLowerCase()).nullish().transform((v) => v ?? null) }).strict();
+export type CreateCommentBody = z.infer<typeof createCommentSchema>;
+/** `PATCH /customer/courses/comments/:id`. */
+export const editCommentSchema = z.object({ body: commentTextSchema }).strict();
+export const setCommentHiddenSchema = z.object({ hidden: z.boolean({ error: 'hidden phải là true hoặc false.' }) }).strict();
+
+const commentBase = {
+  id: z.string(),
+  parentId: z.string().nullable(),
+  body: z.string(),
+  authorName: z.string(),
+  createdAt: z.string(),
+  edited: z.boolean(),
+};
+export const publicCommentSchema = z.object(commentBase);
+export type PublicComment = z.infer<typeof publicCommentSchema>;
+export const publicThreadSchema = z.object({ ...commentBase, replies: z.array(publicCommentSchema) });
+export type PublicThread = z.infer<typeof publicThreadSchema>;
+
+/** `GET /courses/lessons/:id/community`: trung bình sao + bình luận công khai (gốc mới nhất trước, trả lời cũ trước). */
+export const publicCommunitySchema = z.object({
+  rating: z.object({ average: z.number().nullable(), count: z.number().int().nonnegative() }),
+  comments: z.array(publicThreadSchema),
+  nextCursor: z.string().nullable(),
+});
+export type PublicCommunity = z.infer<typeof publicCommunitySchema>;
+
+/** Bình luận của chính khách (kể cả đang bị ẩn). */
+export const myCommentSchema = z.object({ ...commentBase, isHidden: z.boolean() });
+export type MyComment = z.infer<typeof myCommentSchema>;
+/** `GET /customer/courses/lessons/:id/community/mine`. */
+export const myCommunitySchema = z.object({ myRating: z.number().int().nullable(), comments: z.array(myCommentSchema) });
+export type MyCommunity = z.infer<typeof myCommunitySchema>;
+export const myRatingSchema = z.object({ myRating: z.number().int().nullable(), rating: publicCommunitySchema.shape.rating });
+export type MyRating = z.infer<typeof myRatingSchema>;
+
+/** `GET /admin/courses/comments?lessonId=&hidden=&cursor=&limit=`. */
+export const adminCommentsQuerySchema = z.object({
+  lessonId: z.uuid({ error: 'Bài học không hợp lệ.' }).transform((v) => v.toLowerCase()).optional(),
+  hidden: z.enum(['true', 'false'], { error: 'hidden phải là true hoặc false.' }).transform((v) => v === 'true').optional(),
+  cursor: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(ADMIN_COMMENT_PAGE_SIZE),
+});
+export const adminCommentSchema = z.object({
+  id: z.string(),
+  lessonId: z.string(),
+  lessonTitle: z.string(),
+  parentId: z.string().nullable(),
+  body: z.string(),
+  isHidden: z.boolean(),
+  edited: z.boolean(),
+  createdAt: z.string(),
+  customer: z.object({ id: z.string(), name: z.string(), email: z.string() }),
+});
+export type AdminComment = z.infer<typeof adminCommentSchema>;
+export const adminCommentPageSchema = z.object({ items: z.array(adminCommentSchema), nextCursor: z.string().nullable() });
+export type AdminCommentPage = z.infer<typeof adminCommentPageSchema>;

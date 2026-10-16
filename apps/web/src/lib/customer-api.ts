@@ -20,6 +20,12 @@ import {
   type LessonCompletion,
   lessonCompletionSchema,
   type LessonSubmission,
+  type MyComment,
+  myCommentSchema,
+  type MyCommunity,
+  myCommunitySchema,
+  type MyRating,
+  myRatingSchema,
   lessonSubmissionSchema,
 } from '@piano-daily/shared';
 import type { z } from 'zod';
@@ -103,6 +109,27 @@ export const customerApi = {
   },
   async deleteSubmission(accessToken: string, lessonId: string): Promise<void> {
     await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/submission`, { method: 'DELETE' }, accessToken);
+  },
+  /** Cộng đồng (C4): đánh giá + bình luận của chính khách (kể cả bình luận đang bị ẩn). */
+  async myCommunity(accessToken: string, lessonId: string): Promise<MyCommunity> {
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/community/mine`, { method: 'GET' }, accessToken), myCommunitySchema);
+  },
+  async setRating(accessToken: string, lessonId: string, stars: number): Promise<MyRating> {
+    const init: RequestInit = { method: 'PUT', body: JSON.stringify({ stars }) };
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/rating`, init, accessToken), myRatingSchema);
+  },
+  async removeRating(accessToken: string, lessonId: string): Promise<MyRating> {
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/rating`, { method: 'DELETE' }, accessToken), myRatingSchema);
+  },
+  async createComment(accessToken: string, lessonId: string, body: { body: string; parentId: string | null }): Promise<MyComment> {
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/comments`, post(body), accessToken), myCommentSchema);
+  },
+  async editComment(accessToken: string, id: string, body: string): Promise<MyComment> {
+    const init: RequestInit = { method: 'PATCH', body: JSON.stringify({ body }) };
+    return parsed(await call(`/customer/courses/comments/${encodeURIComponent(id)}`, init, accessToken), myCommentSchema);
+  },
+  async deleteComment(accessToken: string, id: string): Promise<void> {
+    await call(`/customer/courses/comments/${encodeURIComponent(id)}`, { method: 'DELETE' }, accessToken);
   },
   async entitlement(accessToken: string): Promise<Entitlement> {
     return parsed(await call('/customer/entitlement', { method: 'GET' }, accessToken), entitlementSchema);

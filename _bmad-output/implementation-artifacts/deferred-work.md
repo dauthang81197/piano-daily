@@ -259,3 +259,11 @@
 - Chưa kiểm thử khối nộp bài và trang admin trên trình duyệt thật (kiểm bằng test jsdom).
 - (C3 review) `/open?id=` và `/uc?id=` nhận cả id thư mục/Docs (không phân biệt được khi chỉ kiểm tra chuỗi); trần 200 dòng admin chưa test, chưa phân trang/báo bị cắt; throttle ghi theo IP nên người dùng chung NAT dùng chung 10/phút; chưa audit/thông báo khi admin ẩn-xoá và `updated_at` đổi khi admin ẩn; chưa có nút thử lại khi tải bài nộp lỗi; PATCH admin trả `MySubmission` không kèm khách.
 
+## Khoá học C4: cộng đồng (feature/khoa-hoc-cong-dong)
+
+- Chưa có báo cáo vi phạm từ người dùng, thông báo email (cho người được trả lời hay khi bị ẩn), lọc từ khoá/chống spam nâng cao ngoài giới hạn link, trùng nguyên văn và throttle theo IP; chưa lý do ẩn/audit ai ẩn.
+- Đánh giá không kiểm duyệt (admin chưa xoá được từng đánh giá); trung bình sao chưa hiện ở thẻ nhánh/mục lục hay dữ liệu có cấu trúc SEO; bình luận tải ở trình duyệt nên công cụ tìm kiếm không thấy.
+- Trả lời chỉ một cấp, chưa @nhắc tên, thích/bỏ thích, sắp xếp theo hữu ích; "Xem thêm" nối trang bằng cursor nhưng chưa cuộn/lấy lại vị trí sau khi gửi (gửi xong tải lại trang đầu); tối đa 500 trả lời nạp cho mỗi trang bình luận gốc.
+- Tên hiển thị là `customer.name` nguyên văn (khách tự đặt); chưa cho đặt biệt danh riêng hay ẩn tên.
+- Chưa kiểm thử khối cộng đồng và trang kiểm duyệt trên trình duyệt thật (kiểm bằng test jsdom).
+

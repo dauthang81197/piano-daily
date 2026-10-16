@@ -10,6 +10,7 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }));
 vi.mock('@/components/sheet/midi-player', () => ({ MidiPlayer: () => null }));
+vi.mock('./lesson-community', () => ({ LessonCommunity: () => null })); // có test riêng
 const auth = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock('@/components/auth/auth-provider', () => ({ useCustomer: () => auth.value }));
 const api = vi.hoisted(() => ({ lessonSubmission: vi.fn() }));

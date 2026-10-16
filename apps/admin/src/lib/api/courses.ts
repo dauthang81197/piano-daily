@@ -29,5 +29,7 @@ export const coursesApi = {
       },
       onProgress,
     ),
+  /** `GET /admin/courses/lessons/:id/midi/file` — file `.mid` gốc của bài (cho trình gõ nốt); 404 nếu bài chưa có nhạc. */
+  midiFile: (lessonId: string) => apiFetch<ArrayBuffer>(`${PATH}/lessons/${encodeURIComponent(lessonId)}/midi/file`, { binary: true }),
   removeMidi: (lessonId: string) => apiFetch<AdminLesson>(`${PATH}/lessons/${encodeURIComponent(lessonId)}/midi`, { method: 'DELETE' }),
 };

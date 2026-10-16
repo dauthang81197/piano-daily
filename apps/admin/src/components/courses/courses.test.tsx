@@ -213,6 +213,13 @@ describe('Trình soạn cây một nhánh', () => {
     expect(bodyOf(calls(fetchMock, 'PATCH', `/admin/courses/lessons/${LESSON_ID}`)[0]!)).toMatchObject({ titleEn: null, contentEn: 'EN body' });
   });
 
+  it('mỗi bài có liên kết "Soạn nhạc" tới trang trình gõ nốt (cả EDITOR thấy để xem)', async () => {
+    await signIn('EDITOR', (url, init) => treeHandler(tree())(url, init));
+    renderTrackPage();
+    const link = await screen.findByRole('link', { name: 'Soạn nhạc Gam Đô' });
+    expect(link).toHaveAttribute('href', `/courses/${TRACK_ID}/lessons/${LESSON_ID}/music`);
+  });
+
   it('bật công khai bài trống: hiện lỗi từ API ở nội dung; thời lượng sai bị chặn ở client', async () => {
     const fetchMock = await signIn('SUPER_ADMIN', (url, init) =>
       init.method === 'PATCH' ? jsonResponse(400, { error: { code: 'VALIDATION_FAILED', message: 'x', details: [{ path: 'content', message: 'Bài công khai cần ít nhất một trong video, nhạc (MIDI) hoặc nội dung.' }] } }) : treeHandler(tree())(url, init),

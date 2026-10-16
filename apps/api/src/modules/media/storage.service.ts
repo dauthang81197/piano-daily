@@ -101,6 +101,20 @@ export class StorageService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Đọc toàn bộ một object (bucket suy từ prefix của key). Chỉ dùng cho file nhỏ có giới hạn (MIDI ≤ 2MB) mà admin cần
+   * lấy lại qua API (không có URL private). Object không tồn tại → `null`.
+   */
+  async getObject(key: string): Promise<Buffer | null> {
+    try {
+      const res = await this.client.send(new GetObjectCommand({ Bucket: this.buckets[zoneOf(key)], Key: key }));
+      return res.Body ? Buffer.from(await res.Body.transformToByteArray()) : null;
+    } catch (err) {
+      if (err instanceof S3ServiceException && (err.name === 'NoSuchKey' || err.$metadata.httpStatusCode === 404)) return null;
+      throw err;
+    }
+  }
+
+  /**
    * Xoá các object (bucket suy từ prefix của key). Xoá hết những gì xoá được; object không tồn tại coi như đã xoá.
    * Có object xoá thất bại thì ném `AggregateError` sau khi đã thử toàn bộ.
    */

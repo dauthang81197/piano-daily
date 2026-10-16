@@ -222,6 +222,27 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       expect([row.midiStorageKey, row.noteJsonKey].sort()).toEqual(keys);
     });
 
+    it('GET …/midi/file trả đúng file đã upload (mọi admin); chưa có nhạc/id lạ 404; chưa đăng nhập 401', async () => {
+      const { lessons } = await build({ lessons: [{ title: 'Có nhạc' }, { title: 'Chưa có nhạc', content: 'x' }], publish: false });
+      const bytes = makeMidi(3);
+      await midiUpload(lessons[0]!.id, bytes).expect(200);
+      for (const token of [superToken, editorToken]) {
+        const res = await as(token, api().get(`/admin/courses/lessons/${lessons[0]!.id}/midi/file`).buffer(true).parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on('data', (c: Buffer) => chunks.push(c));
+          r.on('end', () => cb(null, Buffer.concat(chunks)));
+        })).expect(200);
+        expect(Buffer.from(res.body as Buffer).equals(bytes)).toBe(true);
+        expect(res.headers['content-type']).toContain('application/octet-stream');
+        expect(res.headers['content-disposition']).toContain(`bai-${lessons[0]!.id}.mid`);
+        expect(res.headers['cache-control']).toBe('no-store');
+      }
+      await sup(api().get(`/admin/courses/lessons/${lessons[1]!.id}/midi/file`)).expect(404);
+      await sup(api().get(`/admin/courses/lessons/${MISSING}/midi/file`)).expect(404);
+      await sup(api().get('/admin/courses/lessons/khong-phai-uuid/midi/file')).expect(404);
+      await api().get(`/admin/courses/lessons/${lessons[0]!.id}/midi/file`).expect(401);
+    });
+
     it('thay file: DB trỏ file mới, object cũ bị xoá; upload lại đúng nội dung cũ không xoá nhầm', async () => {
       const { lessons } = await build({ lessons: [{ title: 'Gam', content: 'x' }] });
       const id = lessons[0]!.id;

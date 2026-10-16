@@ -421,6 +421,15 @@
     "lessonNav": "Lesson navigation",
     "prev": "Previous",
     "next": "Next",
-    "backToTrack": "Back to the path"
+    "backToTrack": "Back to the path",
+    "progressSummary": "{done}/{total} lessons",
+    "completedMark": "Completed",
+    "markComplete": "Mark as complete",
+    "loginToSave": "Sign in to save your progress",
+    "progressError": "Could not save your progress. Please try again.",
+    "startLearning": "Start learning",
+    "continueLearning": "Continue: {title}",
+    "nextUnfinished": "Next lesson to do: {title}",
+    "trackDone": "You have completed this whole path. Congratulations!"
   }
 }

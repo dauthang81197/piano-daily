@@ -421,6 +421,15 @@
     "lessonNav": "Chuyển bài",
     "prev": "Bài trước",
     "next": "Bài tiếp",
-    "backToTrack": "Về lộ trình"
+    "backToTrack": "Về lộ trình",
+    "progressSummary": "{done}/{total} bài",
+    "completedMark": "Đã học",
+    "markComplete": "Đánh dấu hoàn thành",
+    "loginToSave": "Đăng nhập để lưu tiến độ",
+    "progressError": "Chưa lưu được tiến độ. Vui lòng thử lại.",
+    "startLearning": "Bắt đầu học",
+    "continueLearning": "Tiếp tục học: {title}",
+    "nextUnfinished": "Bài tiếp theo chưa học: {title}",
+    "trackDone": "Bạn đã hoàn thành toàn bộ nhánh này. Chúc mừng!"
   }
 }

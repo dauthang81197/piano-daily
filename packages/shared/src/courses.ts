@@ -251,3 +251,16 @@ export const courseLocaleQuerySchema = z.object({
     .preprocess((v) => (typeof v === 'string' ? v.trim().toLowerCase() || undefined : v), z.enum(COURSE_LOCALES, { error: 'locale phải là vi hoặc en.' }).optional())
     .transform((v) => v ?? 'vi'),
 });
+
+/** `GET /customer/courses/progress` (C2): chỉ tính bài đang công khai ở đủ bốn cấp. */
+export const courseProgressSchema = z.object({
+  tracks: z.array(z.object({ slug: z.string(), completed: z.number().int().nonnegative() })),
+  lessonIds: z.array(z.string()),
+});
+export type CourseProgress = z.infer<typeof courseProgressSchema>;
+
+/** `PUT /customer/courses/lessons/:id/completion`. */
+export const setLessonCompletionSchema = z.object({ completed: z.boolean({ error: 'completed phải là true hoặc false.' }) });
+export type SetLessonCompletionRequest = z.infer<typeof setLessonCompletionSchema>;
+export const lessonCompletionSchema = z.object({ completed: z.boolean() });
+export type LessonCompletion = z.infer<typeof lessonCompletionSchema>;

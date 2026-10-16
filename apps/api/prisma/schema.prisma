@@ -79,6 +79,7 @@ model Customer {
   refreshTokens        CustomerRefreshToken[]
   tokens               CustomerToken[]
   downloadLogs         DownloadLog[]
+  courseProgress       CourseLessonProgress[]
 
   @@map("customers")
 }
@@ -301,9 +302,24 @@ model CourseLesson {
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   section CourseSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  progress CourseLessonProgress[]
 
   @@index([sectionId, sortOrder])
   @@map("course_lessons")
+}
+
+/// Bài đã hoàn thành của khách (C2). Có dòng = đã học; bỏ đánh dấu = xoá dòng.
+model CourseLessonProgress {
+  customerId  String   @map("customer_id") @db.Uuid
+  lessonId    String   @map("lesson_id") @db.Uuid
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lesson   CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, lessonId])
+  @@index([lessonId])
+  @@map("course_lesson_progress")
 }
 
 // ── catalog ──────────────────────────────────────────────────

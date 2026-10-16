@@ -244,3 +244,9 @@
 - Nhập MIDI chỉ lấy tempo và nhịp đầu tiên, làm tròn về 1/16 và gộp track; không lưu nháp trên server (nguồn chân lý là file MIDI đã lưu); hai admin sửa cùng lúc là ghi đè (last write wins).
 - Chưa kiểm thử trình gõ trên trình duyệt thật (kiểm bằng test jsdom); lưới dùng ~90 hàng DOM cho mỗi trang.
 - (C1c review) Nút Back của trình duyệt khi còn thay đổi chưa lưu không hỏi; số ô nhịp trống ở cuối không lưu trong MIDI nên mở lại có thể ít ô hơn; file chỉ có kênh trống báo lỗi chung; nhập MIDI bỏ tempo/nhịp sau tick 0 (đã báo); `getObject` không giới hạn kích thước (trần upload 2MB); lưới A0–C8 (rộng hơn spec C2–C7) với `role="group"`; chưa test `MusicEditorPage`, phân trang, độ dài chấm, đường lỗi 404 của "Mở nhạc hiện tại", EDITOR với nốt có sẵn, `apiFetch` binary + 401, `getObject`, `attachment`, lưu đè bài công khai chỉ có nhạc.
+
+## Khoá học C2: tiến độ học (feature/khoa-hoc-tien-do)
+
+- Chỉ đánh dấu tay (chưa tự đánh dấu khi xem hết video/nghe hết nhạc); chưa chứng chỉ, huy hiệu, chuỗi ngày học, thống kê cho admin; chưa đồng bộ tiến độ giữa nhiều tab ngay lập tức (tải lại khi mở trang); chưa lưu tiến độ cho khách chưa đăng nhập.
+- Tiến độ tải sau khi trang hiện (thẻ nhảy từ 0% lên giá trị thật khi phiên khôi phục xong); chưa có skeleton.
+- (C2 review) Thẻ nhánh nhấp nháy 0% → giá trị thật khi phiên khôi phục; chưa tự thử lại khi tải tiến độ lỗi; cây cache cũ có thể trỏ tới bài vừa ẩn (404 tạm); "Tiếp tục học" luôn tới bài chưa học đầu tiên (không theo bài học gần nhất); `GET progress` chưa phân trang; số nhiều tiếng Anh "1/1 lessons"; chưa test throttle 429 và HTML SSR.

@@ -15,6 +15,10 @@ import {
   paymentStatusResponseSchema,
   type Entitlement,
   entitlementSchema,
+  type CourseProgress,
+  courseProgressSchema,
+  type LessonCompletion,
+  lessonCompletionSchema,
 } from '@piano-daily/shared';
 import type { z } from 'zod';
 import { ApiError, toApiError } from '@/lib/public-api';
@@ -78,6 +82,14 @@ export const customerApi = {
   },
   async resetPassword(token: string, newPassword: string): Promise<void> {
     await call('/customer/auth/reset-password', post({ token, newPassword }));
+  },
+  /** Tiến độ khoá học của khách (C2): bài đã học (chỉ bài đang công khai) và số bài theo nhánh. */
+  async courseProgress(accessToken: string): Promise<CourseProgress> {
+    return parsed(await call('/customer/courses/progress', { method: 'GET' }, accessToken), courseProgressSchema);
+  },
+  async setLessonCompletion(accessToken: string, lessonId: string, completed: boolean): Promise<LessonCompletion> {
+    const init: RequestInit = { method: 'PUT', body: JSON.stringify({ completed }) };
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/completion`, init, accessToken), lessonCompletionSchema);
   },
   async entitlement(accessToken: string): Promise<Entitlement> {
     return parsed(await call('/customer/entitlement', { method: 'GET' }, accessToken), entitlementSchema);

@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Breadcrumb } from '@/components/sheet/breadcrumb';
 import { MidiPlayer } from '@/components/sheet/midi-player';
 import { Link } from '@/i18n/navigation';
+import { LessonProgressPanel, type LessonRef } from './course-progress';
 import { LessonVideo } from './lesson-video';
 import { SafeMarkdown } from './safe-markdown';
 
@@ -13,7 +14,7 @@ const nav =
  * Trang bài học: nhạc (nếu có) nhúng `MidiPlayer` của trang sheet có bật khuông nhạc (khuông trái; phím, bàn tay mô phỏng, nốt rơi bên phải; Tone.js và
  * note-JSON chỉ tải khi bấm phát), rồi video, rồi nội dung. Phần vắng thì không có khối.
  */
-export function LessonView({ lesson }: { lesson: PublicLesson }) {
+export function LessonView({ lesson, order = [] }: { lesson: PublicLesson; order?: readonly LessonRef[] }) {
   const t = useTranslations('Courses');
   const base = `/courses/${encodeURIComponent(lesson.track.slug)}`;
   return (
@@ -47,6 +48,8 @@ export function LessonView({ lesson }: { lesson: PublicLesson }) {
 
       <LessonVideo url={lesson.youtubeUrl} title={lesson.title} />
       <SafeMarkdown markdown={lesson.content} />
+
+      <LessonProgressPanel trackSlug={lesson.track.slug} lessonId={lesson.id} order={order} base={base} />
 
       <nav aria-label={t('lessonNav')} className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant pt-6">
         {lesson.prev ? (

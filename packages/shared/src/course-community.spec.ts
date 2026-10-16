@@ -5,6 +5,7 @@ describe('countLinks', () => {
   it('đếm http(s):// và www.', () => {
     expect(countLinks('xem https://a.com và www.b.com, http://c.vn/x')).toBe(3);
     expect(countLinks('không có link')).toBe(0);
+    expect(countLinks('https://a.com,https://b.com,https://c.com')).toBe(3); // không cách nhau bằng khoảng trắng
   });
 });
 
@@ -13,7 +14,7 @@ describe('commentTextSchema', () => {
     expect(commentTextSchema.parse('  a\r\n\r\n\r\n\r\nb  ')).toBe('a\n\nb');
   });
   it('từ chối rỗng, quá dài, NUL, quá 2 link, không phải chuỗi', () => {
-    for (const bad of ['', '   ', 'x'.repeat(1001), 'a\u0000b', 'https://a.com https://b.com https://c.com', 5, null]) {
+    for (const bad of ['', '   ', '\u200B\u200C \uFEFF', 'https://a.com,https://b.com,https://c.com', 'x'.repeat(1001), 'a\u0000b', 'https://a.com https://b.com https://c.com', 5, null]) {
       expect(commentTextSchema.safeParse(bad).success, String(bad)).toBe(false);
     }
     expect(commentTextSchema.safeParse('x'.repeat(1000)).success).toBe(true);

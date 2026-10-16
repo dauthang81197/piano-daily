@@ -266,4 +266,5 @@
 - Trả lời chỉ một cấp, chưa @nhắc tên, thích/bỏ thích, sắp xếp theo hữu ích; "Xem thêm" nối trang bằng cursor nhưng chưa cuộn/lấy lại vị trí sau khi gửi (gửi xong tải lại trang đầu); tối đa 500 trả lời nạp cho mỗi trang bình luận gốc.
 - Tên hiển thị là `customer.name` nguyên văn (khách tự đặt); chưa cho đặt biệt danh riêng hay ẩn tên.
 - Chưa kiểm thử khối cộng đồng và trang kiểm duyệt trên trình duyệt thật (kiểm bằng test jsdom).
+- (C4 review) Trần 500 trả lời dùng chung cho cả trang bình luận gốc và 200 bình luận "của tôi" cắt âm thầm; kiểm tra trùng nguyên văn là đọc-rồi-ghi (hai POST song song vẫn có thể trùng) và một cấp trả lời chỉ do service giữ; admin/web tải lại về trang đầu sau mỗi thao tác; bình luận của tài khoản bị khoá vẫn công khai tới khi admin ẩn; wrapper `customerApi`/`fetchCommunity` chưa có test cấp fetch; chưa báo "cần xác minh email" trước khi gõ; a11y (tên nút trùng, focus, đếm ký tự, `confirm()` native); admin chưa xem trước bình luận gốc của một trả lời, chưa kiểm duyệt đánh giá hay chặn tài khoản.
 

@@ -2,7 +2,7 @@
 title: 'Khoá học piano C4: bình luận và đánh giá bài học, kiểm duyệt sau'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'fdcd726d81f40323197a6c82618a5532b05e3289'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -81,6 +81,31 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|-----------|---------|--------------------|
+| 1 | Con trỏ dùng `created_at` (ms ở JS, µs ở DB) làm mất/trùng bình luận giữa các trang, cả công khai lẫn admin (Gap, Edge, Blind) | high | patch: con trỏ chỉ chứa `id` (uuidv7), sắp xếp theo `id` giảm dần; thêm kiểm độ dài con trỏ |
+| 2 | `countLinks` đếm theo `\S+` nên `https://a.com,https://b.com,https://c.com` chỉ tính 1 link (Edge) | medium | patch: đếm số lần xuất hiện `http(s)://`/`www.`; thêm test shared + API |
+| 3 | Bình luận toàn ký tự vô hình (zero-width) qua được `min(1)` (Edge) | medium | patch: từ chối; thêm test |
+| 4 | Sửa với nội dung y hệt vẫn đặt cờ "đã chỉnh sửa" (Edge) | low | patch: trả nguyên bình luận, không ghi; thêm test |
+| 5 | `DELETE rating` ở bài đã ẩn trả trung bình/số đánh giá của bài ẩn (Edge) | medium | patch: bài không công khai trả `{average:null,count:0}`; thêm test |
+| 6 | Lọc admin "ẩn/hiện" bỏ sót trả lời nằm dưới bình luận gốc bị ẩn (Edge, Blind) | medium | patch: lọc tính cả gốc bị ẩn, thêm `parentHidden` và nhãn "Ẩn theo bình luận gốc"; thêm test API + admin |
+| 7 | `more()` web/admin không bỏ kết quả về muộn (đổi bài/bộ lọc), lỗi "Xem thêm" lẫn vào lỗi form (Edge, Blind, Gap) | medium | patch: so khoá/phạm vi, `moreError` riêng; thêm test |
+| 8 | Phần "của tôi" tải lỗi làm nút sao bị khoá vĩnh viễn (Edge) | medium | patch: nút sao chỉ khoá khi đang gửi; thêm test |
+| 9 | Admin xoá lỗi 404 không tải lại danh sách (Edge) | low | patch: tải lại trong `onError`; thêm test |
+| 10 | Trung bình sao luôn "4.5" kể cả tiếng Việt (Blind) | low | patch: `toLocaleString(locale)` ("4,5" ở vi) |
+| 11 | Không test `LessonView` gắn `LessonCommunity` (Gap) | medium | patch: stub có dấu hiệu + assert id bài |
+| 12 | Wrapper `customerApi`/`fetchCommunity` chỉ test sau mock (Gap) | low | defer: một dòng/wrapper, server đã phủ route; cùng mức C2/C3 |
+| 13 | `REPLIES_CAP` 500 dùng chung cả trang, cắt âm thầm (Edge, Blind, Gap) | low | defer: cần >500 trả lời trong 20 bình luận gốc |
+| 14 | `mine()` cắt 200 bình luận (Edge, Blind) | low | defer: cần >200 bình luận của một khách ở một bài |
+| 15 | Kiểm tra trùng nguyên văn là đọc-rồi-ghi, không có unique (Edge, Blind) | low | defer: chỉ hai POST song song cùng nội dung; hậu quả là một bản trùng |
+| 16 | Một cấp trả lời chỉ do ứng dụng giữ, DB không ràng buộc (Blind) | low | defer: không có đường ghi nào khác ngoài service |
+| 17 | Throttle theo IP/NAT, chưa chặn tài khoản, chưa kiểm duyệt đánh giá, chưa audit, chưa xem trước bình luận gốc ở admin (Blind) | low | defer (đã ghi C4 deferred) |
+| 18 | Admin mỗi thao tác tải lại về trang đầu; web tải lại trang đầu sau khi gửi (Edge, Blind) | low | defer: ghi nhận trong deferred |
+| 19 | Tên hiển thị = `customer.name`, tài khoản bị khoá vẫn hiện bình luận cũ (Edge, Blind) | low | defer: ghi nhận; admin ẩn/xoá được |
+| 20 | A11y: tên nút Trả lời/Sửa/Xoá trùng nhau, focus, đếm ký tự, `confirm()` native; chưa báo trước "cần xác minh email" (Blind) | low | defer/reject: không gây hỏng chức năng; ghi vào deferred |
+| 21 | `refresh()` lỗi sau khi gửi thành công hiện lỗi tải (Edge) | low | reject: dữ liệu cũ vẫn hiển thị, người dùng không bị chặn |
+| 22 | Claim: DELETE rating/comment bỏ qua kiểm 401/404; PATCH/DELETE admin thiếu no-store; `mine` khác hình dạng ma trận; admin PATCH/DELETE không cache (Edge, claims) | false | cố ý: người dùng luôn gỡ được dữ liệu của mình (như C3); phản hồi admin không cache được vì PATCH/DELETE; tên trường chỉ khác ghi chú ma trận |
 
 ## Verification
 

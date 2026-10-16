@@ -10,7 +10,7 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }));
 vi.mock('@/components/sheet/midi-player', () => ({ MidiPlayer: () => null }));
-vi.mock('./lesson-community', () => ({ LessonCommunity: () => null })); // có test riêng
+vi.mock('./lesson-community', () => ({ LessonCommunity: ({ lessonId }: { lessonId: string }) => <section data-testid="community">{lessonId}</section> }));
 const auth = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock('@/components/auth/auth-provider', () => ({ useCustomer: () => auth.value }));
 const api = vi.hoisted(() => ({ lessonSubmission: vi.fn() }));
@@ -46,5 +46,11 @@ describe('LessonView gắn khối nộp bài (C3)', () => {
     api.lessonSubmission.mockResolvedValue({ submission: null });
     render(withIntl(<LessonView lesson={lesson} order={[]} />, 'vi'));
     await waitFor(() => expect(api.lessonSubmission).toHaveBeenCalledWith('tok', 'lesson-xyz'));
+  });
+
+  it('trang bài gắn khối đánh giá và bình luận đúng id bài (C4)', () => {
+    auth.value = { status: 'anonymous', customer: null, getToken: async () => null, openAuth: vi.fn() };
+    render(withIntl(<LessonView lesson={lesson} order={[]} />, 'vi'));
+    expect(screen.getByTestId('community')).toHaveTextContent('lesson-xyz');
   });
 });

@@ -357,7 +357,7 @@ export const ADMIN_COMMENT_PAGE_SIZE = 30;
 
 /** Số link (`http(s)://` hoặc `www.`) trong một đoạn văn bản. */
 export function countLinks(text: string): number {
-  return text.match(/(?:https?:\/\/|www\.)\S+/gi)?.length ?? 0;
+  return text.match(/(?:https?:\/\/|www\.)/gi)?.length ?? 0;
 }
 
 const COMMENT_ERROR = `Bình luận từ 1 đến ${COMMENT_MAX} ký tự, tối đa ${COMMENT_MAX_LINKS} link.`;
@@ -371,6 +371,8 @@ export const commentTextSchema = z
       .min(1, { error: COMMENT_ERROR })
       .max(COMMENT_MAX, { error: COMMENT_ERROR })
       .refine((v) => !v.includes('\u0000'), { error: COMMENT_ERROR })
+      // Chỉ toàn ký tự vô hình (zero-width…) trông như bình luận trống.
+      .refine((v) => v.replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, '') !== '', { error: COMMENT_ERROR })
       .refine((v) => countLinks(v) <= COMMENT_MAX_LINKS, { error: COMMENT_ERROR }),
   );
 
@@ -431,6 +433,8 @@ export const adminCommentSchema = z.object({
   parentId: z.string().nullable(),
   body: z.string(),
   isHidden: z.boolean(),
+  /** Trả lời nằm dưới bình luận gốc đang bị ẩn (không hiện công khai dù chính nó không bị ẩn). */
+  parentHidden: z.boolean(),
   edited: z.boolean(),
   createdAt: z.string(),
   customer: z.object({ id: z.string(), name: z.string(), email: z.string() }),

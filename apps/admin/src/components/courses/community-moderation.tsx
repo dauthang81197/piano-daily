@@ -3,7 +3,7 @@
 import type { AdminComment } from '@piano-daily/shared';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import { DeleteConfirm } from '@/components/taxonomy/delete-confirm';
 import { applyServerError, loadErrorMessage } from '@/components/taxonomy/server-error';
@@ -29,6 +29,9 @@ export function CommunityModeration({ lessonId }: { lessonId: string | null }) {
   const [reload, setReload] = useState(0);
 
   const hidden = filter === 'all' ? undefined : filter === 'hidden';
+  /** Bộ lọc hiện hành: trang "Xem thêm" về muộn sau khi đổi bộ lọc/bài/tải lại thì bỏ qua. */
+  const scope = useRef('');
+  scope.current = `${lessonId ?? ''}|${String(hidden)}|${reload}`;
   useEffect(() => {
     const controller = new AbortController();
     setItems(null);
@@ -49,13 +52,15 @@ export function CommunityModeration({ lessonId }: { lessonId: string | null }) {
 
   const more = async () => {
     if (!nextCursor) return;
+    const started = scope.current;
     setBusy(true);
     try {
       const page = await coursesApi.comments({ ...(lessonId ? { lessonId } : {}), ...(hidden === undefined ? {} : { hidden }), cursor: nextCursor });
+      if (scope.current !== started) return;
       setItems((prev) => [...(prev ?? []), ...page.items]);
       setNextCursor(page.nextCursor);
     } catch (err) {
-      setActionError(loadErrorMessage(err));
+      if (scope.current === started) setActionError(loadErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -110,6 +115,7 @@ export function CommunityModeration({ lessonId }: { lessonId: string | null }) {
                   <span className="min-w-0 flex-1 truncate font-medium">{who}</span>
                   {c.parentId && <span className="rounded border px-1 text-[10px] font-medium text-muted-foreground">Trả lời</span>}
                   {c.isHidden && <span className="rounded border border-error px-1 text-[10px] font-medium text-error">Đã ẩn</span>}
+                  {!c.isHidden && c.parentHidden && <span className="rounded border border-error px-1 text-[10px] font-medium text-error">Ẩn theo bình luận gốc</span>}
                   <span className="text-caption text-muted-foreground">{when(c.createdAt)}{c.edited ? ' · đã sửa' : ''}</span>
                 </div>
                 <Link href={`/courses/comments?lessonId=${encodeURIComponent(c.lessonId)}`} className="text-sm text-primary underline-offset-4 hover:underline">
@@ -135,7 +141,10 @@ export function CommunityModeration({ lessonId }: { lessonId: string | null }) {
                         await coursesApi.removeComment(c.id);
                         setReload((n) => n + 1);
                       }}
-                      onError={(err) => setActionError(actionMessage(err))}
+                      onError={(err) => {
+                        setActionError(actionMessage(err));
+                        setReload((n) => n + 1);
+                      }}
                     />
                   )}
                 </div>

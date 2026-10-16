@@ -955,6 +955,7 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       expect(second.comments.map((c) => c.body)).toEqual(['c04', 'c03', 'c02', 'c01', 'c00']);
       expect(second.nextCursor).toBeNull();
       await pub(id, '?cursor=@@@').expect(400);
+      await pub(id, `?cursor=${'a'.repeat(200)}`).expect(400);
     });
 
     it('cô lập và cascade: xoá bài / khách xoá đánh giá + bình luận theo', async () => {
@@ -998,6 +999,34 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       await as(editorToken, api().delete(`/admin/courses/comments/${c1.id}`)).expect(403);
       await sup(api().delete(`/admin/courses/comments/${c1.id}`)).expect(204);
       await sup(api().delete(`/admin/courses/comments/${c1.id}`)).expect(404);
+    });
+
+    it('chống lách: link dính liền, toàn ký tự vô hình -> 400; sửa không đổi nội dung không đặt cờ edited', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      await post(alice.token, id, { body: 'https://a.com,https://b.com,https://c.com' }).expect(400);
+      await post(alice.token, id, { body: '\u200B\u200C\uFEFF' }).expect(400);
+      const c = (await post(alice.token, id, { body: 'nguyên văn' }).expect(201)).body as { id: string };
+      expect((await edit(alice.token, c.id, { body: 'nguyên văn' }).expect(200)).body).toMatchObject({ edited: false });
+      expect((await prisma.courseComment.findUniqueOrThrow({ where: { id: c.id } })).editedAt).toBeNull();
+    });
+
+    it('gỡ đánh giá ở bài đã ẩn không lộ trung bình sao; admin lọc ẩn tính cả trả lời dưới gốc bị ẩn', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      await rate(alice.token, id, { stars: 5 }).expect(200);
+      await rate(bob.token, id, { stars: 1 }).expect(200);
+      await setPub('lessons', id, false);
+      expect((await as(alice.token, api().delete(`${base(id)}/rating`).set('CF-Connecting-IP', ip())).expect(200)).body).toEqual({ myRating: null, rating: { average: null, count: 0 } });
+      await setPub('lessons', id, true);
+      const root = (await post(alice.token, id, { body: 'gốc' }).expect(201)).body as { id: string };
+      const reply = (await post(bob.token, id, { body: 'tl', parentId: root.id }).expect(201)).body as { id: string };
+      await hide(root.id, true).expect(200);
+      const list = async (q: string) => adminCommentPageSchema.parse((await sup(api().get(`/admin/courses/comments${q}`)).expect(200)).body);
+      expect((await list('?hidden=true')).items.map((i) => i.id).sort()).toEqual([root.id, reply.id].sort());
+      expect((await list('?hidden=false')).items).toEqual([]);
+      const all = await list('');
+      expect(all.items.find((i) => i.id === reply.id)).toMatchObject({ isHidden: false, parentHidden: true });
     });
 
     it('ghi quá 10 lần/phút từ một địa chỉ -> 429 (bình luận, đánh giá)', async () => {

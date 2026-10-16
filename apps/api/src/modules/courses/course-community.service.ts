@@ -32,18 +32,20 @@ const base = (r: CommentRow) => ({
   edited: r.editedAt !== null,
 });
 
-const encodeCursor = (createdAt: Date, id: string) => Buffer.from(`${createdAt.toISOString()}|${id}`).toString('base64url');
-function decodeCursor(cursor: string | undefined): { createdAt: Date; id: string } | null {
+/**
+ * Con trỏ chỉ chứa `id` (uuidv7 do DB sinh nên tăng theo thời gian): so sánh theo một cột duy nhất nên không mất/trùng dòng
+ * như khi so `created_at` (µs ở DB, chỉ ms ở JS). Thứ tự hiển thị cũng theo `id` giảm dần.
+ */
+const encodeCursor = (id: string) => Buffer.from(id).toString('base64url');
+function decodeCursor(cursor: string | undefined): string | null {
   if (!cursor) return null;
-  const [iso, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  const createdAt = new Date(iso ?? '');
-  if (!id || Number.isNaN(createdAt.getTime()) || !/^[0-9a-f-]{36}$/i.test(id)) {
+  const id = cursor.length <= 100 ? Buffer.from(cursor, 'base64url').toString() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     throw new AppException(ErrorCode.VALIDATION_FAILED, HttpStatus.BAD_REQUEST, undefined, [{ path: 'cursor', message: 'Con trỏ không hợp lệ.' }]);
   }
-  return { createdAt, id: id.toLowerCase() };
+  return id.toLowerCase();
 }
-const beforeCursor = (c: { createdAt: Date; id: string } | null) =>
-  c ? { OR: [{ createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } }] } : {};
+const beforeCursor = (id: string | null) => (id ? { id: { lt: id } } : {});
 
 /** Đánh giá + bình luận bài học (C4) và kiểm duyệt của admin. Kiểm duyệt sau: đăng ngay, admin ẩn/xoá. */
 @Injectable()
@@ -82,7 +84,7 @@ export class CourseCommunityService {
     const cursor = decodeCursor(cursorRaw);
     const roots = await this.prisma.courseComment.findMany({
       where: { lessonId, parentId: null, isHidden: false, ...beforeCursor(cursor) },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: { id: 'desc' },
       take: COMMENT_PAGE_SIZE + 1,
       include: { customer: { select: { name: true } } },
     });
@@ -90,7 +92,7 @@ export class CourseCommunityService {
     const replies = page.length
       ? await this.prisma.courseComment.findMany({
           where: { parentId: { in: page.map((r) => r.id) }, isHidden: false },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          orderBy: { id: 'asc' },
           take: REPLIES_CAP,
           include: { customer: { select: { name: true } } },
         })
@@ -101,7 +103,7 @@ export class CourseCommunityService {
     return {
       rating: await this.ratingSummary(lessonId),
       comments: page.map((root): PublicThread => ({ ...base(root), replies: (byParent.get(root.id) ?? []).map(base) })),
-      nextCursor: roots.length > COMMENT_PAGE_SIZE && last ? encodeCursor(last.createdAt, last.id) : null,
+      nextCursor: roots.length > COMMENT_PAGE_SIZE && last ? encodeCursor(last.id) : null,
     };
   }
 
@@ -112,7 +114,7 @@ export class CourseCommunityService {
       this.prisma.courseRating.findUnique({ where: { customerId_lessonId: { customerId, lessonId } }, select: { stars: true } }),
       this.prisma.courseComment.findMany({
         where: { customerId, lessonId },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        orderBy: { id: 'desc' },
         take: 200,
         include: { customer: { select: { name: true } }, parent: { select: { isHidden: true } } },
       }),
@@ -144,7 +146,9 @@ export class CourseCommunityService {
   /** Gỡ đánh giá của mình (idempotent). Không cần bài còn công khai. */
   async removeRating(customerId: string, lessonId: string): Promise<MyRating> {
     await this.prisma.courseRating.deleteMany({ where: { customerId, lessonId } });
-    return { myRating: null, rating: await this.ratingSummary(lessonId) };
+    // Bài không còn công khai thì không trả số liệu (tránh lộ điểm của bài đang ẩn).
+    const visible = await this.prisma.courseLesson.findFirst({ where: { id: lessonId, ...VISIBLE_LESSON }, select: { id: true } });
+    return { myRating: null, rating: visible ? await this.ratingSummary(lessonId) : { average: null, count: 0 } };
   }
 
   // ── bình luận ──────────────────────────────────────────────
@@ -173,9 +177,15 @@ export class CourseCommunityService {
     await this.requirePosting(customerId);
     const own = await this.prisma.courseComment.findFirst({
       where: { id, customerId, lesson: VISIBLE_LESSON },
-      select: { lessonId: true, isHidden: true, parent: { select: { isHidden: true } } },
+      select: { lessonId: true, isHidden: true, body: true, parent: { select: { isHidden: true } } },
     });
     if (!own) throw notFound(COMMENT_NOT_FOUND);
+    if (own.body === bodyText) {
+      // Không đổi gì thì không đánh dấu "đã chỉnh sửa".
+      const same = await this.prisma.courseComment.findUnique({ where: { id }, include: { customer: { select: { name: true } } } });
+      if (!same) throw notFound(COMMENT_NOT_FOUND);
+      return { ...base(same), isHidden: same.isHidden || own.parent?.isHidden === true };
+    }
     if (await this.prisma.courseComment.findFirst({ where: { customerId, lessonId: own.lessonId, body: bodyText, NOT: { id } }, select: { id: true } })) throw inUse(DUPLICATE);
     try {
       const row = await this.prisma.courseComment.update({
@@ -201,10 +211,16 @@ export class CourseCommunityService {
     if (q.lessonId && !(await this.prisma.courseLesson.findUnique({ where: { id: q.lessonId }, select: { id: true } }))) throw notFound(LESSON_NOT_FOUND);
     const cursor = decodeCursor(q.cursor);
     const rows = await this.prisma.courseComment.findMany({
-      where: { ...(q.lessonId ? { lessonId: q.lessonId } : {}), ...(q.hidden === undefined ? {} : { isHidden: q.hidden }), ...beforeCursor(cursor) },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      where: {
+        ...(q.lessonId ? { lessonId: q.lessonId } : {}),
+        // "Ẩn" gồm cả trả lời nằm dưới bình luận gốc bị ẩn (công khai cũng không thấy chúng).
+        ...(q.hidden === true ? { OR: [{ isHidden: true }, { parent: { is: { isHidden: true } } }] } : {}),
+        ...(q.hidden === false ? { isHidden: false, NOT: { parent: { is: { isHidden: true } } } } : {}),
+        ...beforeCursor(cursor),
+      },
+      orderBy: { id: 'desc' },
       take: q.limit + 1,
-      include: { customer: { select: { id: true, name: true, email: true } }, lesson: { select: { title: true } } },
+      include: { customer: { select: { id: true, name: true, email: true } }, lesson: { select: { title: true } }, parent: { select: { isHidden: true } } },
     });
     const page = rows.slice(0, q.limit);
     const last = page[page.length - 1];
@@ -217,12 +233,13 @@ export class CourseCommunityService {
           parentId: r.parentId,
           body: r.body,
           isHidden: r.isHidden,
+          parentHidden: r.parent?.isHidden === true,
           edited: r.editedAt !== null,
           createdAt: r.createdAt.toISOString(),
           customer: r.customer,
         }),
       ),
-      nextCursor: rows.length > q.limit && last ? encodeCursor(last.createdAt, last.id) : null,
+      nextCursor: rows.length > q.limit && last ? encodeCursor(last.id) : null,
     };
   }
 

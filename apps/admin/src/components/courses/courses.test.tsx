@@ -388,7 +388,7 @@ describe('Bài nộp của khách (C3)', () => {
 describe('Kiểm duyệt bình luận (C4)', () => {
   const CID = '0192a000-0000-7000-8000-0000000000f1';
   const cm = (over: Record<string, unknown> = {}) => ({
-    id: CID, lessonId: LESSON_ID, lessonTitle: 'Gam Đô', parentId: null, body: 'Bài hay\n<b>x</b>', isHidden: false, edited: false, createdAt: NOW,
+    id: CID, lessonId: LESSON_ID, lessonTitle: 'Gam Đô', parentId: null, body: 'Bài hay\n<b>x</b>', isHidden: false, parentHidden: false, edited: false, createdAt: NOW,
     customer: { id: 'c1', name: 'Lan', email: 'lan@example.com' }, ...over,
   });
   const commentsPath = '/admin/courses/comments';
@@ -463,6 +463,25 @@ describe('Kiểm duyệt bình luận (C4)', () => {
     expect(await screen.findByText('Trang hai')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Xem thêm' })).toBeNull();
     expect(queries(fetchMock)).toContain('?cursor=cur');
+  });
+
+  it('trả lời dưới bình luận gốc bị ẩn có nhãn riêng; xoá lỗi 404 cũng tải lại danh sách', async () => {
+    let listed = 0;
+    await signIn('SUPER_ADMIN', (url, init) => {
+      if (init.method === 'DELETE') return jsonResponse(404, errorBody('NOT_FOUND'));
+      if (url.pathname === commentsPath) {
+        listed += 1;
+        return jsonResponse(200, { items: listed === 1 ? [cm({ parentId: CID, parentHidden: true })] : [], nextCursor: null });
+      }
+      return undefined;
+    });
+    wrap(<CommunityModeration lessonId={null} />);
+    const user = userEvent.setup();
+    expect(await screen.findByText('Ẩn theo bình luận gốc')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Xoá' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+    expect(await screen.findByText('Không có bình luận nào.')).toBeInTheDocument();
+    expect(listed).toBeGreaterThanOrEqual(2);
   });
 
   it('PATCH 404 (đã bị xoá nơi khác): hiện lỗi và tải lại danh sách', async () => {

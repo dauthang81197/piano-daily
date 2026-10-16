@@ -42,7 +42,7 @@ describe('LessonCommunity', () => {
     signOut();
     pubApi.fetchCommunity.mockResolvedValue(pubData({ comments: [{ ...comment({ body: '<b>x</b> **y**' }), replies: [] }] }));
     view();
-    expect(await screen.findByText('4.5 / 5 sao · 2 đánh giá')).toBeInTheDocument();
+    expect(await screen.findByText('4,5 / 5 sao · 2 đánh giá')).toBeInTheDocument();
     expect(screen.getByText('<b>x</b> **y**')).toBeInTheDocument();
     expect(document.querySelector('b')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Đăng nhập để đánh giá' }));
@@ -71,13 +71,12 @@ describe('LessonCommunity', () => {
     api.removeRating.mockResolvedValue({ myRating: null, rating: { average: 4.5, count: 2 } });
     view();
     const star = await screen.findByRole('button', { name: '5 sao' });
-    await waitFor(() => expect(star).toBeEnabled());
-    await userEvent.click(star);
+        await userEvent.click(star);
     expect(api.setRating).toHaveBeenCalledWith('tok', 'l1', 5);
-    expect(await screen.findByText('4.7 / 5 sao · 3 đánh giá')).toBeInTheDocument();
+    expect(await screen.findByText('4,7 / 5 sao · 3 đánh giá')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '5 sao' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Gỡ đánh giá' }));
-    expect(await screen.findByText('4.5 / 5 sao · 2 đánh giá')).toBeInTheDocument();
+    expect(await screen.findByText('4,5 / 5 sao · 2 đánh giá')).toBeInTheDocument();
   });
 
   it('gửi bình luận gốc rồi tải lại danh sách; trả lời gửi parentId', async () => {
@@ -164,6 +163,38 @@ describe('LessonCommunity', () => {
     expect(await screen.findByText('Trang hai')).toBeInTheDocument();
     expect(screen.getByText('Bài hay')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Xem thêm bình luận' })).toBeNull();
+  });
+
+  it('"Xem thêm" lỗi báo ở chỗ nút (không lẫn vào lỗi form); kết quả về muộn sau khi đổi bài bị bỏ', async () => {
+    signOut();
+    pubApi.fetchCommunity.mockResolvedValueOnce(pubData({ nextCursor: 'cur' }));
+    pubApi.fetchCommunity.mockRejectedValueOnce(new Error('boom'));
+    const { rerender } = view();
+    await userEvent.click(await screen.findByRole('button', { name: 'Xem thêm bình luận' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chưa tải được bình luận.');
+
+    let release: (v: unknown) => void = () => {};
+    pubApi.fetchCommunity.mockReturnValueOnce(new Promise((r) => (release = r)));
+    await userEvent.click(screen.getByRole('button', { name: 'Xem thêm bình luận' }));
+    pubApi.fetchCommunity.mockResolvedValueOnce(pubData({ comments: [{ ...comment({ id: 'other', body: 'Bài khác' }), replies: [] }] }));
+    rerender(withIntl(<LessonCommunity lessonId="l2" />, 'vi'));
+    expect(await screen.findByText('Bài khác')).toBeInTheDocument();
+    release(pubData({ comments: [{ ...comment({ id: 'late', body: 'Muộn của bài cũ' }), replies: [] }], nextCursor: null }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('Muộn của bài cũ')).not.toBeInTheDocument();
+  });
+
+  it('sao dùng được ngay cả khi phần "của tôi" tải lỗi; trung bình theo định dạng ngôn ngữ', async () => {
+    signIn();
+    pubApi.fetchCommunity.mockResolvedValue(pubData());
+    api.myCommunity.mockRejectedValue(new Error('boom'));
+    api.setRating.mockResolvedValue({ myRating: 3, rating: { average: 4.5, count: 3 } });
+    view();
+    expect(await screen.findByText('4,5 / 5 sao · 2 đánh giá')).toBeInTheDocument();
+    const star = screen.getByRole('button', { name: '3 sao' });
+    expect(star).toBeEnabled();
+    await userEvent.click(star);
+    expect(api.setRating).toHaveBeenCalledWith('tok', 'l1', 3);
   });
 
   it('tải công khai lỗi hiện thông báo', async () => {

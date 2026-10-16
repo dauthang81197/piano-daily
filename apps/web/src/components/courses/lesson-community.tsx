@@ -27,6 +27,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   const [mine, setMine] = useState<{ owner: string; lessonId: string; data: MyCommunity } | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [moreBusy, setMoreBusy] = useState(false);
+  const [moreError, setMoreError] = useState(false);
   const [draft, setDraft] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
@@ -67,6 +68,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   useEffect(() => {
     setPub(null);
     setLoadError(false);
+    setMoreError(false);
     const controller = new AbortController();
     void loadPublic(controller.signal);
     return () => controller.abort();
@@ -161,14 +163,18 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   };
   const more = async () => {
     if (!pub?.nextCursor) return;
+    const cursor = pub.nextCursor;
     setMoreBusy(true);
+    setMoreError(false);
     try {
-      const next = await fetchCommunity(lessonId, pub.nextCursor);
-      setPub((p) => (p ? { ...next, comments: [...p.comments, ...next.comments] } : next));
+      const next = await fetchCommunity(lessonId, cursor);
+      // Kết quả về muộn sau khi đổi bài, hoặc danh sách đã tải lại từ trang đầu: bỏ qua.
+      if (current.current !== key) return;
+      setPub((p) => (p && p.nextCursor === cursor ? { ...next, comments: [...p.comments, ...next.comments] } : p));
     } catch {
-      setError(t('communityError'));
+      if (current.current === key) setMoreError(true);
     } finally {
-      setMoreBusy(false);
+      if (current.current === key) setMoreBusy(false);
     }
   };
 
@@ -254,7 +260,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
       {pub ? (
         <p className="text-body-md text-on-surface-variant">
           {pub.rating.count > 0 && pub.rating.average !== null
-            ? t('communitySummary', { average: pub.rating.average.toFixed(1), count: pub.rating.count })
+            ? t('communitySummary', { average: pub.rating.average.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }), count: pub.rating.count })
             : t('communityNoRating')}
         </p>
       ) : null}
@@ -268,7 +274,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
               type="button"
               aria-label={t('communityStar', { n })}
               aria-pressed={(own?.myRating ?? 0) >= n}
-              disabled={busy || !own}
+              disabled={busy}
               onClick={() => rate(n)}
               className="inline-flex size-11 items-center justify-center rounded-md hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-60"
             >
@@ -319,6 +325,11 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
         <button type="button" className={`${button} self-start`} disabled={moreBusy} onClick={() => void more()}>
           {t('communityMore')}
         </button>
+      ) : null}
+      {moreError ? (
+        <p role="alert" className="text-body-md text-error">
+          {t('communityLoadError')}
+        </p>
       ) : null}
     </section>
   );

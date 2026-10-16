@@ -448,6 +448,8 @@
     "submissionInvalidUrl": "Chỉ nhận link video YouTube hoặc file Google Drive.",
     "submissionTooMany": "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.",
     "submissionError": "Chưa lưu được bài nộp. Vui lòng thử lại.",
-    "submissionLoadError": "Chưa tải được bài nộp của bạn."
+    "submissionLoadError": "Chưa tải được bài nộp của bạn.",
+    "submissionInvalidNote": "Ghi chú không hợp lệ (tối đa 500 ký tự).",
+    "submissionUnavailable": "Bài học này không còn mở để nộp bài. Hãy tải lại trang."
   }
 }

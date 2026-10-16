@@ -132,4 +132,48 @@ describe('LessonSubmission', () => {
     release({ submission: null });
     expect(await screen.findByLabelText('Link video')).toBeInTheDocument();
   });
+
+  it('404/401 khi lưu báo bài không còn mở nộp; 400 ở ghi chú báo lỗi ghi chú', async () => {
+    signIn();
+    api.lessonSubmission.mockResolvedValue({ submission: null });
+    view();
+    await userEvent.type(await screen.findByLabelText('Link video'), YT);
+    const submit = screen.getByRole('button', { name: 'Nộp bài' });
+    api.saveSubmission.mockRejectedValueOnce(new ApiError(404, 'NOT_FOUND', 'x'));
+    await userEvent.click(submit);
+    expect(await screen.findByRole('alert')).toHaveTextContent('không còn mở để nộp bài');
+    api.saveSubmission.mockRejectedValueOnce(new ApiError(400, 'VALIDATION_FAILED', 'x', [{ path: 'note', message: 'x' }]));
+    await userEvent.click(submit);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Ghi chú không hợp lệ'));
+  });
+
+  it('link không có scheme (youtu.be/...) không bị chặn bởi trình duyệt; form không giữ chữ của tài khoản trước', async () => {
+    signIn('c1');
+    api.lessonSubmission.mockResolvedValue({ submission: null });
+    api.saveSubmission.mockResolvedValue({ submission: sub() });
+    const { rerender } = view();
+    const input = await screen.findByLabelText('Link video');
+    expect(input).toHaveAttribute('type', 'text');
+    await userEvent.type(input, 'youtu.be/dQw4w9WgXcQ');
+    signIn('c2');
+    rerender(withIntl(<LessonSubmission lessonId="l1" />, 'vi'));
+    expect(await screen.findByLabelText('Link video')).toHaveValue('');
+  });
+
+  it('kết quả lưu về muộn sau khi đổi tài khoản không ghi đè trạng thái của tài khoản mới', async () => {
+    signIn('c1');
+    api.lessonSubmission.mockResolvedValue({ submission: null });
+    let finish: (v: unknown) => void = () => {};
+    api.saveSubmission.mockReturnValueOnce(new Promise((r) => (finish = r)));
+    const { rerender } = view();
+    await userEvent.type(await screen.findByLabelText('Link video'), YT);
+    await userEvent.click(screen.getByRole('button', { name: 'Nộp bài' }));
+    signIn('c2');
+    rerender(withIntl(<LessonSubmission lessonId="l1" />, 'vi'));
+    expect(await screen.findByLabelText('Link video')).toBeInTheDocument();
+    finish({ submission: sub({ note: 'của c1' }) });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('của c1')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Link video')).toBeInTheDocument();
+  });
 });

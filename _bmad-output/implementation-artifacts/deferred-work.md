@@ -257,4 +257,5 @@
 - Không kiểm tra link có thật hay có công khai (Drive riêng tư vẫn nộp được; chỉ có gợi ý chia sẻ); không nhúng/xem trước video; danh sách admin tối đa 200 bài mới nhất, chưa phân trang hay lọc theo khách.
 - Admin chưa có trang tổng hợp bài nộp mọi bài (chỉ theo từng bài); ẩn bài nộp chưa gửi thông báo cho khách.
 - Chưa kiểm thử khối nộp bài và trang admin trên trình duyệt thật (kiểm bằng test jsdom).
+- (C3 review) `/open?id=` và `/uc?id=` nhận cả id thư mục/Docs (không phân biệt được khi chỉ kiểm tra chuỗi); trần 200 dòng admin chưa test, chưa phân trang/báo bị cắt; throttle ghi theo IP nên người dùng chung NAT dùng chung 10/phút; chưa audit/thông báo khi admin ẩn-xoá và `updated_at` đổi khi admin ẩn; chưa có nút thử lại khi tải bài nộp lỗi; PATCH admin trả `MySubmission` không kèm khách.
 

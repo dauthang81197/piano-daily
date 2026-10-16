@@ -283,7 +283,7 @@ export function parseDriveUrl(input: string): string | null {
   if (url.username || url.password || url.port) return null;
   if (url.hostname.toLowerCase() !== 'drive.google.com') return null;
   let id: string | null | undefined;
-  const match = /^\/file\/d\/([^/]+)(?:\/|$)/.exec(url.pathname);
+  const match = /^\/file\/(?:u\/\d+\/)?d\/([^/]+)(?:\/|$)/.exec(url.pathname);
   if (match) id = match[1];
   else if (url.pathname === '/open' || url.pathname === '/uc') id = url.searchParams.get('id');
   return id && DRIVE_ID.test(id) ? id : null;

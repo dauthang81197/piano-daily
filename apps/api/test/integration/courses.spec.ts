@@ -751,11 +751,22 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       expect(await prisma.courseSubmission.count()).toBe(1);
     });
 
-    it('ghi quá 10 lần/phút từ cùng một địa chỉ -> 429', async () => {
+    it('ghi quá 10 lần/phút từ cùng một địa chỉ -> 429 (PUT và DELETE)', async () => {
       const a = await build();
       const address = ip();
       for (let i = 0; i < 10; i += 1) await putSub(alice.token, a.lessons[0]!.id, { url: YT }, address).expect(200);
       await putSub(alice.token, a.lessons[0]!.id, { url: YT }, address).expect(429);
+      const other = ip();
+      for (let i = 0; i < 10; i += 1) await as(alice.token, api().delete(path(a.lessons[0]!.id)).set('CF-Connecting-IP', other)).expect(204);
+      await as(alice.token, api().delete(path(a.lessons[0]!.id)).set('CF-Connecting-IP', other)).expect(429);
+    });
+
+    it('hai lần nộp đầu tiên song song không gây 500 (đua khoá duy nhất)', async () => {
+      const a = await build();
+      const id = a.lessons[0]!.id;
+      const results = await Promise.all([putSub(alice.token, id, { url: YT }), putSub(alice.token, id, { url: DRIVE })]);
+      expect(results.map((r) => r.status)).toEqual([200, 200]);
+      expect(await prisma.courseSubmission.count()).toBe(1);
     });
   });
 

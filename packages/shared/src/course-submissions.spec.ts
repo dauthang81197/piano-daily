@@ -9,6 +9,7 @@ describe('parseDriveUrl', () => {
   it('nhận /file/d/ID, /open?id=, /uc?id= (thiếu scheme cũng được)', () => {
     expect(parseDriveUrl(`https://drive.google.com/file/d/${ID}/view?usp=sharing`)).toBe(ID);
     expect(parseDriveUrl(`drive.google.com/file/d/${ID}`)).toBe(ID);
+    expect(parseDriveUrl(`https://drive.google.com/file/u/1/d/${ID}/view`)).toBe(ID);
     expect(parseDriveUrl(`https://drive.google.com/open?id=${ID}`)).toBe(ID);
     expect(parseDriveUrl(`https://drive.google.com/uc?export=download&id=${ID}`)).toBe(ID);
   });

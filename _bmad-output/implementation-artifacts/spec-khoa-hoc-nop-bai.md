@@ -2,7 +2,7 @@
 title: 'Khoá học piano C3: nộp bài qua link YouTube/Drive'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-review'
+status: 'done'
 baseline_commit: '404592eb41d3166e4c63af9c63ace3a4a72f3316'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -85,6 +85,32 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|-----------|---------|--------------------|
+| 1 | Kết quả lưu/xoá về muộn sau khi đổi khách/bài ghi đè trạng thái (Edge) | medium | patch: so khoá (khách,bài) hiện tại trước khi `setLoad`/`setBusy`; thêm test |
+| 2 | Form giữ chữ của tài khoản/bài trước (Edge) | medium | patch: reset `url`/`note` trong effect đổi khách/bài; thêm test |
+| 3 | 404/401 khi lưu chỉ báo lỗi chung, thử lại không bao giờ thành công (Edge, Gap) | medium | patch: thông báo `submissionUnavailable`; thêm test |
+| 4 | 400 ở `note`/trường khác hiện `err.message` sai ngôn ngữ (Edge, Gap, Blind) | low | patch: `submissionInvalidNote` / `submissionInvalidUrl` theo ngôn ngữ web |
+| 5 | `type=url` chặn link không scheme mà server nhận (Edge) | low | patch: `type=text inputMode=url`; thêm test |
+| 6 | Hai PUT đầu tiên song song → P2002 → 500 (Edge) | medium | patch: bắt P2002 rồi cập nhật dòng đã có; thêm test song song |
+| 7 | Admin: tải lại lỗi/PATCH 404 để dòng cũ nằm cạnh lỗi (Edge) | low | patch: xoá `rows` khi tải lỗi, tải lại sau lỗi thao tác; thêm test |
+| 8 | Link Drive dạng `/file/u/0/d/ID` bị từ chối (Blind) | low | patch: regex nhận `u/N/`; thêm test shared |
+| 9 | README nói "thư mục bị từ chối" quá mức: `/open?id=` nhận cả id thư mục (Edge) | low | patch README; không thể phân biệt offline → ghi vào deferred |
+| 10 | Không có test `LessonView` gắn khối nộp bài (Gap) | medium | patch: `lesson-view-submission.test.tsx` |
+| 11 | 429 chỉ test PUT, DELETE chưa (Gap) | low | patch: mở rộng test 429 cho DELETE |
+| 12 | Trần 200 dòng admin không test, không phân trang/báo cắt (Gap, Edge, Blind) | low | defer (đã ghi C3 deferred; cần seed 201 khách) |
+| 13 | Throttle theo IP, người dùng chung NAT dùng chung 10/phút (Blind, Edge) | low | defer: cùng mẫu C2 và các route khách khác; README ghi rõ "theo IP" |
+| 14 | `is_hidden` chưa có tác dụng ngoài nhãn (Blind) | false | đúng theo spec: người nộp vẫn thấy; nơi dùng cờ là C4 |
+| 15 | PATCH admin trả `MySubmission` thiếu `customer`, thiếu `no-store` (Blind) | low | reject: UI tải lại danh sách; dữ liệu admin không cache công khai |
+| 16 | Gợi ý "ai có link" không kiểm tra Drive riêng tư/YouTube private (Blind) | low | reject: spec Never "kiểm tra link có thật"; đã có gợi ý |
+| 17 | Admin chưa kiểm `lessonId` thuộc `trackId` (Blind) | low | reject: chỉ ảnh hưởng tiêu đề/liên kết quay lại; API vẫn quyền admin |
+| 18 | Không có audit trail/thông báo khi ẩn/xoá; `updated_at` đổi khi admin ẩn (Blind) | low | defer: đã ghi chưa thông báo; audit ngoài phạm vi C3 |
+| 19 | Chuỗi admin chỉ tiếng Việt (Blind) | false | admin toàn tiếng Việt theo kiến trúc hiện có |
+| 20 | Trạng thái tải im lặng, focus, `confirm()` native, thiếu nút thử lại khi tải lỗi (Blind, Edge) | low | reject/defer: không có hại cụ thể; thử lại ghi vào deferred |
+| 21 | `href` admin không kiểm scheme (Edge) | low | reject: URL chỉ do server chuẩn hoá https ghi vào; không đường nào ghi scheme khác |
+| 22 | Admin `canWrite` nhấp nháy khi chưa có user (Edge) | low | reject: cùng mẫu mọi trang admin khác |
+| 23 | Index không có `id`; test CHECK; ghi chú toàn khoảng trắng; `schema.prisma` căn lại cột (Blind) | false | index đủ cho truy vấn; ghi chú rỗng đã test ở shared; căn cột do `prisma format` chuẩn |
 
 ## Verification
 

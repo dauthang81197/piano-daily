@@ -38,16 +38,15 @@ export class CourseSubmissionsService {
   async upsert(customerId: string, lessonId: string, body: UpsertSubmissionBody): Promise<LessonSubmission> {
     await this.assertVisible(lessonId);
     const data = { kind: body.url.kind, url: body.url.url, note: body.note };
+    const where = { customerId_lessonId: { customerId, lessonId } };
     try {
-      const row = await this.prisma.courseSubmission.upsert({
-        where: { customerId_lessonId: { customerId, lessonId } },
-        create: { customerId, lessonId, ...data },
-        update: data,
-      });
-      return { submission: toDto(row) };
+      return { submission: toDto(await this.prisma.courseSubmission.upsert({ where, create: { customerId, lessonId, ...data }, update: data })) };
     } catch (err) {
+      const code = (err as { code?: string }).code;
+      // Hai lần nộp đầu tiên chạy song song cùng đụng khoá duy nhất: lần thua cập nhật dòng của lần thắng.
+      if (code === 'P2002') return { submission: toDto(await this.prisma.courseSubmission.update({ where, data })) };
       // Khoá ngoại: khách đã bị xoá (token còn hạn) hoặc bài bị xoá giữa lúc kiểm tra và ghi.
-      if ((err as { code?: string }).code !== 'P2003') throw err;
+      if (code !== 'P2003') throw err;
       if (!(await this.prisma.customer.findUnique({ where: { id: customerId }, select: { id: true } }))) {
         throw new AppException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
       }

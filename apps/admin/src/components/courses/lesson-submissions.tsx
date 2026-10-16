@@ -44,7 +44,9 @@ export function LessonSubmissionsPage({ trackId, lessonId }: { trackId: string; 
         setError(null);
       })
       .catch((err: unknown) => {
-        if (!controller.signal.aborted) setError(loadErrorMessage(err));
+        if (controller.signal.aborted) return;
+        setRows(null); // không để dòng cũ (đã ẩn/xoá) nằm cạnh thông báo lỗi
+        setError(loadErrorMessage(err));
       });
     return () => controller.abort();
   }, [lessonId, reload]);
@@ -57,6 +59,7 @@ export function LessonSubmissionsPage({ trackId, lessonId }: { trackId: string; 
       setReload((n) => n + 1);
     } catch (err) {
       setActionError(actionMessage(err));
+      setReload((n) => n + 1); // bài nộp có thể đã đổi/xoá ở nơi khác: tải lại cho khớp
     } finally {
       setBusy(false);
     }

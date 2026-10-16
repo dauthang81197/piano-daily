@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
 import { customerApi } from '@/lib/customer-api';
 import { ApiError } from '@/lib/public-api';
@@ -26,11 +26,16 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Khoá (khách, bài) hiện tại: kết quả lưu/xoá về muộn sau khi đổi khách hoặc bài thì bỏ qua. */
+  const current = useRef('');
+  current.current = `${customerId ?? ''}:${lessonId}`;
 
   useEffect(() => {
     setLoad(null);
     setEditing(false);
     setError(null);
+    setUrl('');
+    setNote('');
     if (!customerId || !getToken) return;
     let cancelled = false;
     void (async () => {
@@ -51,9 +56,10 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const fail = useCallback(
     (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) setError(t('submissionTooMany'));
+      else if (err instanceof ApiError && (err.status === 404 || err.status === 401)) setError(t('submissionUnavailable'));
       else if (err instanceof ApiError && err.status === 400) {
         const first = Array.isArray(err.details) ? (err.details[0] as { path?: string } | undefined) : undefined;
-        setError(first?.path === 'url' ? t('submissionInvalidUrl') : err.message);
+        setError(first?.path === 'note' ? t('submissionInvalidNote') : t('submissionInvalidUrl'));
       } else setError(t('submissionError'));
     },
     [t],
@@ -88,6 +94,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const submission = load.submission;
   const showForm = !submission || editing;
 
+  const key = `${customerId}:${lessonId}`;
   const run = async (action: (token: string) => Promise<void>) => {
     setBusy(true);
     setError(null);
@@ -96,15 +103,16 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
       if (!token) throw new Error('no token');
       await action(token);
     } catch (err) {
-      fail(err);
+      if (current.current === key) fail(err);
     } finally {
-      setBusy(false);
+      if (current.current === key) setBusy(false);
     }
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run(async (token) => {
       const res = await customerApi.saveSubmission(token, lessonId, { url: url.trim(), note: note.trim() || null });
+      if (current.current !== key) return;
       setLoad({ owner: customerId, lessonId, submission: res.submission });
       setEditing(false);
     });
@@ -119,6 +127,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
     if (!window.confirm(t('submissionDeleteConfirm'))) return;
     void run(async (token) => {
       await customerApi.deleteSubmission(token, lessonId);
+      if (current.current !== key) return;
       setLoad({ owner: customerId, lessonId, submission: null });
       setEditing(false);
       setUrl('');
@@ -152,7 +161,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
           <p className="text-body-md text-on-surface-variant">{t('submissionHint')}</p>
           <label className="flex flex-col gap-1 text-body-md text-on-surface">
             {t('submissionUrl')}
-            <input type="url" required maxLength={2048} value={url} onChange={(e) => setUrl(e.target.value)} className={field} />
+            <input type="text" inputMode="url" autoComplete="off" required maxLength={2048} value={url} onChange={(e) => setUrl(e.target.value)} className={field} />
           </label>
           <label className="flex flex-col gap-1 text-body-md text-on-surface">
             {t('submissionNote')}

@@ -359,4 +359,21 @@ describe('Bài nộp của khách (C3)', () => {
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' }));
     expect(await screen.findByText(/quyền/i)).toBeInTheDocument();
   });
+
+  it('PATCH trả 404 (bài nộp đã bị xoá nơi khác): hiện lỗi và tải lại danh sách', async () => {
+    let listed = 0;
+    await signIn('SUPER_ADMIN', (url, init) => {
+      if (init.method === 'PATCH') return jsonResponse(404, errorBody('NOT_FOUND'));
+      if (url.pathname === listPath) {
+        listed += 1;
+        return jsonResponse(200, listed === 1 ? [sub()] : []);
+      }
+      return handler([])(url, init);
+    });
+    renderPage();
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' }));
+    expect(await screen.findByText('Chưa có bài nộp nào.')).toBeInTheDocument();
+    expect(listed).toBeGreaterThanOrEqual(2);
+  });
 });
+

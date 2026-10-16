@@ -2,7 +2,7 @@
 title: 'Khoá học piano: tiến độ học của người học (C2)'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'd535f15cd78cb4c9a00eb3aa15b366c8ae834646'

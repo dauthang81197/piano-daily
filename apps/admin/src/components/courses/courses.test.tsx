@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CourseTreeEditor } from '@/components/courses/course-tree-editor';
+import { CommunityModeration } from '@/components/courses/community-moderation';
 import { LessonSubmissionsPage } from '@/components/courses/lesson-submissions';
 import CoursesPage from '@/app/(admin)/courses/page';
 import { AuthProvider } from '@/lib/auth/auth-provider';
@@ -228,6 +229,13 @@ describe('Trình soạn cây một nhánh', () => {
     expect(link).toHaveAttribute('href', `/courses/${TRACK_ID}/lessons/${LESSON_ID}/submissions`);
   });
 
+  it('mỗi bài có liên kết "Bình luận" lọc theo bài', async () => {
+    await signIn('EDITOR', (url, init) => treeHandler(tree())(url, init));
+    renderTrackPage();
+    const link = await screen.findByRole('link', { name: 'Bình luận Gam Đô' });
+    expect(link).toHaveAttribute('href', `/courses/comments?lessonId=${LESSON_ID}`);
+  });
+
   it('bật công khai bài trống: hiện lỗi từ API ở nội dung; thời lượng sai bị chặn ở client', async () => {
     const fetchMock = await signIn('SUPER_ADMIN', (url, init) =>
       init.method === 'PATCH' ? jsonResponse(400, { error: { code: 'VALIDATION_FAILED', message: 'x', details: [{ path: 'content', message: 'Bài công khai cần ít nhất một trong video, nhạc (MIDI) hoặc nội dung.' }] } }) : treeHandler(tree())(url, init),
@@ -373,6 +381,122 @@ describe('Bài nộp của khách (C3)', () => {
     renderPage();
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Ẩn bài nộp của Lan (lan@example.com)' }));
     expect(await screen.findByText('Chưa có bài nộp nào.')).toBeInTheDocument();
+    expect(listed).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('Kiểm duyệt bình luận (C4)', () => {
+  const CID = '0192a000-0000-7000-8000-0000000000f1';
+  const cm = (over: Record<string, unknown> = {}) => ({
+    id: CID, lessonId: LESSON_ID, lessonTitle: 'Gam Đô', parentId: null, body: 'Bài hay\n<b>x</b>', isHidden: false, parentHidden: false, edited: false, createdAt: NOW,
+    customer: { id: 'c1', name: 'Lan', email: 'lan@example.com' }, ...over,
+  });
+  const commentsPath = '/admin/courses/comments';
+  const handler = (rows: unknown[], nextCursor: string | null = null): Handler => (url, init) => {
+    if (url.pathname === commentsPath && (init.method ?? 'GET') === 'GET') return jsonResponse(200, { items: rows, nextCursor });
+    if (url.pathname === `${commentsPath}/${CID}` && init.method === 'PATCH') return jsonResponse(200, { id: CID, isHidden: true });
+    if (url.pathname === `${commentsPath}/${CID}` && init.method === 'DELETE') return new Response(null, { status: 204 });
+    return undefined;
+  };
+  const queries = (fetchMock: Awaited<ReturnType<typeof signIn>>) =>
+    fetchMock.mock.calls.map(([input]) => new URL(String(input))).filter((u) => u.pathname === commentsPath).map((u) => u.search);
+
+  it('liệt kê bình luận dạng văn bản thuần kèm khách, bài và nhãn; rỗng thì báo trống', async () => {
+    await signIn('SUPER_ADMIN', handler([cm(), cm({ id: 'x2', parentId: CID, isHidden: true, edited: true })]));
+    wrap(<CommunityModeration lessonId={null} />);
+    expect((await screen.findAllByText('Lan (lan@example.com)')).length).toBe(2);
+    expect(screen.getAllByText(/<b>x<\/b>/).length).toBe(2); // không render HTML
+    expect(document.querySelector('p b')).toBeNull();
+    expect(screen.getByText('Trả lời')).toBeInTheDocument();
+    expect(screen.getAllByText('Đã ẩn')).toHaveLength(2); // nút lọc + nhãn của dòng bị ẩn
+    expect(screen.getAllByRole('link', { name: 'Bài: Gam Đô' })[0]).toHaveAttribute('href', `/courses/comments?lessonId=${LESSON_ID}`);
+  });
+
+  it('không có bình luận: thông báo trống', async () => {
+    await signIn('SUPER_ADMIN', handler([]));
+    wrap(<CommunityModeration lessonId={null} />);
+    expect(await screen.findByText('Không có bình luận nào.')).toBeInTheDocument();
+  });
+
+  it('lọc theo bài và theo trạng thái gửi đúng query', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', handler([cm()]));
+    wrap(<CommunityModeration lessonId={LESSON_ID} />);
+    await screen.findByText('Lan (lan@example.com)');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Đã ẩn' }));
+    await waitFor(() => expect(queries(fetchMock)).toContain(`?lessonId=${LESSON_ID}&hidden=true`));
+    expect(queries(fetchMock)[0]).toBe(`?lessonId=${LESSON_ID}`);
+  });
+
+  it('SUPER_ADMIN ẩn (PATCH hidden:true) và xoá có xác nhận (DELETE)', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', handler([cm()]));
+    wrap(<CommunityModeration lessonId={null} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Ẩn bình luận của Lan (lan@example.com)' }));
+    await waitFor(() => expect(calls(fetchMock, 'PATCH', `${commentsPath}/${CID}`)).toHaveLength(1));
+    expect(bodyOf(calls(fetchMock, 'PATCH', `${commentsPath}/${CID}`)[0]!)).toEqual({ hidden: true });
+    await user.click(await screen.findByRole('button', { name: 'Xoá' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+    await waitFor(() => expect(calls(fetchMock, 'DELETE', `${commentsPath}/${CID}`)).toHaveLength(1));
+  });
+
+  it('bình luận đã ẩn có nút Hiện gửi hidden:false', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', handler([cm({ isHidden: true })]));
+    wrap(<CommunityModeration lessonId={null} />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Hiện bình luận của Lan (lan@example.com)' }));
+    await waitFor(() => expect(bodyOf(calls(fetchMock, 'PATCH', `${commentsPath}/${CID}`)[0]!)).toEqual({ hidden: false }));
+  });
+
+  it('EDITOR chỉ xem: nút ẩn bị khoá, không có nút xoá', async () => {
+    await signIn('EDITOR', handler([cm()]));
+    wrap(<CommunityModeration lessonId={null} />);
+    expect(await screen.findByRole('button', { name: 'Ẩn bình luận của Lan (lan@example.com)' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Xoá' })).toBeNull();
+  });
+
+  it('Xem thêm nối trang kế bằng cursor', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', (url, init) => {
+      if (url.pathname === commentsPath && url.searchParams.get('cursor') === 'cur') return jsonResponse(200, { items: [cm({ id: 'p2', body: 'Trang hai' })], nextCursor: null });
+      return handler([cm()], 'cur')(url, init);
+    });
+    wrap(<CommunityModeration lessonId={null} />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Xem thêm' }));
+    expect(await screen.findByText('Trang hai')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xem thêm' })).toBeNull();
+    expect(queries(fetchMock)).toContain('?cursor=cur');
+  });
+
+  it('trả lời dưới bình luận gốc bị ẩn có nhãn riêng; xoá lỗi 404 cũng tải lại danh sách', async () => {
+    let listed = 0;
+    await signIn('SUPER_ADMIN', (url, init) => {
+      if (init.method === 'DELETE') return jsonResponse(404, errorBody('NOT_FOUND'));
+      if (url.pathname === commentsPath) {
+        listed += 1;
+        return jsonResponse(200, { items: listed === 1 ? [cm({ parentId: CID, parentHidden: true })] : [], nextCursor: null });
+      }
+      return undefined;
+    });
+    wrap(<CommunityModeration lessonId={null} />);
+    const user = userEvent.setup();
+    expect(await screen.findByText('Ẩn theo bình luận gốc')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Xoá' }));
+    await user.click(screen.getByRole('button', { name: 'Xác nhận xoá' }));
+    expect(await screen.findByText('Không có bình luận nào.')).toBeInTheDocument();
+    expect(listed).toBeGreaterThanOrEqual(2);
+  });
+
+  it('PATCH 404 (đã bị xoá nơi khác): hiện lỗi và tải lại danh sách', async () => {
+    let listed = 0;
+    await signIn('SUPER_ADMIN', (url, init) => {
+      if (init.method === 'PATCH') return jsonResponse(404, errorBody('NOT_FOUND'));
+      if (url.pathname === commentsPath) {
+        listed += 1;
+        return jsonResponse(200, { items: listed === 1 ? [cm()] : [], nextCursor: null });
+      }
+      return undefined;
+    });
+    wrap(<CommunityModeration lessonId={null} />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Ẩn bình luận của Lan (lan@example.com)' }));
+    expect(await screen.findByText('Không có bình luận nào.')).toBeInTheDocument();
     expect(listed).toBeGreaterThanOrEqual(2);
   });
 });

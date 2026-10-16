@@ -4,6 +4,7 @@ import { Breadcrumb } from '@/components/sheet/breadcrumb';
 import { MidiPlayer } from '@/components/sheet/midi-player';
 import { Link } from '@/i18n/navigation';
 import { LessonProgressPanel, type LessonRef } from './course-progress';
+import { LessonCommunity } from './lesson-community';
 import { LessonSubmission } from './lesson-submission';
 import { LessonVideo } from './lesson-video';
 import { SafeMarkdown } from './safe-markdown';
@@ -52,6 +53,7 @@ export function LessonView({ lesson, order = [] }: { lesson: PublicLesson; order
 
       <LessonProgressPanel trackSlug={lesson.track.slug} lessonId={lesson.id} order={order} base={base} />
       <LessonSubmission lessonId={lesson.id} />
+      <LessonCommunity lessonId={lesson.id} />
 
       <nav aria-label={t('lessonNav')} className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant pt-6">
         {lesson.prev ? (

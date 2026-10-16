@@ -13,6 +13,7 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 vi.mock('@/components/sheet/midi-player', () => ({ MidiPlayer: () => null }));
+vi.mock('./lesson-community', () => ({ LessonCommunity: () => null }));
 vi.mock('./lesson-submission', () => ({ LessonSubmission: () => null })); // có test riêng
 
 const auth = vi.hoisted(() => ({ value: null as unknown }));

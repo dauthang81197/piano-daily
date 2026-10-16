@@ -1,8 +1,9 @@
 import { Controller, Get, Header, Param, Query, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { courseLocaleQuerySchema, type PublicLesson, type PublicTrackCard, type PublicTrackTree } from '@piano-daily/shared';
+import { courseLocaleQuerySchema, type PublicCommunity, type PublicLesson, type PublicTrackCard, type PublicTrackTree } from '@piano-daily/shared';
 import { UuidParamPipe } from '../catalog/catalog.helpers';
 import { Public } from '../identity/public.decorator';
+import { CourseCommunityService } from './course-community.service';
 import { PublicCoursesService } from './public-courses.service';
 import { parseBody } from './courses.service';
 
@@ -15,11 +16,21 @@ const localeOf = (query: unknown) => parseBody(courseLocaleQuerySchema, query).l
 @Throttle({ default: { limit: 60, ttl: 60_000 } })
 @Controller('courses')
 export class PublicCoursesController {
-  constructor(private readonly courses: PublicCoursesService) {}
+  constructor(
+    private readonly courses: PublicCoursesService,
+    private readonly community: CourseCommunityService,
+  ) {}
 
   @Get()
   list(@Query() query: unknown): Promise<PublicTrackCard[]> {
     return this.courses.listTracks(localeOf(query));
+  }
+
+  /** Đánh giá + bình luận công khai của bài (C4). Không cache: tải ở trình duyệt, bình luận đổi liên tục. */
+  @Header('Cache-Control', 'no-store')
+  @Get('lessons/:id/community')
+  communityOf(@Param('id', UuidParamPipe) id: string, @Query('cursor') cursor?: string): Promise<PublicCommunity> {
+    return this.community.publicView(id, typeof cursor === 'string' ? cursor : undefined);
   }
 
   /** Khai báo trước `:trackSlug` để `lessons` không bị bắt nhầm. */

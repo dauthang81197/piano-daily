@@ -1,4 +1,4 @@
-import type { AdminCourseTree, AdminLesson, AdminLevel, AdminSection, AdminSubmission, AdminTrack, CourseKind, MySubmission } from '@piano-daily/shared';
+import type { AdminCommentPage, AdminCourseTree, AdminLesson, AdminLevel, AdminSection, AdminSubmission, AdminTrack, CourseKind, MySubmission } from '@piano-daily/shared';
 import { apiFetch } from './client';
 import { type UploadProgress, uploadMultipart } from './upload';
 
@@ -39,4 +39,16 @@ export const coursesApi = {
   setSubmissionHidden: (id: string, hidden: boolean) =>
     apiFetch<MySubmission>(`${PATH}/submissions/${encodeURIComponent(id)}`, { method: 'PATCH', json: { hidden } }),
   removeSubmission: (id: string) => apiFetch<void>(`${PATH}/submissions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** C4: bình luận mới nhất trước (toàn cục hoặc theo bài), lọc ẩn/hiện, phân trang cursor. */
+  comments: (params: { lessonId?: string; hidden?: boolean; cursor?: string | null }, signal?: AbortSignal) => {
+    const q = new URLSearchParams();
+    if (params.lessonId) q.set('lessonId', params.lessonId);
+    if (params.hidden !== undefined) q.set('hidden', String(params.hidden));
+    if (params.cursor) q.set('cursor', params.cursor);
+    const query = q.toString();
+    return apiFetch<AdminCommentPage>(`${PATH}/comments${query ? `?${query}` : ''}`, { signal });
+  },
+  setCommentHidden: (id: string, hidden: boolean) =>
+    apiFetch<{ id: string; isHidden: boolean }>(`${PATH}/comments/${encodeURIComponent(id)}`, { method: 'PATCH', json: { hidden } }),
+  removeComment: (id: string) => apiFetch<void>(`${PATH}/comments/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

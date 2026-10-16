@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { TrackList } from '@/components/courses/track-list';
 
 export default function CoursesPage() {
@@ -10,6 +11,9 @@ export default function CoursesPage() {
         <p className="text-body-md text-muted-foreground">
           Soạn lộ trình học: nhánh → level → section → bài học. Mỗi bài có thể có video YouTube, nhạc (file MIDI, người học sẽ thấy tay đánh phím) và nội dung. Chỉ phần được công khai ở mọi cấp mới hiện trên web.
         </p>
+        <Link href="/courses/comments" className="self-start text-sm text-primary underline-offset-4 hover:underline">
+          Kiểm duyệt bình luận →
+        </Link>
       </div>
       <TrackList />
     </section>

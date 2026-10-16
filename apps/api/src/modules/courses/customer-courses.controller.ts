@@ -1,11 +1,24 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { type CourseProgress, type LessonCompletion, type LessonSubmission, setLessonCompletionSchema, upsertSubmissionSchema } from '@piano-daily/shared';
+import {
+  type CourseProgress,
+  createCommentSchema,
+  editCommentSchema,
+  type LessonCompletion,
+  type LessonSubmission,
+  type MyComment,
+  type MyCommunity,
+  type MyRating,
+  ratingBodySchema,
+  setLessonCompletionSchema,
+  upsertSubmissionSchema,
+} from '@piano-daily/shared';
 import { UuidParamPipe } from '../catalog/catalog.helpers';
 import { CurrentCustomer } from '../customers/current-customer.decorator';
 import { type AuthenticatedCustomer, CustomerAuthGuard } from '../customers/customer-auth.guard';
 import { Public } from '../identity/public.decorator';
 import { CourseProgressService } from './course-progress.service';
+import { CourseCommunityService } from './course-community.service';
 import { CourseSubmissionsService } from './course-submissions.service';
 import { parseBody } from './courses.service';
 
@@ -21,6 +34,7 @@ export class CustomerCoursesController {
   constructor(
     private readonly progress: CourseProgressService,
     private readonly submissions: CourseSubmissionsService,
+    private readonly community: CourseCommunityService,
   ) {}
 
   @Header('Cache-Control', 'no-store')
@@ -65,5 +79,51 @@ export class CustomerCoursesController {
   @Delete('lessons/:id/submission')
   removeSubmission(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string): Promise<void> {
     return this.submissions.remove(customer.id, id);
+  }
+
+  // ── Cộng đồng (C4): ghi giới hạn 10 lần/phút theo IP ─────────
+
+  @Header('Cache-Control', 'no-store')
+  @Get('lessons/:id/community/mine')
+  myCommunity(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string): Promise<MyCommunity> {
+    return this.community.mine(customer.id, id);
+  }
+
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Put('lessons/:id/rating')
+  setRating(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string, @Body() body: unknown): Promise<MyRating> {
+    return this.community.setRating(customer.id, id, parseBody(ratingBodySchema, body).stars);
+  }
+
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Delete('lessons/:id/rating')
+  removeRating(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string): Promise<MyRating> {
+    return this.community.removeRating(customer.id, id);
+  }
+
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('lessons/:id/comments')
+  comment(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string, @Body() body: unknown): Promise<MyComment> {
+    return this.community.create(customer.id, id, parseBody(createCommentSchema, body));
+  }
+
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Patch('comments/:id')
+  editComment(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string, @Body() body: unknown): Promise<MyComment> {
+    return this.community.edit(customer.id, id, parseBody(editCommentSchema, body).body);
+  }
+
+  @Header('Cache-Control', 'no-store')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete('comments/:id')
+  removeComment(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string): Promise<void> {
+    return this.community.remove(customer.id, id);
   }
 }

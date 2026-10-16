@@ -6,6 +6,8 @@ import {
   createOrderResponseSchema,
   type ErrorCode,
   errorResponseSchema,
+  type PublicCommunity,
+  publicCommunitySchema,
   type Quote,
   quoteSchema,
 } from '@piano-daily/shared';
@@ -91,4 +93,10 @@ export function createPaypalOrder(body: CreateOrderRequest): Promise<CreateOrder
 
 export function capturePaypalOrder(paypalOrderId: string): Promise<CaptureOrderResponse> {
   return request('/payments/paypal/capture-order', captureOrderResponseSchema, json({ paypalOrderId }));
+}
+
+/** Đánh giá + bình luận công khai của một bài (C4); `cursor` lấy trang kế. */
+export function fetchCommunity(lessonId: string, cursor?: string | null, signal?: AbortSignal): Promise<PublicCommunity> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  return request(`/courses/lessons/${encodeURIComponent(lessonId)}/community${query}`, publicCommunitySchema, signal ? { signal } : {});
 }

@@ -1,9 +1,11 @@
 import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import type { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import {
   adminCourseTreeSchema,
   adminLessonSchema,
   adminTrackSchema,
+  courseProgressSchema,
   errorResponseSchema,
   loginResponseSchema,
   publicLessonSchema,
@@ -494,6 +496,99 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       } finally {
         notify.mockRestore();
       }
+    });
+  });
+
+  describe('tiến độ học của khách (C2)', () => {
+    let alice: { id: string; token: string };
+    let bob: { id: string; token: string };
+    const IDS = '/customer/courses/progress';
+    const cust = async (email: string) => {
+      const c = await prisma.customer.create({ data: { email, passwordHash: 'x', name: email, emailVerifiedAt: new Date() } });
+      return { id: c.id, token: await app.get(JwtService).signAsync({ sub: c.id, typ: 'customer' }) };
+    };
+    const ip = () => `198.51.100.${(ipSeq += 1) + 100}`;
+    const progress = (token: string | null) => as(token, api().get(IDS).set('CF-Connecting-IP', ip()));
+    const complete = (token: string | null, lessonId: string, body: unknown = { completed: true }) =>
+      as(token, api().put(`/customer/courses/lessons/${lessonId}/completion`).set('CF-Connecting-IP', ip()).send(body as object));
+
+    beforeEach(async () => {
+      await prisma.$executeRawUnsafe('TRUNCATE TABLE customers CASCADE');
+      alice = await cust('alice@example.com');
+      bob = await cust('bob@example.com');
+    });
+    afterAll(async () => {
+      await prisma?.$executeRawUnsafe('TRUNCATE TABLE customers CASCADE');
+    });
+
+    it('chưa đăng nhập / token admin -> 401; chưa học gì -> rỗng', async () => {
+      await progress(null).expect(401);
+      await progress(superToken).expect(401);
+      await complete(null, MISSING).expect(401);
+      const res = await progress(alice.token).expect(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(courseProgressSchema.parse(res.body)).toEqual({ tracks: [], lessonIds: [] });
+    });
+
+    it('đánh dấu, lặp lại (một dòng), bỏ dấu (kể cả khi chưa có), đếm theo nhánh', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }, { title: 'A3', content: 'x' }] });
+      const [l1, l2] = a.lessons;
+      expect((await complete(alice.token, l1!.id).expect(200)).body).toEqual({ completed: true });
+      await complete(alice.token, l1!.id).expect(200);
+      await complete(alice.token, l2!.id).expect(200);
+      expect(await prisma.courseLessonProgress.count({ where: { customerId: alice.id } })).toBe(2);
+      const res = courseProgressSchema.parse((await progress(alice.token).expect(200)).body);
+      expect(res.tracks).toEqual([{ slug: a.track.slug, completed: 2 }]);
+      expect([...res.lessonIds].sort()).toEqual([l1!.id, l2!.id].sort());
+
+      expect((await complete(alice.token, l1!.id, { completed: false }).expect(200)).body).toEqual({ completed: false });
+      await complete(alice.token, a.lessons[2]!.id, { completed: false }).expect(200);
+      expect(courseProgressSchema.parse((await progress(alice.token).expect(200)).body).lessonIds).toEqual([l2!.id]);
+    });
+
+    it('bài nháp, cha ẩn, id lạ hoặc không phải uuid -> 404, không ghi; body sai -> 400', async () => {
+      const a = await build({ publish: false });
+      await complete(alice.token, a.lessons[0]!.id).expect(404);
+      await setPub('tracks', a.track.id, true);
+      await setPub('levels', a.level.id, true);
+      await setPub('lessons', a.lessons[0]!.id, true);
+      await complete(alice.token, a.lessons[0]!.id).expect(404); // section vẫn ẩn
+      await complete(alice.token, MISSING).expect(404);
+      await complete(alice.token, 'khong-phai-uuid').expect(404);
+      expect(await prisma.courseLessonProgress.count()).toBe(0);
+      await setPub('sections', a.section.id, true);
+      await complete(alice.token, a.lessons[0]!.id, {}).expect(400);
+      await complete(alice.token, a.lessons[0]!.id, { completed: 'yes' }).expect(400);
+      await complete(alice.token, a.lessons[0]!.id).expect(200);
+    });
+
+    it('ẩn sau khi học thì số đếm giảm, bật lại thì tính lại; cô lập giữa hai khách', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      await complete(alice.token, a.lessons[0]!.id).expect(200);
+      await complete(alice.token, a.lessons[1]!.id).expect(200);
+      await complete(bob.token, a.lessons[0]!.id).expect(200);
+
+      await setPub('lessons', a.lessons[0]!.id, false);
+      let res = courseProgressSchema.parse((await progress(alice.token).expect(200)).body);
+      expect(res.lessonIds).toEqual([a.lessons[1]!.id]);
+      expect(res.tracks).toEqual([{ slug: a.track.slug, completed: 1 }]);
+      await setPub('tracks', a.track.id, false);
+      expect(courseProgressSchema.parse((await progress(alice.token).expect(200)).body)).toEqual({ tracks: [], lessonIds: [] });
+      await setPub('tracks', a.track.id, true);
+      await setPub('lessons', a.lessons[0]!.id, true);
+      res = courseProgressSchema.parse((await progress(alice.token).expect(200)).body);
+      expect(res.lessonIds).toHaveLength(2);
+      expect(courseProgressSchema.parse((await progress(bob.token).expect(200)).body).lessonIds).toEqual([a.lessons[0]!.id]);
+    });
+
+    it('xoá bài hoặc xoá khách thì dòng tiến độ xoá theo', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      await complete(alice.token, a.lessons[0]!.id).expect(200);
+      await complete(bob.token, a.lessons[1]!.id).expect(200);
+      await prisma.courseLesson.delete({ where: { id: a.lessons[0]!.id } });
+      expect(await prisma.courseLessonProgress.count()).toBe(1);
+      await prisma.customer.delete({ where: { id: bob.id } });
+      expect(await prisma.courseLessonProgress.count()).toBe(0);
     });
   });
 

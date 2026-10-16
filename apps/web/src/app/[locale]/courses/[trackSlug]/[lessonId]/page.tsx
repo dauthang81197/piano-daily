@@ -4,7 +4,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { LessonView } from '@/components/courses/lesson-view';
 import { routing } from '@/i18n/routing';
-import { fetchLesson } from '@/lib/courses';
+import { fetchLesson, fetchTrack } from '@/lib/courses';
 import { pageMetadata } from '@/lib/seo';
 
 // Không prerender lúc build (build không có API); dữ liệu vẫn qua data cache có tag `courses`.
@@ -33,5 +33,8 @@ export default async function LessonPage({ params }: Props) {
   setRequestLocale(locale);
   const lesson = await fetchLesson(trackSlug, lessonId, locale);
   if (!lesson) notFound();
-  return <LessonView lesson={lesson} />;
+  // Thứ tự bài của cả nhánh (cây đã cache) để gợi ý "bài tiếp theo chưa học" ở trình duyệt.
+  const track = await fetchTrack(lesson.track.slug, locale);
+  const order = track?.levels.flatMap((l) => l.sections.flatMap((s) => s.lessons.map((x) => ({ id: x.id, title: x.title })))) ?? [];
+  return <LessonView lesson={lesson} order={order} />;
 }

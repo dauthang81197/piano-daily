@@ -430,6 +430,24 @@
     "startLearning": "Bắt đầu học",
     "continueLearning": "Tiếp tục học: {title}",
     "nextUnfinished": "Bài tiếp theo chưa học: {title}",
-    "trackDone": "Bạn đã hoàn thành toàn bộ nhánh này. Chúc mừng!"
+    "trackDone": "Bạn đã hoàn thành toàn bộ nhánh này. Chúc mừng!",
+    "submissionTitle": "Nộp bài tập",
+    "submissionHint": "Dán link video bạn tập đàn (YouTube hoặc Google Drive). Với Drive, hãy chia sẻ \"Bất kỳ ai có đường liên kết\" để giáo viên xem được.",
+    "submissionLogin": "Đăng nhập để nộp bài",
+    "submissionUrl": "Link video",
+    "submissionNote": "Ghi chú (không bắt buộc)",
+    "submissionSubmit": "Nộp bài",
+    "submissionSave": "Lưu thay đổi",
+    "submissionEdit": "Sửa bài nộp",
+    "submissionCancel": "Huỷ",
+    "submissionDelete": "Xoá bài nộp",
+    "submissionDeleteConfirm": "Xoá bài nộp này?",
+    "submissionOpen": "Mở link đã nộp",
+    "submissionSent": "Bạn đã nộp bài",
+    "submissionHidden": "Quản trị đã ẩn bài nộp này",
+    "submissionInvalidUrl": "Chỉ nhận link video YouTube hoặc file Google Drive.",
+    "submissionTooMany": "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.",
+    "submissionError": "Chưa lưu được bài nộp. Vui lòng thử lại.",
+    "submissionLoadError": "Chưa tải được bài nộp của bạn."
   }
 }

@@ -80,6 +80,7 @@ model Customer {
   tokens               CustomerToken[]
   downloadLogs         DownloadLog[]
   courseProgress       CourseLessonProgress[]
+  courseSubmissions    CourseSubmission[]
 
   @@map("customers")
 }
@@ -224,16 +225,16 @@ model SubscriptionPayment {
 // một bài chỉ công khai khi chính nó và cả ba cấp cha `is_published`. Bài học có nhạc riêng (upload MIDI), không qua Sheet.
 
 model CourseTrack {
-  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  slug        String   @unique
-  title       String
-  titleEn     String?  @map("title_en")
-  description String   @default("")
-  descriptionEn String? @map("description_en")
-  sortOrder   Int      @default(0) @map("sort_order")
-  isPublished Boolean  @default(false) @map("is_published")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  slug          String   @unique
+  title         String
+  titleEn       String?  @map("title_en")
+  description   String   @default("")
+  descriptionEn String?  @map("description_en")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isPublished   Boolean  @default(false) @map("is_published")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   levels CourseLevel[]
 
@@ -242,18 +243,18 @@ model CourseTrack {
 }
 
 model CourseLevel {
-  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  trackId     String   @map("track_id") @db.Uuid
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  trackId       String   @map("track_id") @db.Uuid
   /// Mức chọn từ danh sách (BEGINNER|INTERMEDIATE|ADVANCED|EXPERT); null = "Khác" (tự đặt tên).
-  preset      String?
-  title       String
-  titleEn     String?  @map("title_en")
-  description String   @default("")
-  descriptionEn String? @map("description_en")
-  sortOrder   Int      @default(0) @map("sort_order")
-  isPublished Boolean  @default(false) @map("is_published")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  preset        String?
+  title         String
+  titleEn       String?  @map("title_en")
+  description   String   @default("")
+  descriptionEn String?  @map("description_en")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isPublished   Boolean  @default(false) @map("is_published")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   track    CourseTrack     @relation(fields: [trackId], references: [id], onDelete: Restrict)
   sections CourseSection[]
@@ -263,16 +264,16 @@ model CourseLevel {
 }
 
 model CourseSection {
-  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  levelId     String   @map("level_id") @db.Uuid
-  title       String
-  titleEn     String?  @map("title_en")
-  description String   @default("")
-  descriptionEn String? @map("description_en")
-  sortOrder   Int      @default(0) @map("sort_order")
-  isPublished Boolean  @default(false) @map("is_published")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  levelId       String   @map("level_id") @db.Uuid
+  title         String
+  titleEn       String?  @map("title_en")
+  description   String   @default("")
+  descriptionEn String?  @map("description_en")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isPublished   Boolean  @default(false) @map("is_published")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   level   CourseLevel    @relation(fields: [levelId], references: [id], onDelete: Restrict)
   lessons CourseLesson[]
@@ -301,8 +302,9 @@ model CourseLesson {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  section CourseSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  progress CourseLessonProgress[]
+  section     CourseSection          @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  progress    CourseLessonProgress[]
+  submissions CourseSubmission[]
 
   @@index([sectionId, sortOrder])
   @@map("course_lessons")
@@ -320,6 +322,27 @@ model CourseLessonProgress {
   @@id([customerId, lessonId])
   @@index([lessonId])
   @@map("course_lesson_progress")
+}
+
+/// Bài nộp của khách (C3): link YouTube/Drive đã chuẩn hoá. Tối đa một dòng mỗi (khách, bài); admin ẩn bằng `is_hidden`.
+model CourseSubmission {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  lessonId   String   @map("lesson_id") @db.Uuid
+  /// `YOUTUBE` | `DRIVE` (CHECK ở DB).
+  kind       String
+  url        String
+  note       String?
+  isHidden   Boolean  @default(false) @map("is_hidden")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lesson   CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, lessonId])
+  @@index([lessonId, createdAt(sort: Desc)])
+  @@map("course_submissions")
 }
 
 // ── catalog ──────────────────────────────────────────────────

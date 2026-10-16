@@ -430,6 +430,24 @@
     "startLearning": "Start learning",
     "continueLearning": "Continue: {title}",
     "nextUnfinished": "Next lesson to do: {title}",
-    "trackDone": "You have completed this whole path. Congratulations!"
+    "trackDone": "You have completed this whole path. Congratulations!",
+    "submissionTitle": "Submit your practice",
+    "submissionHint": "Paste a link to your practice video (YouTube or Google Drive). For Drive, share it as \"Anyone with the link\" so the teacher can watch it.",
+    "submissionLogin": "Sign in to submit",
+    "submissionUrl": "Video link",
+    "submissionNote": "Note (optional)",
+    "submissionSubmit": "Submit",
+    "submissionSave": "Save changes",
+    "submissionEdit": "Edit submission",
+    "submissionCancel": "Cancel",
+    "submissionDelete": "Delete submission",
+    "submissionDeleteConfirm": "Delete this submission?",
+    "submissionOpen": "Open submitted link",
+    "submissionSent": "You have submitted",
+    "submissionHidden": "An admin has hidden this submission",
+    "submissionInvalidUrl": "Only YouTube video links or Google Drive files are accepted.",
+    "submissionTooMany": "You are going too fast. Please try again in a few minutes.",
+    "submissionError": "Could not save your submission. Please try again.",
+    "submissionLoadError": "Could not load your submission."
   }
 }

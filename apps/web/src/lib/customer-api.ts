@@ -19,6 +19,8 @@ import {
   courseProgressSchema,
   type LessonCompletion,
   lessonCompletionSchema,
+  type LessonSubmission,
+  lessonSubmissionSchema,
 } from '@piano-daily/shared';
 import type { z } from 'zod';
 import { ApiError, toApiError } from '@/lib/public-api';
@@ -90,6 +92,17 @@ export const customerApi = {
   async setLessonCompletion(accessToken: string, lessonId: string, completed: boolean): Promise<LessonCompletion> {
     const init: RequestInit = { method: 'PUT', body: JSON.stringify({ completed }) };
     return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/completion`, init, accessToken), lessonCompletionSchema);
+  },
+  /** Bài nộp của khách cho một bài (C3): link YouTube/Drive. */
+  async lessonSubmission(accessToken: string, lessonId: string): Promise<LessonSubmission> {
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/submission`, { method: 'GET' }, accessToken), lessonSubmissionSchema);
+  },
+  async saveSubmission(accessToken: string, lessonId: string, body: { url: string; note: string | null }): Promise<LessonSubmission> {
+    const init: RequestInit = { method: 'PUT', body: JSON.stringify(body) };
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/submission`, init, accessToken), lessonSubmissionSchema);
+  },
+  async deleteSubmission(accessToken: string, lessonId: string): Promise<void> {
+    await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/submission`, { method: 'DELETE' }, accessToken);
   },
   async entitlement(accessToken: string): Promise<Entitlement> {
     return parsed(await call('/customer/entitlement', { method: 'GET' }, accessToken), entitlementSchema);

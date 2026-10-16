@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseYoutubeUrl } from './sheet';
+import { parseYoutubeUrl, youtubeCanonicalUrl } from './sheet';
 
 /** Giới hạn nội dung khoá học (C1); API, admin và web dùng chung. */
 export const COURSE_TITLE_MAX = 120;
@@ -264,3 +264,86 @@ export const setLessonCompletionSchema = z.object({ completed: z.boolean({ error
 export type SetLessonCompletionRequest = z.infer<typeof setLessonCompletionSchema>;
 export const lessonCompletionSchema = z.object({ completed: z.boolean() });
 export type LessonCompletion = z.infer<typeof lessonCompletionSchema>;
+
+// ── Nộp bài (C3) ─────────────────────────────────────────────
+
+const DRIVE_ID = /^[A-Za-z0-9_-]{10,100}$/;
+
+/** Lấy id file từ link Google Drive (`/file/d/ID/...`, `/open?id=ID`, `/uc?id=ID`). Thư mục, domain khác → null. */
+export function parseDriveUrl(input: string): string | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  if (url.username || url.password || url.port) return null;
+  if (url.hostname.toLowerCase() !== 'drive.google.com') return null;
+  let id: string | null | undefined;
+  const match = /^\/file\/d\/([^/]+)(?:\/|$)/.exec(url.pathname);
+  if (match) id = match[1];
+  else if (url.pathname === '/open' || url.pathname === '/uc') id = url.searchParams.get('id');
+  return id && DRIVE_ID.test(id) ? id : null;
+}
+
+export const driveCanonicalUrl = (id: string) => `https://drive.google.com/file/d/${id}/view`;
+
+export const SUBMISSION_KINDS = ['YOUTUBE', 'DRIVE'] as const;
+export type SubmissionKind = (typeof SUBMISSION_KINDS)[number];
+export const SUBMISSION_NOTE_MAX = 500;
+export const SUBMISSION_URL_ERROR = 'Chỉ nhận link video YouTube hoặc file Google Drive.';
+
+/** Link bài nộp → `{kind, url}` dạng chuẩn; link lạ bị từ chối. */
+export const submissionUrlSchema = z
+  .string({ error: SUBMISSION_URL_ERROR })
+  .trim()
+  .max(2048, { error: SUBMISSION_URL_ERROR })
+  .transform((value, ctx): { kind: SubmissionKind; url: string } => {
+    const yt = parseYoutubeUrl(value);
+    if (yt) return { kind: 'YOUTUBE', url: youtubeCanonicalUrl(yt) };
+    const drive = parseDriveUrl(value);
+    if (drive) return { kind: 'DRIVE', url: driveCanonicalUrl(drive) };
+    ctx.issues.push({ code: 'custom', message: SUBMISSION_URL_ERROR, input: value });
+    return z.NEVER;
+  });
+
+/** `PUT /customer/courses/lessons/:id/submission`. */
+export const upsertSubmissionSchema = z
+  .object({
+    url: submissionUrlSchema,
+    note: z
+      .string({ error: `Ghi chú tối đa ${SUBMISSION_NOTE_MAX} ký tự.` })
+      .trim()
+      .max(SUBMISSION_NOTE_MAX, { error: `Ghi chú tối đa ${SUBMISSION_NOTE_MAX} ký tự.` })
+      .refine((v) => !v.includes('\u0000'), { error: 'Ghi chú chứa ký tự không hợp lệ.' })
+      .nullish()
+      .transform((v) => v || null),
+  })
+  .strict();
+export type UpsertSubmissionBody = z.infer<typeof upsertSubmissionSchema>;
+
+export const setSubmissionHiddenSchema = z.object({ hidden: z.boolean({ error: 'hidden phải là true hoặc false.' }) }).strict();
+
+const submissionBase = {
+  id: z.string(),
+  kind: z.enum(SUBMISSION_KINDS),
+  url: z.string(),
+  note: z.string().nullable(),
+  isHidden: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+};
+/** `GET/PUT /customer/courses/lessons/:id/submission`: bài nộp của chính khách (hoặc null). */
+export const lessonSubmissionSchema = z.object({ submission: z.object(submissionBase).nullable() });
+export type LessonSubmission = z.infer<typeof lessonSubmissionSchema>;
+export type MySubmission = NonNullable<LessonSubmission['submission']>;
+
+/** `GET /admin/courses/lessons/:id/submissions`. */
+export const adminSubmissionSchema = z.object({
+  ...submissionBase,
+  customer: z.object({ id: z.string(), name: z.string(), email: z.string() }),
+});
+export type AdminSubmission = z.infer<typeof adminSubmissionSchema>;

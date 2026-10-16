@@ -206,6 +206,11 @@ export function CourseTreeEditor({ trackId }: { trackId: string }) {
                     extra={
                       <>
                         <EnBadge has={Boolean(lesson.titleEn)} />
+                        {lesson.isFreePreview && (
+                          <span className="rounded border px-1 text-[10px] font-medium text-muted-foreground" title="Xem thử miễn phí khi bật thuê bao">
+                            Xem thử
+                          </span>
+                        )}
                         <span className="text-caption text-muted-foreground">
                           {[lesson.youtubeUrl ? 'Video' : null, lesson.midi ? 'Nhạc' : null, lesson.content.trim() ? 'Nội dung' : null].filter(Boolean).join(' · ') || 'Trống'}
                         </span>

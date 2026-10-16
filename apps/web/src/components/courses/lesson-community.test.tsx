@@ -140,6 +140,7 @@ describe('LessonCommunity', () => {
     const submit = screen.getByRole('button', { name: 'Gửi bình luận' });
     const cases: [ApiError, string][] = [
       [new ApiError(429, 'TOO_MANY_REQUESTS', 'x'), 'quá nhanh'],
+      [new ApiError(402, 'PLAN_REQUIRED', 'x'), 'Cần đăng ký gói'],
       [new ApiError(403, 'EMAIL_NOT_VERIFIED', 'x'), 'xác minh email'],
       [new ApiError(409, 'RESOURCE_IN_USE', 'x'), 'giống hệt'],
       [new ApiError(400, 'VALIDATION_FAILED', 'x'), 'tối đa 2 link'],

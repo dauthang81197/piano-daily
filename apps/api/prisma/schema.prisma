@@ -301,6 +301,8 @@ model CourseLesson {
   midiNoteCount       Int?     @map("midi_note_count")
   sortOrder           Int      @default(0) @map("sort_order")
   isPublished         Boolean  @default(false) @map("is_published")
+  /// Xem thử miễn phí (C5): khi cưỡng chế thuê bao BẬT, bài không xem thử chỉ dành cho khách có gói.
+  isFreePreview       Boolean  @default(false) @map("is_free_preview")
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

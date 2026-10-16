@@ -1,10 +1,12 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
+  courseLocaleQuerySchema,
   type CourseProgress,
   createCommentSchema,
   editCommentSchema,
   type LessonCompletion,
+  type LessonFull,
   type LessonSubmission,
   type MyComment,
   type MyCommunity,
@@ -18,9 +20,11 @@ import { CurrentCustomer } from '../customers/current-customer.decorator';
 import { type AuthenticatedCustomer, CustomerAuthGuard } from '../customers/customer-auth.guard';
 import { Public } from '../identity/public.decorator';
 import { CourseProgressService } from './course-progress.service';
+import { CourseAccessService } from './course-access.service';
 import { CourseCommunityService } from './course-community.service';
 import { CourseSubmissionsService } from './course-submissions.service';
 import { parseBody } from './courses.service';
+import { PublicCoursesService } from './public-courses.service';
 
 /**
  * Tiến độ khoá học của khách đã đăng nhập (C2). `@Public()` chỉ để bỏ qua guard admin; quyền do `CustomerAuthGuard`
@@ -35,6 +39,8 @@ export class CustomerCoursesController {
     private readonly progress: CourseProgressService,
     private readonly submissions: CourseSubmissionsService,
     private readonly community: CourseCommunityService,
+    private readonly access: CourseAccessService,
+    private readonly publicCourses: PublicCoursesService,
   ) {}
 
   @Header('Cache-Control', 'no-store')
@@ -52,6 +58,14 @@ export class CustomerCoursesController {
     @Body() body: unknown,
   ): Promise<LessonCompletion> {
     return this.progress.setCompleted(customer.id, id, parseBody(setLessonCompletionSchema, body).completed);
+  }
+
+  /** Nội dung đầy đủ của bài (C5): bài khoá cần gói ACTIVE còn hạn (402 `PLAN_REQUIRED`); bài xem thử/cưỡng chế TẮT thì ai đăng nhập cũng lấy được. */
+  @Header('Cache-Control', 'no-store')
+  @Get('lessons/:id/full')
+  async full(@CurrentCustomer() customer: AuthenticatedCustomer, @Param('id', UuidParamPipe) id: string, @Query() query: unknown): Promise<LessonFull> {
+    await this.access.assertLessonAccess(customer.id, id);
+    return this.publicCourses.full(id, parseBody(courseLocaleQuerySchema, query).locale);
   }
 
   @Header('Cache-Control', 'no-store')

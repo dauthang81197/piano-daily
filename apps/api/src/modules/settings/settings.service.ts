@@ -145,7 +145,8 @@ export class SettingsService {
       await this.set(SETTING_KEYS.TRIAL_DAYS, String(body.trialDays), tx);
       await this.set(SETTING_KEYS.TRIAL_MAX_DOWNLOADS, String(body.trialMaxDownloads), tx);
     });
-    void this.cache.notify([cacheTags.settings, cacheTags.plans]);
+    // `courses`: bật/tắt cưỡng chế đổi trạng thái khoá của mọi bài học (C5).
+    void this.cache.notify([cacheTags.settings, cacheTags.plans, cacheTags.courses]);
     return this.getAdmin();
   }
 

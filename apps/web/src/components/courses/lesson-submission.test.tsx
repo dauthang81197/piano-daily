@@ -176,4 +176,15 @@ describe('LessonSubmission', () => {
     expect(screen.queryByText('của c1')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Link video')).toBeInTheDocument();
   });
+
+  it('402 khi lưu (bài khoá, chưa có gói) báo cần gói', async () => {
+    signIn();
+    api.lessonSubmission.mockResolvedValue({ submission: null });
+    view();
+    await userEvent.type(await screen.findByLabelText('Link video'), YT);
+    api.saveSubmission.mockRejectedValueOnce(new ApiError(402, 'PLAN_REQUIRED', 'x'));
+    await userEvent.click(screen.getByRole('button', { name: 'Nộp bài' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cần đăng ký gói');
+  });
 });
+

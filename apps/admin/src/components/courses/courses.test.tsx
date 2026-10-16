@@ -25,7 +25,7 @@ const track = (over: Record<string, unknown> = {}) => ({
 });
 const lesson = (over: Record<string, unknown> = {}) => ({
   id: LESSON_ID, sectionId: SECTION_ID, title: 'Gam Đô', titleEn: null, youtubeUrl: null, content: '', contentEn: null, durationMinutes: null, midi: null,
-  isPublished: false, sortOrder: 0, createdAt: NOW, updatedAt: NOW, ...over,
+  isPublished: false, isFreePreview: false, sortOrder: 0, createdAt: NOW, updatedAt: NOW, ...over,
 });
 const tree = (lessons: unknown[] = [lesson()]) => ({
   track: track(),
@@ -195,7 +195,7 @@ describe('Trình soạn cây một nhánh', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Lưu bài' }));
     await waitFor(() => expect(calls(fetchMock, 'POST', '/admin/courses/lessons')).toHaveLength(1));
     expect(bodyOf(calls(fetchMock, 'POST', '/admin/courses/lessons')[0]!)).toEqual({
-      title: 'Bài mới', titleEn: null, contentEn: null, youtubeUrl: null, content: '', durationMinutes: null, isPublished: false, sectionId: SECTION_ID,
+      title: 'Bài mới', titleEn: null, contentEn: null, youtubeUrl: null, content: '', durationMinutes: null, isPublished: false, isFreePreview: false, sectionId: SECTION_ID,
     });
   });
 
@@ -220,6 +220,31 @@ describe('Trình soạn cây một nhánh', () => {
     renderTrackPage();
     const link = await screen.findByRole('link', { name: 'Soạn nhạc Gam Đô' });
     expect(link).toHaveAttribute('href', `/courses/${TRACK_ID}/lessons/${LESSON_ID}/music`);
+  });
+
+  it('công tắc "Xem thử miễn phí" gửi isFreePreview; bài xem thử có nhãn trong cây', async () => {
+    const fetchMock = await signIn('SUPER_ADMIN', (url, init) =>
+      init.method === 'PATCH' ? jsonResponse(200, lesson({ isFreePreview: true })) : treeHandler(tree([lesson({ isFreePreview: true }), lesson({ id: 'x2', title: 'Bài thường' })]))(url, init),
+    );
+    renderTrackPage();
+    const user = userEvent.setup();
+    expect(await screen.findByText('Xem thử')).toBeInTheDocument(); // chỉ bài đầu có nhãn
+    expect(screen.getAllByText('Xem thử')).toHaveLength(1);
+    await user.click(await screen.findByRole('button', { name: 'Sửa Gam Đô' }));
+    const dialog = await screen.findByRole('dialog');
+    const toggle = within(dialog).getByLabelText(/Xem thử miễn phí/);
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu bài' }));
+    await waitFor(() => expect(calls(fetchMock, 'PATCH', `/admin/courses/lessons/${LESSON_ID}`)).toHaveLength(1));
+    expect(bodyOf(calls(fetchMock, 'PATCH', `/admin/courses/lessons/${LESSON_ID}`)[0]!)).toMatchObject({ isFreePreview: false });
+  });
+
+  it('EDITOR thấy công tắc xem thử bị khoá', async () => {
+    await signIn('EDITOR', (url, init) => treeHandler(tree())(url, init));
+    renderTrackPage();
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Xem Gam Đô' }));
+    expect(within(await screen.findByRole('dialog')).getByLabelText(/Xem thử miễn phí/)).toBeDisabled();
   });
 
   it('mỗi bài có liên kết "Bài nộp" tới danh sách bài nộp', async () => {

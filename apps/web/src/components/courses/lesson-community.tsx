@@ -85,6 +85,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   const fail = useCallback(
     (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) setError(t('communityTooMany'));
+      else if (err instanceof ApiError && err.status === 402) setError(t('planRequired'));
       else if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') setError(t('communityVerifyEmail'));
       else if (err instanceof ApiError && err.status === 409) setError(t('communityDuplicate'));
       else if (err instanceof ApiError && err.status === 400) setError(t('communityInvalid'));

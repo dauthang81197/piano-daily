@@ -56,6 +56,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const fail = useCallback(
     (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) setError(t('submissionTooMany'));
+      else if (err instanceof ApiError && err.status === 402) setError(t('planRequired'));
       else if (err instanceof ApiError && (err.status === 404 || err.status === 401)) setError(t('submissionUnavailable'));
       else if (err instanceof ApiError && err.status === 400) {
         const first = Array.isArray(err.details) ? (err.details[0] as { path?: string } | undefined) : undefined;

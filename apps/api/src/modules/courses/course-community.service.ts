@@ -14,6 +14,7 @@ import {
 import { AppException } from '../../common/http-exception.filter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { inUse, notFound } from '../catalog/catalog.helpers';
+import { CourseAccessService } from './course-access.service';
 import { LESSON_NOT_FOUND, VISIBLE_LESSON } from './course-helpers';
 
 const COMMENT_NOT_FOUND = 'Không tìm thấy bình luận.';
@@ -50,7 +51,10 @@ const beforeCursor = (id: string | null) => (id ? { id: { lt: id } } : {});
 /** Đánh giá + bình luận bài học (C4) và kiểm duyệt của admin. Kiểm duyệt sau: đăng ngay, admin ẩn/xoá. */
 @Injectable()
 export class CourseCommunityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: CourseAccessService,
+  ) {}
 
   private async assertVisible(lessonId: string): Promise<void> {
     const lesson = await this.prisma.courseLesson.findFirst({ where: { id: lessonId, ...VISIBLE_LESSON }, select: { id: true } });
@@ -130,6 +134,7 @@ export class CourseCommunityService {
   async setRating(customerId: string, lessonId: string, stars: number): Promise<MyRating> {
     await this.requirePosting(customerId);
     await this.assertVisible(lessonId);
+    await this.access.assertLessonAccess(customerId, lessonId); // bài khoá cần gói (C5)
     try {
       await this.prisma.courseRating.upsert({
         where: { customerId_lessonId: { customerId, lessonId } },
@@ -156,6 +161,7 @@ export class CourseCommunityService {
   async create(customerId: string, lessonId: string, body: CreateCommentBody): Promise<MyComment> {
     await this.requirePosting(customerId);
     await this.assertVisible(lessonId);
+    await this.access.assertLessonAccess(customerId, lessonId); // bài khoá cần gói (C5)
     if (body.parentId) {
       const parent = await this.prisma.courseComment.findFirst({ where: { id: body.parentId, lessonId, parentId: null, isHidden: false }, select: { id: true } });
       if (!parent) throw notFound(COMMENT_NOT_FOUND);
@@ -180,6 +186,7 @@ export class CourseCommunityService {
       select: { lessonId: true, isHidden: true, body: true, parent: { select: { isHidden: true } } },
     });
     if (!own) throw notFound(COMMENT_NOT_FOUND);
+    await this.access.assertLessonAccess(customerId, own.lessonId); // bài khoá cần gói (C5)
     if (own.body === bodyText) {
       // Không đổi gì thì không đánh dấu "đã chỉnh sửa".
       const same = await this.prisma.courseComment.findUnique({ where: { id }, include: { customer: { select: { name: true } } } });

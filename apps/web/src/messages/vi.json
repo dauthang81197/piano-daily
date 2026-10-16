@@ -479,6 +479,15 @@
     "communityInvalid": "Bình luận từ 1 đến 1000 ký tự, tối đa 2 link.",
     "communityUnavailable": "Bài học này không còn mở bình luận. Hãy tải lại trang.",
     "communityError": "Chưa gửi được. Vui lòng thử lại.",
-    "communityLoadError": "Chưa tải được bình luận."
+    "communityLoadError": "Chưa tải được bình luận.",
+    "lockedTitle": "Bài học dành cho thành viên",
+    "lockedBody": "Đăng nhập và đăng ký gói để xem video, nhạc và nội dung đầy đủ của bài này.",
+    "lockedNeedPlan": "Bạn cần một gói đang hoạt động để xem bài này.",
+    "lockedLogin": "Đăng nhập",
+    "lockedPricing": "Xem các gói",
+    "lockedLoading": "Đang tải bài học…",
+    "lockedError": "Chưa tải được nội dung bài. Vui lòng thử lại.",
+    "lockedBadge": "Thành viên",
+    "planRequired": "Cần đăng ký gói để tham gia ở bài này."
   }
 }

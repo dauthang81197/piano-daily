@@ -581,6 +581,34 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       expect(courseProgressSchema.parse((await progress(bob.token).expect(200)).body).lessonIds).toEqual([a.lessons[0]!.id]);
     });
 
+    it('đếm tách theo nhánh; PUT no-store; khách chưa xác minh email vẫn đánh dấu được; cha ẩn ở level/section -> 404', async () => {
+      const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
+      const b = await build({ lessons: [{ title: 'B1', content: 'x' }] });
+      const res = await complete(alice.token, a.lessons[0]!.id).expect(200);
+      expect(res.headers['cache-control']).toBe('no-store');
+      await complete(alice.token, b.lessons[0]!.id).expect(200);
+      await complete(alice.token, a.lessons[1]!.id).expect(200);
+      const got = courseProgressSchema.parse((await progress(alice.token).expect(200)).body);
+      expect([...got.tracks].sort((x, y) => x.slug.localeCompare(y.slug))).toEqual(
+        [{ slug: a.track.slug, completed: 2 }, { slug: b.track.slug, completed: 1 }].sort((x, y) => x.slug.localeCompare(y.slug)),
+      );
+      const unverified = await cust('chua-xac-minh@example.com');
+      await prisma.customer.update({ where: { id: unverified.id }, data: { emailVerifiedAt: null } });
+      await complete(unverified.token, a.lessons[0]!.id).expect(200);
+
+      await setPub('levels', a.level.id, false);
+      await complete(alice.token, a.lessons[0]!.id, { completed: false }).expect(404);
+      await setPub('levels', a.level.id, true);
+      await setPub('sections', a.section.id, false);
+      await complete(alice.token, a.lessons[0]!.id).expect(404);
+    });
+
+    it('token khách còn hạn nhưng tài khoản đã bị xoá -> 401, không 500', async () => {
+      const a = await build();
+      await prisma.customer.delete({ where: { id: bob.id } });
+      await complete(bob.token, a.lessons[0]!.id).expect(401);
+    });
+
     it('xoá bài hoặc xoá khách thì dòng tiến độ xoá theo', async () => {
       const a = await build({ lessons: [{ title: 'A1', content: 'x' }, { title: 'A2', content: 'x' }] });
       await complete(alice.token, a.lessons[0]!.id).expect(200);

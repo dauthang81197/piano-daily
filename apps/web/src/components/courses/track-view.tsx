@@ -27,16 +27,17 @@ export function TrackView({ track }: { track: PublicTrackTree }) {
           <section key={level.id} aria-labelledby={`level-${level.id}`} className="flex flex-col gap-4">
             <div>
               <h2 id={`level-${level.id}`} className="font-display text-headline-md text-on-surface">
-                {level.title}{' '}
-                <ScopeProgress lessonIds={level.sections.flatMap((s) => s.lessons.map((l) => l.id))} />
+                {level.title}
               </h2>
+              <ScopeProgress lessonIds={level.sections.flatMap((s) => s.lessons.map((l) => l.id))} />
               {level.description ? <p className="text-body-md text-on-surface-variant">{level.description}</p> : null}
             </div>
             {level.sections.map((section) => (
               <div key={section.id} className="flex flex-col gap-2 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
-                <h3 className="font-display text-headline-sm text-on-surface">
-                  {section.title} <ScopeProgress lessonIds={section.lessons.map((l) => l.id)} />
-                </h3>
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <h3 className="font-display text-headline-sm text-on-surface">{section.title}</h3>
+                  <ScopeProgress lessonIds={section.lessons.map((l) => l.id)} />
+                </div>
                 {section.description ? <p className="text-body-md text-on-surface-variant">{section.description}</p> : null}
                 {section.lessons.length === 0 ? (
                   <p className="text-body-md text-on-surface-variant">{t('emptySection')}</p>

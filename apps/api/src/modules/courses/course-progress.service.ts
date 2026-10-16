@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import type { CourseProgress } from '@piano-daily/shared';
+import { ErrorCode } from '@piano-daily/shared';
+import { AppException } from '../../common/http-exception.filter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { notFound } from '../catalog/catalog.helpers';
 import { LESSON_NOT_FOUND, VISIBLE_LESSON } from './course-helpers';
@@ -30,11 +32,20 @@ export class CourseProgressService {
     const lesson = await this.prisma.courseLesson.findFirst({ where: { id: lessonId, ...VISIBLE_LESSON }, select: { id: true } });
     if (!lesson) throw notFound(LESSON_NOT_FOUND);
     if (completed) {
-      await this.prisma.courseLessonProgress.upsert({
-        where: { customerId_lessonId: { customerId, lessonId } },
-        create: { customerId, lessonId },
-        update: {},
-      });
+      try {
+        await this.prisma.courseLessonProgress.upsert({
+          where: { customerId_lessonId: { customerId, lessonId } },
+          create: { customerId, lessonId },
+          update: {},
+        });
+      } catch (err) {
+        // Khoá ngoại: khách đã bị xoá (token còn hạn) hoặc bài bị xoá giữa lúc kiểm tra và ghi.
+        if ((err as { code?: string }).code !== 'P2003') throw err;
+        if (!(await this.prisma.customer.findUnique({ where: { id: customerId }, select: { id: true } }))) {
+          throw new AppException(ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+        }
+        throw notFound(LESSON_NOT_FOUND);
+      }
     } else {
       await this.prisma.courseLessonProgress.deleteMany({ where: { customerId, lessonId } });
     }

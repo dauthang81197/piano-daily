@@ -249,3 +249,4 @@
 
 - Chỉ đánh dấu tay (chưa tự đánh dấu khi xem hết video/nghe hết nhạc); chưa chứng chỉ, huy hiệu, chuỗi ngày học, thống kê cho admin; chưa đồng bộ tiến độ giữa nhiều tab ngay lập tức (tải lại khi mở trang); chưa lưu tiến độ cho khách chưa đăng nhập.
 - Tiến độ tải sau khi trang hiện (thẻ nhảy từ 0% lên giá trị thật khi phiên khôi phục xong); chưa có skeleton.
+- (C2 review) Thẻ nhánh nhấp nháy 0% → giá trị thật khi phiên khôi phục; chưa tự thử lại khi tải tiến độ lỗi; cây cache cũ có thể trỏ tới bài vừa ẩn (404 tạm); "Tiếp tục học" luôn tới bài chưa học đầu tiên (không theo bài học gần nhất); `GET progress` chưa phân trang; số nhiều tiếng Anh "1/1 lessons"; chưa test throttle 429 và HTML SSR.

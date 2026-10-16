@@ -2,7 +2,7 @@
 title: 'Khoá học piano: tiến độ học của người học (C2)'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'd535f15cd78cb4c9a00eb3aa15b366c8ae834646'
@@ -88,3 +88,16 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Ba reviewer (Blind Hunter, Edge Case Hunter, Verification Gap), không có phát hiện chặn.
+
+**Đã vá:**
+- Tải tiến độ lỗi không còn làm nút đánh dấu bị khoá vĩnh viễn (hiện như chưa học nhưng vẫn đánh dấu được).
+- Đang khôi phục phiên đăng nhập: không còn hiện nhầm lời mời đăng nhập/nhấp nháy cho người đã đăng nhập.
+- Hàng đợi PUT theo từng bài (server nhận đúng thứ tự bấm; chỉ lần bấm mới nhất được hoàn lại khi lỗi).
+- Đăng xuất xoá hẳn tiến độ khỏi bộ nhớ (không chỉ che); lời mời đăng nhập thêm ở trang nhánh.
+- API: token khách còn hạn nhưng tài khoản đã xoá → 401 (trước là 500 do khoá ngoại); bài bị xoá giữa lúc kiểm tra và ghi → 404.
+- a11y: nút đánh dấu giữ nhãn cố định với `aria-pressed` (hết nhãn đảo nghĩa); "x/y" của level/section tách khỏi thẻ tiêu đề; mũi tên ẩn khỏi trình đọc màn hình; không gợi ý "bài kế/hoàn thành nhánh" khi bài không nằm trong thứ tự đã cache.
+- Test thêm: đăng xuất thật, thử lại sau lỗi, tải lỗi vẫn đánh dấu, trạng thái đang khôi phục phiên, lời mời ở trang nhánh, quay vòng bài kế, thứ tự PUT, đếm tách nhánh, PUT no-store, khách chưa xác minh email, cha ẩn level/section, tài khoản đã xoá.
+
+**Hoãn (`deferred-work.md`):** thẻ nhánh nhấp nháy 0% → giá trị thật khi phiên khôi phục; không tự thử lại khi tải tiến độ lỗi; cây cache cũ có thể trỏ tới bài vừa ẩn (404 tạm thời); nhãn "Tiếp tục học" khi học nhảy cóc; `get` chưa phân trang (đủ ở quy mô hiện tại); số nhiều tiếng Anh "1/1 lessons"; chưa test throttle 429 và HTML render phía server.

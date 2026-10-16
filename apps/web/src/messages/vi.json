@@ -425,7 +425,6 @@
     "progressSummary": "{done}/{total} bài",
     "completedMark": "Đã học",
     "markComplete": "Đánh dấu hoàn thành",
-    "unmarkComplete": "Bỏ đánh dấu hoàn thành",
     "loginToSave": "Đăng nhập để lưu tiến độ",
     "progressError": "Chưa lưu được tiến độ. Vui lòng thử lại.",
     "startLearning": "Bắt đầu học",

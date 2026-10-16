@@ -425,7 +425,6 @@
     "progressSummary": "{done}/{total} lessons",
     "completedMark": "Completed",
     "markComplete": "Mark as complete",
-    "unmarkComplete": "Remove completion mark",
     "loginToSave": "Sign in to save your progress",
     "progressError": "Could not save your progress. Please try again.",
     "startLearning": "Start learning",

@@ -11,6 +11,8 @@ export type LessonRef = { id: string; title: string };
 
 type ProgressState = {
   signedIn: boolean;
+  /** Đang khôi phục phiên đăng nhập: chưa biết là khách hay đã đăng nhập (không hiện lời mời đăng nhập lúc này). */
+  authLoading: boolean;
   /** Đã tải xong tiến độ của khách đang đăng nhập (khách chưa đăng nhập luôn `true`). */
   ready: boolean;
   isDone: (lessonId: string) => boolean;
@@ -37,6 +39,13 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<{ owner: string; ids: Set<string>; tracks: Map<string, number> } | null>(null);
   const owner = useRef<string | null>(null);
   owner.current = customerId;
+  /** Mỗi bài một hàng đợi: PUT đến server đúng thứ tự bấm; chỉ lần bấm mới nhất mới được hoàn lại khi lỗi. */
+  const queue = useRef(new Map<string, { tail: Promise<unknown>; latest: number }>());
+
+  // Đăng xuất: xoá hẳn tiến độ khỏi bộ nhớ (không chỉ che đi), để đăng nhập lại không thấy dữ liệu cũ.
+  useEffect(() => {
+    if (!customerId) setLoaded(null);
+  }, [customerId]);
 
   useEffect(() => {
     if (!customerId || !getToken) return;
@@ -50,7 +59,8 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
           setLoaded({ owner: customerId, ids: new Set(progress.lessonIds), tracks: new Map(progress.tracks.map((t) => [t.slug, t.completed])) });
         }
       } catch {
-        /* tiến độ chỉ là thông tin hiển thị: lỗi thì hiện như chưa học */
+        // Tiến độ chỉ là thông tin hiển thị: lỗi thì hiện như chưa học nhưng vẫn cho đánh dấu (PUT độc lập với GET).
+        if (!cancelled) setLoaded({ owner: customerId, ids: new Set(), tracks: new Map() });
       }
     })();
     return () => {
@@ -78,15 +88,24 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
           return { ...prev, ids: nextIds, tracks: nextTracks };
         });
       apply(done);
-      try {
-        const token = await getToken();
-        if (!token) throw new Error('no token');
-        await customerApi.setLessonCompletion(token, lessonId, done);
-        return true;
-      } catch {
-        if (owner.current === customerId) apply(!done);
-        return false;
-      }
+      const entry = queue.current.get(lessonId) ?? { tail: Promise.resolve(), latest: 0 };
+      queue.current.set(lessonId, entry);
+      const mine = (entry.latest += 1);
+      const run = async (): Promise<boolean> => {
+        try {
+          const token = await getToken();
+          if (!token) throw new Error('no token');
+          await customerApi.setLessonCompletion(token, lessonId, done);
+          return true;
+        } catch {
+          // Chỉ lần bấm mới nhất mới hoàn lại; lần cũ thất bại không được đè lên trạng thái người dùng đã đổi tiếp.
+          if (owner.current === customerId && entry.latest === mine) apply(!done);
+          return false;
+        }
+      };
+      const result = entry.tail.then(run, run);
+      entry.tail = result;
+      return result;
     },
     [customerId, getToken],
   );
@@ -94,6 +113,7 @@ export function CourseProgressProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ProgressState>(
     () => ({
       signedIn: customerId !== null,
+      authLoading: auth?.status === 'loading',
       ready: customerId === null || mine !== null,
       isDone: (id) => ids?.has(id) ?? false,
       doneIn: (list) => (ids ? list.filter((id) => ids.has(id)).length : 0),
@@ -166,7 +186,15 @@ export function firstUnfinished(order: readonly LessonRef[], isDone: (id: string
 export function ContinueLearning({ order, base }: { order: readonly LessonRef[]; base: string }) {
   const t = useTranslations('Courses');
   const progress = useCourseProgress();
-  if (!progress?.signedIn || !progress.ready || order.length === 0) return null;
+  if (!progress || progress.authLoading || order.length === 0) return null;
+  if (!progress.signedIn) {
+    return (
+      <button type="button" className={`${button} self-start`} onClick={progress.openLogin}>
+        {t('loginToSave')}
+      </button>
+    );
+  }
+  if (!progress.ready) return null;
   const target = firstUnfinished(order, progress.isDone);
   if (!target) return <p className="text-body-md text-primary">{t('trackDone')}</p>;
   const started = progress.doneIn(order.map((l) => l.id)) > 0;
@@ -183,7 +211,7 @@ export function LessonProgressPanel({ trackSlug, lessonId, order, base }: { trac
   const progress = useCourseProgress();
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
-  if (!progress) return null;
+  if (!progress || progress.authLoading) return null;
   if (!progress.signedIn) {
     return (
       <div className="flex flex-wrap items-center gap-3">
@@ -195,7 +223,7 @@ export function LessonProgressPanel({ trackSlug, lessonId, order, base }: { trac
   }
   const done = progress.isDone(lessonId);
   const at = order.findIndex((l) => l.id === lessonId);
-  const next = done ? firstUnfinished(order, progress.isDone, at + 1) : null;
+  const next = done && at >= 0 ? firstUnfinished(order, progress.isDone, at + 1) : null;
   const toggle = async () => {
     setBusy(true);
     setError(false);
@@ -207,7 +235,7 @@ export function LessonProgressPanel({ trackSlug, lessonId, order, base }: { trac
     <div className="flex flex-col items-start gap-3">
       <button type="button" aria-pressed={done} disabled={busy || !progress.ready} className={button} onClick={() => void toggle()}>
         {done ? <Check aria-hidden="true" className="mr-2 size-4" /> : null}
-        {done ? t('unmarkComplete') : t('markComplete')}
+        {t('markComplete')}
       </button>
       {error ? (
         <p role="alert" className="text-body-md text-error">
@@ -216,10 +244,10 @@ export function LessonProgressPanel({ trackSlug, lessonId, order, base }: { trac
       ) : null}
       {done && next ? (
         <Link href={`${base}/${next.id}`} className={button}>
-          {t('nextUnfinished', { title: next.title })} →
+          {t('nextUnfinished', { title: next.title })} <span aria-hidden="true">→</span>
         </Link>
       ) : null}
-      {done && !next && order.length > 0 ? <p className="text-body-md text-primary">{t('trackDone')}</p> : null}
+      {done && !next && at >= 0 ? <p className="text-body-md text-primary">{t('trackDone')}</p> : null}
     </div>
   );
 }

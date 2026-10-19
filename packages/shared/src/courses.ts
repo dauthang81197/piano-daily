@@ -120,6 +120,9 @@ export const lessonBodySchema = z.object({
     .nullish()
     .transform((value) => value ?? null),
   isPublished: published.default(false),
+  /** Xem thử miễn phí (C5): vẫn xem được đầy đủ khi cưỡng chế thuê bao BẬT. */
+  // Tuỳ chọn: vắng thì GIỮ NGUYÊN giá trị hiện có khi sửa (client cũ không được vô tình khoá lại bài xem thử); tạo mới thì mặc định false ở DB.
+  isFreePreview: z.boolean({ error: 'isFreePreview phải là true hoặc false.' }).optional(),
 });
 export type LessonBody = z.infer<typeof lessonBodySchema>;
 export const createLessonBodySchema = lessonBodySchema.extend({ sectionId: z.uuid({ error: 'Section không hợp lệ.' }) });
@@ -155,6 +158,7 @@ export const adminLessonSchema = z.object({
   durationMinutes: z.number().int().nullable(),
   midi: lessonMidiSchema.extend({ originalName: z.string().nullable() }).nullable(),
   isPublished: z.boolean(),
+  isFreePreview: z.boolean(),
   sortOrder: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -206,6 +210,8 @@ export const publicLessonItemSchema = z.object({
   durationMinutes: z.number().int().nullable(),
   hasVideo: z.boolean(),
   hasMusic: z.boolean(),
+  /** Bài khoá (C5): cưỡng chế thuê bao BẬT và bài không xem thử. */
+  locked: z.boolean(),
 });
 export type PublicLessonItem = z.infer<typeof publicLessonItemSchema>;
 
@@ -233,6 +239,8 @@ export const publicLessonSchema = z.object({
   content: z.string(),
   durationMinutes: z.number().int().nullable(),
   midi: lessonMidiSchema.nullable(),
+  /** Bài khoá: `youtubeUrl`/`content`/`midi` bị che, nội dung đầy đủ chỉ qua `GET /customer/courses/lessons/:id/full`. */
+  locked: z.boolean(),
   track: z.object({ slug: z.string(), title: z.string() }),
   level: z.object({ id: z.string(), title: z.string() }),
   section: z.object({ id: z.string(), title: z.string() }),
@@ -241,6 +249,10 @@ export const publicLessonSchema = z.object({
   updatedAt: z.string(),
 });
 export type PublicLesson = z.infer<typeof publicLessonSchema>;
+
+/** `GET /customer/courses/lessons/:id/full` (C5): phần nội dung bị che ở API công khai của bài khoá. */
+export const lessonFullSchema = z.object({ youtubeUrl: z.string().nullable(), content: z.string(), midi: lessonMidiSchema.nullable() });
+export type LessonFull = z.infer<typeof lessonFullSchema>;
 
 /** `?locale=` của API công khai khoá học; vắng = tiếng Việt. */
 export const COURSE_LOCALES = ['vi', 'en'] as const;

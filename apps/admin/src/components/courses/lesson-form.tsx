@@ -57,6 +57,7 @@ export function LessonForm({
   const [content, setContent] = useState(lesson?.content ?? '');
   const [duration, setDuration] = useState(lesson?.durationMinutes ? String(lesson.durationMinutes) : '');
   const [isPublished, setIsPublished] = useState(lesson?.isPublished ?? false);
+  const [isFreePreview, setIsFreePreview] = useState(lesson?.isFreePreview ?? false);
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,7 +82,7 @@ export function LessonForm({
     setBusy(true);
     setFormError(null);
     try {
-      const body = { title: title.trim(), titleEn: titleEn.trim() || null, contentEn: contentEn.trim() ? contentEn : null, youtubeUrl: youtubeUrl.trim() || null, content, durationMinutes: minutes, isPublished };
+      const body = { title: title.trim(), titleEn: titleEn.trim() || null, contentEn: contentEn.trim() ? contentEn : null, youtubeUrl: youtubeUrl.trim() || null, content, durationMinutes: minutes, isPublished, isFreePreview };
       if (current) await coursesApi.update('lessons', current.id, body);
       else await coursesApi.create('lessons', { ...body, sectionId });
       onSaved();
@@ -204,6 +205,10 @@ export function LessonForm({
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={isPublished} disabled={!canWrite} onChange={(e) => setIsPublished(e.target.checked)} />
         Công khai (cần ít nhất một trong video, nhạc, nội dung)
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4" checked={isFreePreview} disabled={!canWrite} onChange={(e) => setIsFreePreview(e.target.checked)} />
+        Xem thử miễn phí (khi bật thuê bao, bài không xem thử chỉ dành cho khách có gói)
       </label>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>

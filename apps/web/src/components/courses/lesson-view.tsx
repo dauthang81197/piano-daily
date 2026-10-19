@@ -1,13 +1,12 @@
 import type { PublicLesson } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { Breadcrumb } from '@/components/sheet/breadcrumb';
-import { MidiPlayer } from '@/components/sheet/midi-player';
 import { Link } from '@/i18n/navigation';
 import { LessonProgressPanel, type LessonRef } from './course-progress';
+import { LessonBody } from './lesson-body';
 import { LessonCommunity } from './lesson-community';
 import { LessonSubmission } from './lesson-submission';
-import { LessonVideo } from './lesson-video';
-import { SafeMarkdown } from './safe-markdown';
+import { LockedLesson } from './locked-lesson';
 
 const nav =
   'inline-flex min-h-11 items-center rounded-md border border-outline-variant px-4 py-2 text-body-md font-semibold text-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
@@ -38,18 +37,11 @@ export function LessonView({ lesson, order = [] }: { lesson: PublicLesson; order
         </p>
       </header>
 
-      {lesson.midi ? (
-        <section aria-labelledby="lesson-player" className="flex flex-col gap-3">
-          <h2 id="lesson-player" className="font-display text-headline-sm text-on-surface">
-            {t('playerTitle')}
-          </h2>
-          {/* `key` theo URL: sang bài khác phải dựng player mới, không giữ lõi/âm thanh của bài trước. */}
-          <MidiPlayer key={lesson.midi.noteJsonUrl} noteJsonUrl={lesson.midi.noteJsonUrl} title={lesson.title} notation />
-        </section>
-      ) : null}
-
-      <LessonVideo url={lesson.youtubeUrl} title={lesson.title} />
-      <SafeMarkdown markdown={lesson.content} />
+      {lesson.locked ? (
+        <LockedLesson lessonId={lesson.id} title={lesson.title} />
+      ) : (
+        <LessonBody title={lesson.title} full={{ youtubeUrl: lesson.youtubeUrl, content: lesson.content, midi: lesson.midi }} />
+      )}
 
       <LessonProgressPanel trackSlug={lesson.track.slug} lessonId={lesson.id} order={order} base={base} />
       <LessonSubmission lessonId={lesson.id} />

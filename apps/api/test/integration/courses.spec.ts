@@ -100,6 +100,8 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
   });
   beforeEach(async () => {
     await prisma.$executeRawUnsafe('TRUNCATE TABLE course_lessons, course_sections, course_levels, course_tracks CASCADE');
+    // Cưỡng chế thuê bao có thể còn BẬT từ file test khác (DB dùng chung): C1–C4 giả định TẮT.
+    await prisma.siteSetting.deleteMany({ where: { key: 'subscriptions_enabled' } });
   });
 
   describe('soạn (admin)', () => {
@@ -326,9 +328,9 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       const body = publicTrackTreeSchema.parse((await api().get(`/courses/${track.slug}`).expect(200)).body);
       expect(body.lessonCount).toBe(3);
       expect(body.levels[0]!.sections[0]!.lessons).toEqual([
-        { id: lessons[0]!.id, title: 'Chỉ chữ', durationMinutes: null, hasVideo: false, hasMusic: false },
-        { id: lessons[1]!.id, title: 'Video', durationMinutes: 5, hasVideo: true, hasMusic: false },
-        { id: lessons[2]!.id, title: 'Nhạc', durationMinutes: null, hasVideo: false, hasMusic: true },
+        { id: lessons[0]!.id, title: 'Chỉ chữ', durationMinutes: null, hasVideo: false, hasMusic: false, locked: false },
+        { id: lessons[1]!.id, title: 'Video', durationMinutes: 5, hasVideo: true, hasMusic: false, locked: false },
+        { id: lessons[2]!.id, title: 'Nhạc', durationMinutes: null, hasVideo: false, hasMusic: true, locked: false },
       ]);
       await api().get('/courses/khong-ton-tai').expect(404);
     });
@@ -1038,6 +1040,174 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       const other = ip();
       for (let i = 0; i < 10; i += 1) await rate(alice.token, id, { stars: (i % 5) + 1 }, other).expect(200);
       await rate(alice.token, id, { stars: 3 }, other).expect(429);
+    });
+  });
+
+  describe('gating khoá học theo thuê bao (C5)', () => {
+    let alice: { id: string; token: string };
+    let plan: { id: string };
+    const DAY = 86_400_000;
+    const cust = async (email: string, verified = true) => {
+      const c = await prisma.customer.create({ data: { email, passwordHash: 'x', name: email, emailVerifiedAt: verified ? new Date() : null } });
+      return { id: c.id, token: await app.get(JwtService).signAsync({ sub: c.id, typ: 'customer' }) };
+    };
+    const enforce = (on: boolean) =>
+      prisma.siteSetting.upsert({ where: { key: 'subscriptions_enabled' }, update: { value: String(on) }, create: { key: 'subscriptions_enabled', value: String(on) } });
+    const subscribe = (customerId: string, over: Record<string, unknown> = {}) =>
+      prisma.subscription.create({
+        data: { customerId, planId: plan.id, status: 'ACTIVE', currentPeriodStart: new Date(Date.now() - DAY), currentPeriodEnd: new Date(Date.now() + 29 * DAY), provider: 'ADMIN', ...over },
+      });
+    let seq = 0;
+    const ip = () => `10.${((seq += 1) >> 8) & 255}.${seq & 255}.9`;
+    const pubLesson = async (a: Awaited<ReturnType<typeof build>>, id: string) =>
+      (await api().get(`/courses/${a.track.slug}/lessons/${id}`).set('CF-Connecting-IP', ip()).expect(200)).body as Record<string, unknown>;
+    const full = (token: string | null, id: string, query = '') => as(token, api().get(`/customer/courses/lessons/${id}/full${query}`).set('CF-Connecting-IP', ip()));
+    const putSub = (token: string | null, id: string) =>
+      as(token, api().put(`/customer/courses/lessons/${id}/submission`).set('CF-Connecting-IP', ip()).send({ url: YT }));
+    const comment = (token: string | null, id: string, body = 'xin chào') =>
+      as(token, api().post(`/customer/courses/lessons/${id}/comments`).set('CF-Connecting-IP', ip()).send({ body }));
+    const stars = (token: string | null, id: string) => as(token, api().put(`/customer/courses/lessons/${id}/rating`).set('CF-Connecting-IP', ip()).send({ stars: 4 }));
+
+    /** Hai bài: [0] khoá (YouTube + nội dung + nhạc), [1] xem thử. */
+    async function twoLessons() {
+      const a = await build({ lessons: [{ title: 'Trả phí', titleEn: 'Paid', youtubeUrl: YT, content: 'Nội dung trả phí', contentEn: 'Paid content' }, { title: 'Xem thử', content: 'Nội dung mở' }] });
+      await midiUpload(a.lessons[0]!.id, makeMidi(3)).expect(200);
+      await sup(api().patch(`/admin/courses/lessons/${a.lessons[1]!.id}`).send({ title: 'Xem thử', content: 'Nội dung mở', isPublished: true, isFreePreview: true })).expect(200);
+      return a;
+    }
+
+    beforeEach(async () => {
+      await prisma.$executeRawUnsafe('TRUNCATE TABLE customers, plans CASCADE');
+      await prisma.siteSetting.deleteMany({ where: { key: 'subscriptions_enabled' } });
+      alice = await cust('alice@example.com');
+      plan = await prisma.plan.create({ data: { nameVi: 'Tháng', nameEn: 'Monthly', priceVnd: 99000, priceUsdCents: 499, durationDays: 30 } });
+    });
+    afterAll(async () => {
+      await prisma?.$executeRawUnsafe('TRUNCATE TABLE customers, plans CASCADE');
+      await prisma?.siteSetting.deleteMany({ where: { key: 'subscriptions_enabled' } });
+    });
+
+    it('cưỡng chế TẮT: không bài nào khoá, API công khai đủ nội dung như cũ', async () => {
+      const a = await twoLessons();
+      const lesson = publicLessonSchema.parse(await pubLesson(a, a.lessons[0]!.id));
+      expect(lesson).toMatchObject({ locked: false, youtubeUrl: YT, content: 'Nội dung trả phí' });
+      expect(lesson.midi).not.toBeNull();
+      const tree = publicTrackTreeSchema.parse((await api().get(`/courses/${a.track.slug}`).expect(200)).body);
+      expect(tree.levels.flatMap((l) => l.sections.flatMap((s) => s.lessons)).map((l) => l.locked)).toEqual([false, false]);
+      expect((await full(alice.token, a.lessons[0]!.id).expect(200)).body).toMatchObject({ youtubeUrl: YT, content: 'Nội dung trả phí' });
+      await putSub(alice.token, a.lessons[0]!.id).expect(200);
+    });
+
+    it('cưỡng chế BẬT: API công khai che video/nhạc/nội dung của bài khoá (cả bản EN) nhưng giữ tiêu đề, thời lượng, điều hướng; bài xem thử đủ nội dung', async () => {
+      const a = await twoLessons();
+      await enforce(true);
+      const locked = publicLessonSchema.parse(await pubLesson(a, a.lessons[0]!.id));
+      expect(locked).toMatchObject({ locked: true, title: 'Trả phí', youtubeUrl: null, content: '', midi: null });
+      expect(locked.next).toMatchObject({ title: 'Xem thử' });
+      const en = await api().get(`/courses/${a.track.slug}/lessons/${a.lessons[0]!.id}?locale=en`).set('CF-Connecting-IP', ip()).expect(200);
+      const raw = JSON.stringify(en.body);
+      for (const secret of ['Paid content', 'Nội dung trả phí', 'dQw4w9WgXcQ', 'noteJsonUrl', 'note-json']) expect(raw).not.toContain(secret);
+      expect(en.body).toMatchObject({ title: 'Paid', locked: true });
+      const open = publicLessonSchema.parse(await pubLesson(a, a.lessons[1]!.id));
+      expect(open).toMatchObject({ locked: false, content: 'Nội dung mở' });
+      const tree = publicTrackTreeSchema.parse((await api().get(`/courses/${a.track.slug}`).expect(200)).body);
+      const items = tree.levels.flatMap((l) => l.sections.flatMap((s) => s.lessons));
+      expect(items.map((l) => [l.locked, l.hasVideo, l.hasMusic])).toEqual([[true, true, true], [false, false, false]]);
+      const admin = adminLessonSchema.parse((await sup(api().get(`/admin/courses/tracks/${a.track.id}/tree`)).expect(200)).body.levels[0].sections[0].lessons[1]);
+      expect(admin.isFreePreview).toBe(true);
+    });
+
+    it('/full: 401 chưa đăng nhập, 402 PLAN_REQUIRED khi chưa có gói / gói hết hạn / gói bị huỷ / chỉ dùng thử; 200 khi gói ACTIVE còn hạn; bài xem thử ai đăng nhập cũng lấy được', async () => {
+      const a = await twoLessons();
+      const id = a.lessons[0]!.id;
+      await enforce(true);
+      await full(null, id).expect(401);
+      await full(superToken, id).expect(401);
+      const denied = errorResponseSchema.parse((await full(alice.token, id).expect(402)).body);
+      expect(denied.error.code).toBe('PLAN_REQUIRED');
+      expect(denied.error.details).toEqual({ reason: 'PLAN_REQUIRED' });
+      const expired = await subscribe(alice.id, { currentPeriodEnd: new Date(Date.now() - 1000) });
+      await full(alice.token, id).expect(402);
+      await prisma.subscription.delete({ where: { id: expired.id } });
+      const cancelled = await subscribe(alice.id, { status: 'CANCELLED' });
+      await full(alice.token, id).expect(402);
+      await prisma.subscription.delete({ where: { id: cancelled.id } });
+      // Khách đang trong dùng thử thật (email đã xác minh, còn lượt) mà vẫn 402.
+      const ent = (await as(alice.token, api().get('/customer/entitlement').set('CF-Connecting-IP', ip())).expect(200)).body;
+      expect(ent.trial.active).toBe(true);
+      await full(alice.token, id).expect(402);
+      await full(alice.token, a.lessons[1]!.id).expect(200);
+      await subscribe(alice.id);
+      const ok = await full(alice.token, id).expect(200);
+      expect(ok.headers['cache-control']).toBe('no-store');
+      expect(ok.body).toMatchObject({ youtubeUrl: YT, content: 'Nội dung trả phí' });
+      expect(ok.body.midi.noteJsonUrl).toMatch(/^https?:\/\//);
+      expect((await full(alice.token, id, '?locale=en').expect(200)).body.content).toBe('Paid content');
+      await full(alice.token, id, '?locale=xx').expect(400);
+    });
+
+    it('sửa bài không gửi isFreePreview thì giữ nguyên cờ xem thử (client cũ không khoá lại bài)', async () => {
+      const a = await twoLessons();
+      const id = a.lessons[1]!.id;
+      expect(adminLessonSchema.parse((await sup(api().patch(`/admin/courses/lessons/${id}`).send({ title: 'Xem thử đổi tên', content: 'Nội dung mở', isPublished: true })).expect(200)).body).isFreePreview).toBe(true);
+      expect((await sup(api().patch(`/admin/courses/lessons/${id}`).send({ title: 'x', content: 'y', isPublished: true, isFreePreview: false })).expect(200)).body.isFreePreview).toBe(false);
+      expect((await sup(api().post('/admin/courses/lessons').send({ sectionId: a.section.id, title: 'Mới', content: 'z' })).expect(201)).body.isFreePreview).toBe(false);
+    });
+
+    it('/full: bài ẩn hoặc lạ -> 404; khách bị khoá có gói vẫn bị từ chối', async () => {
+      const a = await twoLessons();
+      await enforce(true);
+      await subscribe(alice.id);
+      await setPub('sections', a.section.id, false);
+      await full(alice.token, a.lessons[0]!.id).expect(404); // cha ẩn
+      await setPub('sections', a.section.id, true);
+      await full(alice.token, MISSING).expect(404);
+      await full(alice.token, 'khong-phai-uuid').expect(404);
+      await setPub('lessons', a.lessons[0]!.id, false);
+      await full(alice.token, a.lessons[0]!.id).expect(404);
+      await setPub('lessons', a.lessons[0]!.id, true);
+      await prisma.customer.update({ where: { id: alice.id }, data: { isActive: false } });
+      await full(alice.token, a.lessons[0]!.id).expect(402);
+    });
+
+    it('ghi ở bài khoá cần gói (nộp bài, bình luận, đánh giá, sửa bình luận); gỡ dữ liệu của mình và đọc bình luận vẫn được; bài xem thử ghi như thường', async () => {
+      const a = await twoLessons();
+      const [locked, open] = [a.lessons[0]!.id, a.lessons[1]!.id];
+      // Dữ liệu có từ lúc chưa cưỡng chế.
+      const old = (await comment(alice.token, locked, 'bình luận cũ').expect(201)).body as { id: string };
+      await stars(alice.token, locked).expect(200);
+      await putSub(alice.token, locked).expect(200);
+      await enforce(true);
+      for (const res of [await putSub(alice.token, locked), await comment(alice.token, locked), await stars(alice.token, locked)]) {
+        expect(res.status).toBe(402);
+        expect(res.body.error.code).toBe('PLAN_REQUIRED');
+      }
+      await as(alice.token, api().patch(`/customer/courses/comments/${old.id}`).set('CF-Connecting-IP', ip()).send({ body: 'sửa' })).expect(402);
+      expect((await api().get(`/courses/lessons/${locked}/community`).set('CF-Connecting-IP', ip()).expect(200)).body.comments).toHaveLength(1);
+      await putSub(alice.token, open).expect(200);
+      await comment(alice.token, open).expect(201);
+      await stars(alice.token, open).expect(200);
+      await subscribe(alice.id);
+      await putSub(alice.token, locked).expect(200);
+      await comment(alice.token, locked, 'có gói').expect(201);
+      await prisma.subscription.deleteMany({});
+      await as(alice.token, api().delete(`/customer/courses/comments/${old.id}`).set('CF-Connecting-IP', ip())).expect(204);
+      await as(alice.token, api().delete(`/customer/courses/lessons/${locked}/rating`).set('CF-Connecting-IP', ip())).expect(200);
+      await as(alice.token, api().delete(`/customer/courses/lessons/${locked}/submission`).set('CF-Connecting-IP', ip())).expect(204);
+    });
+
+    it('lưu cài đặt thuê bao và đổi xem thử phát tag courses để web làm mới cache', async () => {
+      const a = await twoLessons();
+      const notify = vi.spyOn(app.get(CacheInvalidator), 'notify').mockResolvedValue(undefined);
+      try {
+        await sup(api().patch(`/admin/courses/lessons/${a.lessons[0]!.id}`).send({ title: 'Trả phí', content: 'x', youtubeUrl: YT, isPublished: true, isFreePreview: true })).expect(200);
+        expect(notify).toHaveBeenCalledWith(['courses', 'sitemap']);
+        expect((await publicLessonSchema.parse(await pubLesson(a, a.lessons[0]!.id))).locked).toBe(false);
+        await enforce(true);
+        expect((await publicLessonSchema.parse(await pubLesson(a, a.lessons[0]!.id))).locked).toBe(false); // đã xem thử
+      } finally {
+        notify.mockRestore();
+      }
     });
   });
 

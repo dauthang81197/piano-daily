@@ -88,7 +88,7 @@ describe('SettingsService: cài đặt site', () => {
       trialDays: 14,
       trialMaxDownloads: 3,
     });
-    expect(cache.notify).toHaveBeenCalledWith(['settings', 'plans']);
+    expect(cache.notify).toHaveBeenCalledWith(['settings', 'plans', 'courses']);
   });
 
   it('subscriptionConfig: thiếu khoá -> tắt cưỡng chế, mặc định 7 ngày / 2 lượt; 0 được giữ (tắt dùng thử); rác dùng mặc định; chặn trần', async () => {

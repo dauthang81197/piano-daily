@@ -3,6 +3,7 @@ import { type AdminSubmission, ErrorCode, type LessonSubmission, type MySubmissi
 import { AppException } from '../../common/http-exception.filter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { notFound } from '../catalog/catalog.helpers';
+import { CourseAccessService } from './course-access.service';
 import { LESSON_NOT_FOUND, VISIBLE_LESSON } from './course-helpers';
 
 const SUBMISSION_NOT_FOUND = 'Không tìm thấy bài nộp.';
@@ -21,7 +22,10 @@ const toDto = (r: Row): MySubmission => ({
 /** Bài nộp của khách (C3) và kiểm duyệt của admin. Khách chỉ nộp được vào bài công khai ở đủ bốn cấp. */
 @Injectable()
 export class CourseSubmissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: CourseAccessService,
+  ) {}
 
   private async assertVisible(lessonId: string): Promise<void> {
     const lesson = await this.prisma.courseLesson.findFirst({ where: { id: lessonId, ...VISIBLE_LESSON }, select: { id: true } });
@@ -37,6 +41,7 @@ export class CourseSubmissionsService {
   /** Nộp hoặc sửa (upsert). Sửa giữ nguyên cờ ẩn của admin. */
   async upsert(customerId: string, lessonId: string, body: UpsertSubmissionBody): Promise<LessonSubmission> {
     await this.assertVisible(lessonId);
+    await this.access.assertLessonAccess(customerId, lessonId); // bài khoá cần gói (C5)
     const data = { kind: body.url.kind, url: body.url.url, note: body.note };
     const where = { customerId_lessonId: { customerId, lessonId } };
     try {

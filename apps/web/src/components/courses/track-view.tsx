@@ -1,5 +1,5 @@
 import type { PublicTrackTree } from '@piano-daily/shared';
-import { Music, PlayCircle } from 'lucide-react';
+import { Lock, Music, PlayCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Breadcrumb } from '@/components/sheet/breadcrumb';
 import { Link } from '@/i18n/navigation';
@@ -51,6 +51,12 @@ export function TrackView({ track }: { track: PublicTrackTree }) {
                         >
                           <span>{lesson.title}</span>
                           <span className="flex items-center gap-3 text-caption text-on-surface-variant">
+                            {lesson.locked ? (
+                              <span className="flex items-center gap-1">
+                                <Lock aria-hidden="true" className="size-4" />
+                                {t('lockedBadge')}
+                              </span>
+                            ) : null}
                             <LessonDoneMark lessonId={lesson.id} />
                             {lesson.hasMusic ? (
                               <span className="flex items-center gap-1">

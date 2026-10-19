@@ -160,7 +160,7 @@ describe('Cài đặt site (Story 4.4, Postgres + storage thử + web giả)', (
       trial_max_downloads: '2',
     });
     await waitForCalls(1);
-    expect(calls[0]?.tags).toEqual(['settings', 'plans']);
+    expect(calls[0]?.tags).toEqual(['settings', 'plans', 'courses']);
   });
 
   it.each([

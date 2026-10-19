@@ -268,3 +268,12 @@
 - Chưa kiểm thử khối cộng đồng và trang kiểm duyệt trên trình duyệt thật (kiểm bằng test jsdom).
 - (C4 review) Trần 500 trả lời dùng chung cho cả trang bình luận gốc và 200 bình luận "của tôi" cắt âm thầm; kiểm tra trùng nguyên văn là đọc-rồi-ghi (hai POST song song vẫn có thể trùng) và một cấp trả lời chỉ do service giữ; admin/web tải lại về trang đầu sau mỗi thao tác; bình luận của tài khoản bị khoá vẫn công khai tới khi admin ẩn; wrapper `customerApi`/`fetchCommunity` chưa có test cấp fetch; chưa báo "cần xác minh email" trước khi gõ; a11y (tên nút trùng, focus, đếm ký tự, `confirm()` native); admin chưa xem trước bình luận gốc của một trả lời, chưa kiểm duyệt đánh giá hay chặn tài khoản.
 
+## Khoá học C5: gating theo thuê bao (feature/khoa-hoc-thue-bao)
+
+- Mọi gói mở toàn bộ khoá học (chưa gating theo gói/cấp, chưa hạn mức số bài); dùng thử không mở khoá khoá học; chưa cho khách chưa đăng nhập xem thử nhiều bài có hạn.
+- Bài khoá không có đoạn mở đầu/teaser; nội dung bài khoá chỉ có sau đăng nhập (không SEO); file note-JSON ở bucket công khai nếu biết khoá file vẫn tải được (chưa chuyển sang URL ký hay private).
+- Bật cưỡng chế khoá mọi bài hiện có (mặc định `is_free_preview=false`): chưa có thao tác hàng loạt "đặt xem thử cho cả level/section" ở admin.
+- Hết hạn gói giữa lúc đang xem chỉ có hiệu lực ở lần tải/ghi kế tiếp (nội dung đã tải vẫn hiện tới khi tải lại trang); tiến độ C2 vẫn ghi được ở bài khoá.
+- Chưa test trên trình duyệt thật (kiểm bằng test jsdom).
+- (C5 review) Form nộp bài/bình luận vẫn hiện cho khách chưa có gói ở bài khoá (chỉ báo 402 kèm link gói khi gửi); `enforcementOn()` đọc cài đặt mỗi request (chưa cache TTL) và revalidate tag là best-effort; chưa cảnh báo/đếm bài xem thử hay công cụ hàng loạt khi bật cưỡng chế; tiến độ C2 vẫn ghi được ở bài khoá; chưa nút thử lại khi tải bài khoá lỗi; chưa test đơn vị riêng cho `CourseAccessService` và `LessonBody` tiếng Anh.
+

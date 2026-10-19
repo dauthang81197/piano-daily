@@ -5,6 +5,7 @@ import { Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
+import { Link } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { ApiError, fetchCommunity } from '@/lib/public-api';
 
@@ -34,6 +35,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needPlan, setNeedPlan] = useState(false);
   /** Khoá (khách, bài) hiện tại: kết quả về muộn sau khi đổi khách/bài thì bỏ qua. */
   const current = useRef('');
   current.current = `${customerId ?? ''}:${lessonId}`;
@@ -85,6 +87,10 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   const fail = useCallback(
     (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) setError(t('communityTooMany'));
+      else if (err instanceof ApiError && err.status === 402) {
+        setError(t('planRequired'));
+        setNeedPlan(true);
+      }
       else if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') setError(t('communityVerifyEmail'));
       else if (err instanceof ApiError && err.status === 409) setError(t('communityDuplicate'));
       else if (err instanceof ApiError && err.status === 400) setError(t('communityInvalid'));
@@ -102,6 +108,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
   const run = async (action: (token: string) => Promise<void>) => {
     setBusy(true);
     setError(null);
+    setNeedPlan(false);
     try {
       const token = await getToken?.();
       if (!token) throw new Error('no token');
@@ -309,6 +316,11 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
         <p role="alert" className="text-body-md text-error">
           {error}
         </p>
+      ) : null}
+      {needPlan ? (
+        <Link href="/pricing" className={link}>
+          {t('lockedPricing')}
+        </Link>
       ) : null}
 
       {hiddenMine.length > 0 ? (

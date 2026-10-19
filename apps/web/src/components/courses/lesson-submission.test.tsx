@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 import { ApiError } from '@/lib/public-api';
 
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 const auth = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock('@/components/auth/auth-provider', () => ({ useCustomer: () => auth.value }));
 const api = vi.hoisted(() => ({ lessonSubmission: vi.fn(), saveSubmission: vi.fn(), deleteSubmission: vi.fn() }));
@@ -176,4 +183,16 @@ describe('LessonSubmission', () => {
     expect(screen.queryByText('của c1')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Link video')).toBeInTheDocument();
   });
+
+  it('402 khi lưu (bài khoá, chưa có gói) báo cần gói', async () => {
+    signIn();
+    api.lessonSubmission.mockResolvedValue({ submission: null });
+    view();
+    await userEvent.type(await screen.findByLabelText('Link video'), YT);
+    api.saveSubmission.mockRejectedValueOnce(new ApiError(402, 'PLAN_REQUIRED', 'x'));
+    await userEvent.click(screen.getByRole('button', { name: 'Nộp bài' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cần đăng ký gói');
+    expect(screen.getByRole('link', { name: 'Xem các gói' })).toHaveAttribute('href', '/pricing');
+  });
 });
+

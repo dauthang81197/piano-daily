@@ -4,6 +4,8 @@ import { CacheInvalidatorModule } from '../catalog/cache-invalidator.module';
 import { CustomersModule } from '../customers/customers.module';
 import { IdentityModule } from '../identity/identity.module';
 import { MediaModule } from '../media/media.module';
+import { SettingsModule } from '../settings/settings.module';
+import { CourseAccessService } from './course-access.service';
 import { AdminCourseCommunityController } from './admin-course-community.controller';
 import { AdminCourseSubmissionsController } from './admin-course-submissions.controller';
 import { AdminCoursesController } from './admin-courses.controller';
@@ -18,9 +20,9 @@ import { PublicCoursesService } from './public-courses.service';
 
 /** Module chủ của các bảng `course_tracks`, `course_levels`, `course_sections`, `course_lessons` (khoá học C1). */
 @Module({
-  imports: [CacheInvalidatorModule, CustomersModule, IdentityModule, MediaModule],
+  imports: [CacheInvalidatorModule, CustomersModule, IdentityModule, MediaModule, SettingsModule],
   controllers: [AdminCourseCommunityController, AdminCourseSubmissionsController, AdminCoursesController, CustomerCoursesController, PublicCoursesController],
-  providers: [CourseCommunityService, CourseProgressService, CourseSubmissionsService, CoursesService, LessonMidiService, PublicCoursesService, BillingSuperAdminGuard],
+  providers: [CourseAccessService, CourseCommunityService, CourseProgressService, CourseSubmissionsService, CoursesService, LessonMidiService, PublicCoursesService, BillingSuperAdminGuard],
   exports: [PublicCoursesService],
 })
 export class CoursesModule {}

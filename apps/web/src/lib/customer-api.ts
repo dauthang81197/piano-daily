@@ -19,6 +19,8 @@ import {
   courseProgressSchema,
   type LessonCompletion,
   lessonCompletionSchema,
+  type LessonFull,
+  lessonFullSchema,
   type LessonSubmission,
   type MyComment,
   myCommentSchema,
@@ -98,6 +100,11 @@ export const customerApi = {
   async setLessonCompletion(accessToken: string, lessonId: string, completed: boolean): Promise<LessonCompletion> {
     const init: RequestInit = { method: 'PUT', body: JSON.stringify({ completed }) };
     return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/completion`, init, accessToken), lessonCompletionSchema);
+  },
+  /** Nội dung đầy đủ của bài khoá (C5): 402 `PLAN_REQUIRED` khi chưa có gói ACTIVE còn hạn. */
+  async lessonFull(accessToken: string, lessonId: string, locale: string): Promise<LessonFull> {
+    const query = `?locale=${locale === 'en' ? 'en' : 'vi'}`;
+    return parsed(await call(`/customer/courses/lessons/${encodeURIComponent(lessonId)}/full${query}`, { method: 'GET' }, accessToken), lessonFullSchema);
   },
   /** Bài nộp của khách cho một bài (C3): link YouTube/Drive. */
   async lessonSubmission(accessToken: string, lessonId: string): Promise<LessonSubmission> {

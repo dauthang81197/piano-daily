@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 import { ApiError } from '@/lib/public-api';
 
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 const auth = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock('@/components/auth/auth-provider', () => ({ useCustomer: () => auth.value }));
 const api = vi.hoisted(() => ({
@@ -140,6 +147,7 @@ describe('LessonCommunity', () => {
     const submit = screen.getByRole('button', { name: 'Gửi bình luận' });
     const cases: [ApiError, string][] = [
       [new ApiError(429, 'TOO_MANY_REQUESTS', 'x'), 'quá nhanh'],
+      [new ApiError(402, 'PLAN_REQUIRED', 'x'), 'Cần đăng ký gói'],
       [new ApiError(403, 'EMAIL_NOT_VERIFIED', 'x'), 'xác minh email'],
       [new ApiError(409, 'RESOURCE_IN_USE', 'x'), 'giống hệt'],
       [new ApiError(400, 'VALIDATION_FAILED', 'x'), 'tối đa 2 link'],

@@ -278,6 +278,7 @@ export class CoursesService {
           }
         : null,
       isPublished: row.isPublished,
+      isFreePreview: row.isFreePreview,
       sortOrder: row.sortOrder,
       createdAt: iso(row.createdAt),
       updatedAt: iso(row.updatedAt),

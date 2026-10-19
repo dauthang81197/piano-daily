@@ -479,6 +479,15 @@
     "communityInvalid": "Comments are 1 to 1000 characters with at most 2 links.",
     "communityUnavailable": "This lesson no longer accepts comments. Please reload the page.",
     "communityError": "Could not send. Please try again.",
-    "communityLoadError": "Could not load comments."
+    "communityLoadError": "Could not load comments.",
+    "lockedTitle": "Members-only lesson",
+    "lockedBody": "Sign in and subscribe to a plan to watch the video, music and full content of this lesson.",
+    "lockedNeedPlan": "You need an active plan to view this lesson.",
+    "lockedLogin": "Sign in",
+    "lockedPricing": "See plans",
+    "lockedLoading": "Loading lesson…",
+    "lockedError": "Could not load the lesson. Please try again.",
+    "lockedBadge": "Members",
+    "planRequired": "A plan is required to take part in this lesson."
   }
 }

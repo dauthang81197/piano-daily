@@ -120,6 +120,20 @@ async function main() {
             failed.push(`${path} → ${status}`);
             console.warn(`Cảnh báo: ${path} trả ${status} (mong ${expected})`);
           }
+          // Cuộn hết trang để ảnh lazy được tải trước khi chụp, rồi kiểm tra tràn ngang.
+          await page.evaluate(async () => {
+            for (let y = 0; y < document.body.scrollHeight; y += window.innerHeight) {
+              window.scrollTo(0, y);
+              await new Promise((resolve) => setTimeout(resolve, 80));
+            }
+            window.scrollTo(0, 0);
+          });
+          await page.waitForLoadState('networkidle').catch(() => undefined);
+          const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+          if (overflow > 0) {
+            failed.push(`${path} → tràn ngang ${overflow}px ở ${viewport.name}`);
+            console.warn(`Cảnh báo: ${path} tràn ngang ${overflow}px ở ${viewport.name}`);
+          }
           await page.screenshot({ path: join(dir, `${name}.png`), fullPage: true });
         } catch (error) {
           failed.push(`${path} → ${error.message.split('\n')[0]}`);

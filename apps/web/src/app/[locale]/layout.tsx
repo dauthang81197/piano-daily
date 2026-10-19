@@ -47,7 +47,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <Header siteName={site.siteName} logoUrl={site.logoUrl} />
             <AdSlotFrame slots={ads} position="HEADER" />
             <div className="flex-1">{children}</div>
-            <Footer youtubeUrl={site.youtubeUrl} />
+            <Footer youtubeUrl={site.youtubeUrl} siteName={site.siteName} />
             <StickyBottomAd slots={ads} />
           </AuthProvider>
         </NextIntlClientProvider>

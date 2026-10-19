@@ -29,7 +29,27 @@ describe('Header', () => {
   });
 });
 
+describe('Header (bố cục mới)', () => {
+  it('nav chỉ có Level, Khoá học, Bảng giá; ô tìm có nút icon tên "Search"', () => {
+    render(withIntl(<Header />));
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(nav).toHaveTextContent('Beginner');
+    expect(nav).toHaveTextContent('Courses');
+    expect(nav).toHaveTextContent('Pricing');
+    expect(nav).not.toHaveTextContent('Home');
+    expect(screen.getAllByRole('button', { name: 'Search' }).length).toBeGreaterThan(0);
+  });
+});
+
 describe('Footer', () => {
+  it('có cột Học và gói, link Level và dòng bản quyền theo tên site', () => {
+    render(withIntl(<Footer siteName="Studio X" />));
+    expect(screen.getByRole('link', { name: 'Courses' })).toHaveAttribute('href', '/courses');
+    expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing');
+    expect(screen.getByRole('link', { name: 'Beginner' })).toHaveAttribute('href', '/level/beginner');
+    expect(screen.getByText(new RegExp(`© ${new Date().getFullYear()} Studio X`))).toBeInTheDocument();
+  });
+
   it('có link YouTube khi được cấu hình', () => {
     render(withIntl(<Footer youtubeUrl="https://www.youtube.com/@pd" />));
     const link = screen.getByRole('link', { name: 'YouTube channel' });

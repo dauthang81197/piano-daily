@@ -49,13 +49,33 @@
     "about": "Piano Daily là thư viện sheet piano tuyển chọn, sắp xếp theo trình độ để người chơi dễ tìm bản nhạc phù hợp.",
     "levelsTitle": "Trình độ",
     "disclaimerTitle": "Bản quyền",
-    "disclaimer": "Các bản nhạc thuộc quyền sở hữu của tác giả và nhà xuất bản tương ứng. Nội dung trên trang chỉ phục vụ mục đích học tập và tham khảo cá nhân."
+    "disclaimer": "Các bản nhạc thuộc quyền sở hữu của tác giả và nhà xuất bản tương ứng. Nội dung trên trang chỉ phục vụ mục đích học tập và tham khảo cá nhân.",
+    "learnTitle": "Học và gói",
+    "rights": "© {year} {name}. Bảo lưu mọi quyền."
   },
   "Home": {
     "eyebrow": "Thư viện sheet piano",
     "title": "Piano Daily",
     "tagline": "Bản nhạc rõ ràng, phân cấp theo trình độ, dễ nghe thử và dễ tìm.",
-    "browseByLevel": "Xem theo trình độ"
+    "browseByLevel": "Xem theo trình độ",
+    "ctaStart": "Bắt đầu với Cơ bản",
+    "ctaCourses": "Xem khoá học",
+    "levelDesc": {
+      "beginner": "Làm quen phím đàn, bài tập ngón và giai điệu quen thuộc.",
+      "intermediate": "Tăng tốc độ và độ phức tạp với tác phẩm cổ điển và nhạc hiện đại.",
+      "advanced": "Kỹ thuật cao, nhiều bè, dành cho người chơi đã vững tay.",
+      "expert": "Tác phẩm biểu diễn đòi hỏi kỹ thuật và biểu cảm ở mức cao nhất."
+    },
+    "levelCount": "{count} bài",
+    "levelExplore": "Xem bản nhạc",
+    "latestTitle": "Bản nhạc mới nhất",
+    "viewAll": "Xem tất cả",
+    "coursesTitle": "Học piano từng bước",
+    "coursesBody": "Lộ trình bài học có video, khuông nhạc và bài tập nộp để giáo viên xem.",
+    "coursesCta": "Khám phá khoá học",
+    "pricingTitle": "Gói thành viên",
+    "pricingBody": "Chọn gói phù hợp để tải bản nhạc thuận tiện hơn.",
+    "pricingCta": "Xem bảng giá"
   },
   "NotFound": {
     "title": "Không tìm thấy trang",

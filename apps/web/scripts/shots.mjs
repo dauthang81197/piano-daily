@@ -20,19 +20,23 @@ function parseArgs(argv) {
     if (key === '--' || !key.startsWith('--')) continue;
     const value = argv[i + 1];
     if (value === undefined || value.startsWith('--')) throw new Error(`Thiếu giá trị cho ${key}`);
+    if (!(key.slice(2) in args)) throw new Error(`Cờ không hợp lệ: ${key} (dùng --label, --base, --api, --locale)`);
     args[key.slice(2)] = value;
     i += 1;
   }
-  if (!/^[\w.-]+$/.test(args.label)) throw new Error('--label chỉ gồm chữ, số, "_", "-" và "."');
+  if (!/^[\w.-]+$/.test(args.label) || /^\.+$/.test(args.label)) throw new Error('--label chỉ gồm chữ, số, "_", "-" và "." (không chỉ toàn dấu chấm)');
+  if (!['vi', 'en'].includes(args.locale)) throw new Error('--locale chỉ nhận vi hoặc en');
+  args.base = args.base.replace(/\/+$/, '');
+  args.api = args.api.replace(/\/+$/, '');
   return args;
 }
 
 /** Tìm file chạy Chromium: biến môi trường, rồi cache Playwright (bản mới nhất có sẵn). */
 export function findChromium(env = process.env, home = homedir()) {
   if (env.PLAYWRIGHT_CHROMIUM_PATH) return existsSync(env.PLAYWRIGHT_CHROMIUM_PATH) ? env.PLAYWRIGHT_CHROMIUM_PATH : null;
-  const root = join(home, 'Library', 'Caches', 'ms-playwright');
-  const linuxRoot = join(home, '.cache', 'ms-playwright');
-  for (const dir of [root, linuxRoot]) {
+  const roots = [join(home, 'Library', 'Caches', 'ms-playwright'), join(home, '.cache', 'ms-playwright')];
+  if (env.PLAYWRIGHT_BROWSERS_PATH) roots.unshift(env.PLAYWRIGHT_BROWSERS_PATH);
+  for (const dir of roots) {
     if (!existsSync(dir)) continue;
     const builds = readdirSync(dir)
       .filter((n) => n.startsWith('chromium_headless_shell-'))
@@ -73,13 +77,15 @@ async function buildPages(args) {
   const sheets = await json(`${args.api}/sheets?pageSize=1`);
   const slug = sheets?.items?.[0]?.slug;
   if (slug) pages.push(['sheet', `/${l}/sheet/${encodeURIComponent(slug)}`]);
+  else console.warn(`Bỏ qua trang sheet: API ${args.api} không trả sheet nào (API tắt hoặc chưa seed?).`);
   const tracks = await json(`${args.api}/courses?locale=${l}`);
   const track = (tracks?.items ?? tracks)?.[0]?.slug;
+  if (!track) console.warn('Bỏ qua trang khoá học: chưa có khoá học nào để chụp (course-track, course-lesson).');
   if (track) {
     pages.push(['course-track', `/${l}/courses/${encodeURIComponent(track)}`]);
     const detail = await json(`${args.api}/courses/${encodeURIComponent(track)}?locale=${l}`);
-    const lesson = detail?.levels?.flatMap((lv) => lv.sections.flatMap((s) => s.lessons))?.[0];
-    if (lesson) pages.push(['course-lesson', `/${l}/courses/${encodeURIComponent(track)}/${lesson.id}`]);
+    const lesson = detail?.levels?.flatMap((lv) => (lv.sections ?? []).flatMap((s) => s.lessons ?? []))?.[0];
+    if (lesson?.id) pages.push(['course-lesson', `/${l}/courses/${encodeURIComponent(track)}/${lesson.id}`]);
   }
   return pages;
 }
@@ -91,14 +97,14 @@ async function main() {
     console.error('Không tìm thấy Chromium. Đặt PLAYWRIGHT_CHROMIUM_PATH tới chrome-headless-shell (hoặc chạy "npx playwright install chromium-headless-shell").');
     process.exit(1);
   }
-  if (!(await fetch(args.base, { signal: AbortSignal.timeout(8000) }).then(() => true, () => false))) {
+  if (!(await fetch(args.base, { signal: AbortSignal.timeout(8000) }).then((res) => res.status < 500, () => false))) {
     console.error(`Web không phản hồi tại ${args.base}. Chạy "pnpm --filter @piano-daily/web dev" (kèm API + dữ liệu mẫu, xem README) rồi thử lại.`);
     process.exit(1);
   }
+  const pages = await buildPages(args);
   const { chromium } = await import('playwright-core');
   const browser = await chromium.launch({ executablePath });
   const out = join(dirname(fileURLToPath(import.meta.url)), '..', '.shots', args.label);
-  const pages = await buildPages(args);
   const failed = [];
   try {
     for (const viewport of VIEWPORTS) {
@@ -117,7 +123,8 @@ async function main() {
           await page.screenshot({ path: join(dir, `${name}.png`), fullPage: true });
         } catch (error) {
           failed.push(`${path} → ${error.message.split('\n')[0]}`);
-          console.warn(`Cảnh báo: không chụp được ${path}: ${error.message.split('\n')[0]}`);
+          console.warn(`Cảnh báo: lỗi khi chụp ${path}: ${error.message.split('\n')[0]}`);
+          await page.screenshot({ path: join(dir, `${name}.png`), fullPage: true }).catch(() => undefined);
         } finally {
           await page.close();
         }

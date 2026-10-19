@@ -277,3 +277,11 @@
 - Chưa test trên trình duyệt thật (kiểm bằng test jsdom).
 - (C5 review) Form nộp bài/bình luận vẫn hiện cho khách chưa có gói ở bài khoá (chỉ báo 402 kèm link gói khi gửi); `enforcementOn()` đọc cài đặt mỗi request (chưa cache TTL) và revalidate tag là best-effort; chưa cảnh báo/đếm bài xem thử hay công cụ hàng loạt khi bật cưỡng chế; tiến độ C2 vẫn ghi được ở bài khoá; chưa nút thử lại khi tải bài khoá lỗi; chưa test đơn vị riêng cho `CourseAccessService` và `LessonBody` tiếng Anh.
 
+## UI/UX U0 (nền tảng giao diện)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ui-u0-nen-tang.md`
+  summary: Hợp nhất map màu cấp độ của `Badge` mới với `LEVEL_BADGE`/`badge` trong `catalog/sheet-card.tsx` khi SheetCard chuyển sang dùng `Badge` (U2).
+  evidence: Hai map riêng sẽ lệch nhau khi đổi màu cấp độ; U0 cố ý chưa sửa SheetCard.
+- source_spec: `_bmad-output/implementation-artifacts/spec-ui-u0-nen-tang.md`
+  summary: Kiểm tương phản chữ trắng (`text-on-primary`) trên nền màu cấp độ (nhất là `level-advanced` #a97d2f, chữ 12px) và thêm `focus-within` cho `Card interactive`.
+  evidence: Chữ trắng trên #a97d2f có thể dưới 4.5:1 (chưa đo); tổ hợp đã có ở SheetCard. Chưa có thẻ nào chứa link bấm bên trong Card.

@@ -78,6 +78,27 @@ context:
 
 ## Review Triage Log
 
+Lượt 1 (3 reviewer: Blind Hunter, Edge Case Hunter, Verification Gap). Verification Gap: không có lỗ hổng.
+
+| Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|---|---|
+| `pnpm-lock.yaml` không cập nhật (BH, ECH) | false | Lockfile đã đổi và commit; diff gửi reviewer đã loại trừ lockfile. |
+| API tắt/chưa seed thì bỏ trang sheet/khoá học im lặng (BH, ECH) | low | Patch: in cảnh báo nêu trang bị bỏ. |
+| Kiểm tra web sống coi mọi mã HTTP là "sống" (BH, ECH) | low | Patch: mã ≥ 500 coi như không phản hồi. |
+| Cờ gõ sai (`--lable`), `--locale` lạ, `--base/--api` có `/` cuối, `--label` là `.`/`..` (BH, ECH) | low | Patch: validate cờ/locale, cắt `/` cuối, chặn label toàn dấu chấm (đã thử chạy thật). |
+| `buildPages` nằm sau khi mở trình duyệt, lỗi thì rò tiến trình; `sections/lessons` null làm TypeError (ECH) | low | Patch: gọi `buildPages` trước khi mở trình duyệt; thêm `?? []`, kiểm `lesson?.id`. |
+| `goto` lỗi thì không có ảnh (ECH) | low | Patch: thử chụp trong nhánh lỗi (bọc `.catch`). |
+| Chromium: bỏ qua `PLAYWRIGHT_BROWSERS_PATH` (BH, ECH) | low | Patch: thêm làm thư mục tìm đầu tiên. Windows, `chromium-*` không headless shell, kiểm quyền thực thi: reject (low, thêm nhánh, tool nội bộ macOS). |
+| README `ADMIN_PASSWORD=<...>` bị shell hiểu là chuyển hướng (ECH) | low | Patch: đặt trong nháy đơn. |
+| Card `transition` không có `motion-reduce` (ECH) | low | Patch: thêm `motion-reduce:transition-none` (vi phạm "Always: reduced-motion"). |
+| Card không có `focus-within` (BH, ECH) | low | Reject: chưa có thẻ nào chứa link; xét ở U2 khi dùng Card cho SheetCard. |
+| `sm` min-h-9 / `md` không min-h / thiếu `pressed` (BH, ECH) | false | Spec cho phép `sm` 36px; thêm min-h vào `md` sẽ đổi hiển thị mặc định, trái ràng buộc tương thích ngược. |
+| Badge không chia sẻ map với `LEVEL_BADGE` (ECH, claim) | low | Defer: hợp nhất khi SheetCard dùng Badge ở U2 (sửa mô tả Code Map không đổi hành vi). |
+| Badge `text-on-primary` trên màu level (vd. advanced #a97d2f) chưa kiểm tương phản (BH) | maybe-false | Defer: tổ hợp này đã có sẵn ở SheetCard; kiểm tương phản ở U2/U5. |
+| `button.test.tsx` không đổi (ECH, claim) | false | Test Button mới nằm ở `ui-kit.test.tsx`, test cũ vẫn chạy và xanh. |
+| Khoá bài đầu bị khoá thì lỗi giả (ECH) | false | Trang bài khoá vẫn trả 200 (nội dung bị che), không phải 402. |
+| Phủ ảnh thiếu đăng nhập/thanh toán/dark/font, `networkidle`, ghi đè ảnh cũ, Skeleton `aria-busy`, `PageHeader` h1 cố định, `--duration-fast` chưa dùng, test import `@vite-ignore`, test class | low | Reject: ngoài phạm vi U0 hoặc không gây hại thực tế (27 ảnh chụp thành công với `networkidle`). |
+
 ## Verification
 
 **Commands:**

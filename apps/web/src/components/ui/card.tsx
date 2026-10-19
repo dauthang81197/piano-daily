@@ -8,7 +8,7 @@ export function Card({ interactive = false, className, ...props }: HTMLAttribute
       {...props}
       className={cn(
         'rounded-xl border border-outline-variant bg-surface-container-lowest shadow-card',
-        interactive && 'transition-shadow duration-(--duration-base) ease-standard hover:shadow-card-hover',
+        interactive && 'transition-shadow motion-reduce:transition-none duration-(--duration-base) ease-standard hover:shadow-card-hover',
         className,
       )}
     />

@@ -122,7 +122,7 @@ TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm
 ```bash
 docker compose up -d postgres seaweedfs
 pnpm --filter @piano-daily/shared build
-(cd apps/api && npx prisma migrate deploy && ADMIN_EMAIL=admin@piano-daily.local ADMIN_PASSWORD=<>=12 ký tự> ADMIN_NAME=Founder pnpm db:seed)
+(cd apps/api && npx prisma migrate deploy && ADMIN_EMAIL=admin@piano-daily.local ADMIN_PASSWORD='<mật khẩu từ 12 ký tự>' ADMIN_NAME=Founder pnpm db:seed)
 pnpm --filter @piano-daily/api dev                       # cổng 4000
 (cd apps/web && set -a && . ../../.env && set +a && pnpm dev)   # cổng 4100, cần API_INTERNAL_URL/INTERNAL_API_SECRET từ .env
 pnpm --filter @piano-daily/web shots -- --label before   # ảnh ở apps/web/.shots/before/<mobile|tablet|desktop>/

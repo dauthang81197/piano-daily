@@ -70,3 +70,24 @@ describe('ui kit dùng chung', () => {
     expect(document.querySelector('p')).toBeNull();
   });
 });
+
+describe('tương phản nhãn', () => {
+  it('chữ trắng trên level-advanced-strong đạt AA (≥ 4.5:1) và token tồn tại trong theme.css', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    // vitest chạy với cwd = apps/web.
+    const css = readFileSync(join(process.cwd(), '..', '..', 'packages', 'tokens', 'theme.css'), 'utf8');
+    const hex = /--color-level-advanced-strong:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1];
+    expect(hex).toBeDefined();
+    const channel = (v: number) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (h: string) => {
+      const n = parseInt(h.slice(1), 16);
+      return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+    };
+    const ratio = 1.05 / (luminance(hex!) + 0.05);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+});

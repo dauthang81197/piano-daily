@@ -4,7 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { GenreScroller } from './genre-scroller';
 
 const tag =
-  'inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-4 py-2 text-body-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+  'inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-4 py-2 text-body-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 const idle = 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high';
 const selected = 'bg-secondary text-on-secondary';
 

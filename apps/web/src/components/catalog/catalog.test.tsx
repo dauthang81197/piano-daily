@@ -190,20 +190,47 @@ describe('SheetCard (giao diện U2)', () => {
 });
 
 describe('GenreTags cuộn tới tag đang chọn', () => {
-  it('gọi scrollIntoView cho tag aria-current khi có lựa chọn', () => {
-    const calls: Element[] = [];
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = function (this: Element) {
-      calls.push(this);
-    };
+  const genres = [
+    { id: 'g1', slug: 'jazz', name: 'Jazz', count: 3 },
+    { id: 'g2', slug: 'pop', name: 'Pop', count: 1 },
+  ];
+
+  it('đặt scrollLeft để tag đang chọn nằm giữa dải; không có lựa chọn thì về 0', () => {
+    const proto = HTMLElement.prototype;
+    const offsetLeft = Object.getOwnPropertyDescriptor(proto, 'offsetLeft');
+    const clientWidth = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth');
+    Object.defineProperty(proto, 'offsetLeft', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.textContent === 'All' ? 0 : 400;
+      },
+    });
+    Object.defineProperty(proto, 'offsetWidth', { configurable: true, get: () => 100 });
+    Object.defineProperty(Element.prototype, 'clientWidth', { configurable: true, get: () => 300 });
     try {
-      render(withIntl(<GenreTags genres={[{ id: 'g1', slug: 'jazz', name: 'Jazz', count: 3 }]} selectedSlug="jazz" hrefFor={(s) => `/x?g=${s ?? ''}`} />));
+      const { container, rerender } = render(withIntl(<GenreTags genres={genres} selectedSlug="jazz" hrefFor={(s) => `/x?g=${s ?? ''}`} />));
+      const list = container.querySelector('ul') as HTMLUListElement;
+      expect(list.scrollLeft).toBe(400 - (300 - 100) / 2);
+      rerender(withIntl(<GenreTags genres={genres} selectedSlug={undefined} hrefFor={(s) => `/x?g=${s ?? ''}`} />));
+      expect(list.scrollLeft).toBe(0);
     } finally {
-      Element.prototype.scrollIntoView = original;
+      if (offsetLeft) Object.defineProperty(proto, 'offsetLeft', offsetLeft);
+      else delete (proto as unknown as Record<string, unknown>).offsetLeft;
+      delete (proto as unknown as Record<string, unknown>).offsetWidth;
+      if (clientWidth) Object.defineProperty(Element.prototype, 'clientWidth', clientWidth);
     }
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toHaveAttribute('aria-current', 'true');
-    expect(calls[0]).toHaveTextContent('Jazz (3)');
+  });
+});
+
+describe('LevelLinks', () => {
+  it('có câu dẫn và 4 link tới từng Level', async () => {
+    const { LevelLinks } = await import('./level-links');
+    render(withIntl(<LevelLinks label="Browse by level" />));
+    expect(screen.getByText('Browse by level')).toBeInTheDocument();
+    for (const level of ['beginner', 'intermediate', 'advanced', 'expert']) {
+      expect(document.querySelector(`a[href="/level/${level}"]`)).not.toBeNull();
+    }
+    expect(screen.getAllByRole('link')).toHaveLength(4);
   });
 });
 

@@ -122,10 +122,10 @@ export default async function SearchPage({ params, searchParams }: Props) {
           {active.length ? (
             <ul className="flex flex-wrap justify-center gap-2">
               {active.map(({ key, label }) => (
-                <li key={key}>
+                <li key={key} className="max-w-full">
                   <Link
                     href={searchHref({ ...state, [key]: undefined, ...(key === 'q' && sort === 'relevance' ? { sort: undefined } : {}) })}
-                    className={buttonClasses({ variant: 'secondary', size: 'sm' })}
+                    className={buttonClasses({ variant: 'secondary', className: 'max-w-full whitespace-normal break-words text-center' })}
                   >
                     {t('clearFilter', { filter: label })}
                   </Link>

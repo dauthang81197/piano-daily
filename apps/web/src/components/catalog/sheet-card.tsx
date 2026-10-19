@@ -29,7 +29,7 @@ export function SheetCard({ sheet }: { sheet: PublicSheetItem }) {
       interactive
       className="group relative flex h-full flex-row overflow-hidden sm:flex-col has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-offset-2 has-[h3_a:focus-visible]:outline-secondary"
     >
-      <div className="relative w-28 shrink-0 p-3 sm:w-full sm:bg-surface-container sm:p-4">
+      <div className="relative w-28 shrink-0 self-start p-3 sm:w-full sm:self-auto sm:bg-surface-container sm:p-4">
         <div className="relative aspect-[4/5] overflow-hidden rounded-sm border border-outline-variant/60 bg-surface-bright shadow-card sm:border-0">
           {sheet.thumbnailUrl ? (
             <img
@@ -53,7 +53,7 @@ export function SheetCard({ sheet }: { sheet: PublicSheetItem }) {
         <div>
           <Badge tone={levelTone(sheet.level)}>{nav(`levels.${sheet.level.toLowerCase() as 'beginner'}`)}</Badge>
         </div>
-        <h3 className="font-display text-body-lg font-medium text-on-surface sm:text-headline-sm">
+        <h3 className="break-words font-display text-body-lg font-medium text-on-surface sm:text-headline-sm">
           <Link
             href={`/sheet/${sheet.slug}`}
             className="rounded-sm after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"

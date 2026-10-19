@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function SheetCardSkeleton() {
   return (
     <Card data-testid="sheet-card-skeleton" aria-hidden="true" className="flex flex-row overflow-hidden sm:flex-col">
-      <div className="w-28 shrink-0 p-3 sm:w-full sm:bg-surface-container sm:p-4">
+      <div className="w-28 shrink-0 self-start p-3 sm:w-full sm:self-auto sm:bg-surface-container sm:p-4">
         <Skeleton className="aspect-[4/5] w-full rounded-sm bg-surface-container-high" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:p-4">

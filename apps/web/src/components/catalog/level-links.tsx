@@ -13,7 +13,7 @@ export function LevelLinks({ label }: { label: string }) {
           <li key={value}>
             <Link
               href={`/level/${value}`}
-              className="inline-flex min-h-10 items-center rounded-full border border-outline-variant px-4 py-2 text-body-md text-primary hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              className="inline-flex min-h-11 items-center rounded-full border border-outline-variant px-4 py-2 text-body-md text-primary hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               {nav(`levels.${value}`)}
             </Link>

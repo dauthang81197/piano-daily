@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
 const item =
-  'inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-full border px-3 py-2 text-body-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full border px-3 py-2 text-body-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /** Trang hiển thị: đầu, cuối, và lân cận trang hiện tại; `null` là dấu ba chấm. */
 export function pageWindow(current: number, total: number): (number | null)[] {

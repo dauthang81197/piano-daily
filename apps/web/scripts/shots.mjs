@@ -81,9 +81,11 @@ async function buildPages(args) {
   else console.warn(`Bỏ qua trang sheet: API ${args.api} không trả sheet nào (API tắt hoặc chưa seed?).`);
   const composer = sheets?.items?.[0]?.composer?.slug;
   if (composer) pages.push(['composer', `/${l}/composer/${encodeURIComponent(composer)}`]);
+  else console.warn('Bỏ qua trang composer: chưa có sheet nào để lấy composer.');
   const facets = await json(`${args.api}/sheets/facets`);
   const genre = facets?.genres?.[0]?.slug;
   if (genre) pages.push(['genre', `/${l}/genre/${encodeURIComponent(genre)}`]);
+  else console.warn('Bỏ qua trang genre: API không trả genre nào.');
   const tracks = await json(`${args.api}/courses?locale=${l}`);
   const track = (tracks?.items ?? tracks)?.[0]?.slug;
   if (!track) console.warn('Bỏ qua trang khoá học: chưa có khoá học nào để chụp (course-track, course-lesson).');
@@ -139,7 +141,7 @@ async function main() {
           const overlay = await page.evaluate(() => {
             const portal = document.querySelector('nextjs-portal');
             const text = portal?.shadowRoot?.textContent ?? '';
-            return /Runtime Error|Build Error|Unhandled Runtime Error/.test(text) ? text.slice(0, 160) : null;
+            return /(Runtime|Build|Console|Recoverable) Error|Unhandled/.test(text) ? text.slice(0, 160) : null;
           });
           if (overlay) {
             failed.push(`${path} → lỗi Next: ${overlay}`);

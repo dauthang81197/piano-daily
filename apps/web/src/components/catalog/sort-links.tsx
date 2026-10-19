@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
 const link =
-  'inline-flex min-h-9 items-center rounded-full px-3 py-1.5 text-body-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+  'inline-flex min-h-11 items-center rounded-full px-3 py-1.5 text-body-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /** Bộ chọn sắp xếp: `Link` SSR; `hrefFor(sort)` do trang dựng (giữ bộ lọc, bỏ `page`). `Liên quan` chỉ hiện khi có `q`. */
 export function SortLinks({
@@ -22,7 +22,7 @@ export function SortLinks({
     ['most_viewed', t('sortMostViewed')],
   ];
   return (
-    <nav aria-label={t('sortLabel')} className="flex items-center gap-2">
+    <nav aria-label={t('sortLabel')} className="flex flex-wrap items-center gap-2">
       <span className="text-caption text-on-surface-variant">{t('sortLabel')}</span>
       <div className="inline-flex rounded-full bg-surface-container p-1">
         {options.map(([value, label]) => (

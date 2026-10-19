@@ -81,6 +81,22 @@ Lỗi bắt được nhờ chụp ảnh thật (jsdom không thấy): bản đ�
 
 ## Review Triage Log
 
+Lượt 1 (3 reviewer: Blind Hunter 12 mục, Edge Case Hunter 19, Verification Gap 2 + 2 phụ).
+
+| Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|---|---|
+| Vùng chạm sort/tag/phân trang/link Level 36–40px, spec ghi ≥ 44px (BH, ECH, claim) | medium | Patch: `min-h-11` (và `min-w-11` cho phân trang); nút xoá lọc ở trạng thái rỗng bỏ `size="sm"`. |
+| `CardPreviewButton` định vị theo cột ảnh kéo dài bằng chiều cao thẻ nên trôi xuống dưới ảnh ở thẻ ngang cao (BH, ECH) | medium | Patch: cột ảnh `self-start` ở `< sm` (skeleton cũng vậy) để nút nằm đúng góc dưới ảnh. |
+| `scrollIntoView` có thể kéo cả trang theo chiều dọc; không reset khi bỏ lọc (BH, ECH) | low | Patch: `GenreScroller` đặt `scrollLeft` trực tiếp, về 0 khi không có tag chọn; test kiểm cả hai. |
+| `LevelLinks` thật không còn test sau khi search test mock nó (VG) | medium | Patch: thêm test render thật (câu dẫn + 4 link). |
+| Tương phản AA chỉ được kiểm bằng tên class (VG) | low | Patch: test đọc `theme.css`, tính tỉ lệ của `level-advanced-strong` với chữ trắng ≥ 4.5. |
+| `SortLinks` có thể tràn ở màn hẹp (BH, ECH) | low | Patch: thêm `flex-wrap`. |
+| Tiêu đề dài không ngắt; nhãn bộ lọc `q` dài tràn nút ở trạng thái rỗng (BH, ECH) | low | Patch: `break-words` ở tiêu đề; nút xoá lọc `max-w-full whitespace-normal break-words`. |
+| Overlay lỗi Next chỉ khớp 3 cụm; bỏ qua composer/genre không cảnh báo (BH, ECH) | low | Patch: mở rộng regex (Console/Recoverable) và cảnh báo khi bỏ qua trang. |
+| `LEVEL_BADGE`/`badge` bị xoá có thể còn nơi import; biến `nav` ở search không dùng (BH, ECH) | false | Lint, typecheck, build đều xanh; `nav` vẫn dùng cho nhãn Level của bộ lọc. |
+| Thiếu test thẻ không ảnh; spec ghi `loading.tsx`/`sheet-grid.tsx` đã đổi (ECH, claim) | false | Test "thiếu thumbnail thì có placeholder" đã có; các `loading.tsx` và `sheet-grid` dùng `SheetCardSkeleton` nên tự nhận hình mới. |
+| Ảnh lỗi 404 không có placeholder; không có mờ dần cuối dải tag; `EmptyState` thiếu `role=status`, luôn hiện biểu tượng tìm, đệm cứng; test phân trang mũi tên; test trang composer/genre rỗng; cắt chữ select ở 320px; `search-empty` chưa kiểm thật sự rỗng; không có dark mode (BH, ECH, VG) | low | Reject: Server Component không có `onError`, còn lại là chi tiết thẩm mỹ/không gây hại thực tế hoặc đã có test trang rỗng (`emptyTitle`). |
+
 ## Design Notes
 
 Ảnh trang PDF có nền trắng nên đặt trên nền ngà `surface-container` với đệm và bóng để giống tờ giấy; cắt từ đầu trang (`object-top`, tỉ lệ 4/5) vì phần nhạc bắt đầu ở trên và thẻ ngắn đi. Thẻ ngang ở mobile dựa trên quan sát: danh sách nhạc quét theo tên/composer nhiều hơn xem ảnh lớn. Màu đậm riêng cho "Nâng cao" thay vì đổi `level-advanced` để không ảnh hưởng admin và các chỗ dùng màu làm viền.

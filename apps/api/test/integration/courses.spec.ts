@@ -33,6 +33,10 @@ const EDITOR = 'courses-editor@piano-daily.test';
 const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 const MISSING = '01920000-0000-7000-8000-000000000999';
 
+/** Trả cờ cưỡng chế thuê bao về mặc định TẮT (giữ nguyên dòng do migration seed). */
+const resetEnforcement = (): Promise<unknown> | undefined => prismaRef?.siteSetting.upsert({ where: { key: 'subscriptions_enabled' }, update: { value: 'false' }, create: { key: 'subscriptions_enabled', value: 'false' } });
+let prismaRef: PrismaService | undefined;
+
 const s3 = new S3Client({
   endpoint: TEST_S3.S3_ENDPOINT,
   region: TEST_S3.S3_REGION,
@@ -87,6 +91,7 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
   beforeAll(async () => {
     app = await createApp(resolveTestDatabaseUrl());
     prisma = app.get(PrismaService);
+    prismaRef = prisma;
     await prisma.$executeRawUnsafe('TRUNCATE TABLE refresh_tokens, users CASCADE');
     const passwordHash = await bcrypt.hash(PASSWORD, 4);
     await prisma.user.create({ data: { email: SUPER, passwordHash, name: 'Founder', role: 'SUPER_ADMIN' } });
@@ -101,7 +106,8 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe('TRUNCATE TABLE course_lessons, course_sections, course_levels, course_tracks CASCADE');
     // Cưỡng chế thuê bao có thể còn BẬT từ file test khác (DB dùng chung): C1–C4 giả định TẮT.
-    await prisma.siteSetting.deleteMany({ where: { key: 'subscriptions_enabled' } });
+    // Đặt về 'false' chứ KHÔNG xoá dòng: migration seed dòng này và subscriptions/plan-payments spec dùng `update`.
+    await resetEnforcement();
   });
 
   describe('soạn (admin)', () => {
@@ -1078,13 +1084,13 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
 
     beforeEach(async () => {
       await prisma.$executeRawUnsafe('TRUNCATE TABLE customers, plans CASCADE');
-      await prisma.siteSetting.deleteMany({ where: { key: 'subscriptions_enabled' } });
+      await resetEnforcement();
       alice = await cust('alice@example.com');
       plan = await prisma.plan.create({ data: { nameVi: 'Tháng', nameEn: 'Monthly', priceVnd: 99000, priceUsdCents: 499, durationDays: 30 } });
     });
     afterAll(async () => {
       await prisma?.$executeRawUnsafe('TRUNCATE TABLE customers, plans CASCADE');
-      await prisma?.siteSetting.deleteMany({ where: { key: 'subscriptions_enabled' } });
+      await resetEnforcement();
     });
 
     it('cưỡng chế TẮT: không bài nào khoá, API công khai đủ nội dung như cũ', async () => {

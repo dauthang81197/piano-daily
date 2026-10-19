@@ -121,7 +121,8 @@ export const lessonBodySchema = z.object({
     .transform((value) => value ?? null),
   isPublished: published.default(false),
   /** Xem thử miễn phí (C5): vẫn xem được đầy đủ khi cưỡng chế thuê bao BẬT. */
-  isFreePreview: z.boolean({ error: 'isFreePreview phải là true hoặc false.' }).default(false),
+  // Tuỳ chọn: vắng thì GIỮ NGUYÊN giá trị hiện có khi sửa (client cũ không được vô tình khoá lại bài xem thử); tạo mới thì mặc định false ở DB.
+  isFreePreview: z.boolean({ error: 'isFreePreview phải là true hoặc false.' }).optional(),
 });
 export type LessonBody = z.infer<typeof lessonBodySchema>;
 export const createLessonBodySchema = lessonBodySchema.extend({ sectionId: z.uuid({ error: 'Section không hợp lệ.' }) });

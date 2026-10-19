@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 import { ApiError } from '@/lib/public-api';
 
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 const auth = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock('@/components/auth/auth-provider', () => ({ useCustomer: () => auth.value }));
 const api = vi.hoisted(() => ({

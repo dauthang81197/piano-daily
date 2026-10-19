@@ -13,7 +13,10 @@ import { LessonBody } from './lesson-body';
 const button =
   'inline-flex min-h-11 items-center rounded-md border border-outline-variant px-4 py-2 text-body-md font-semibold text-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
-type State = { kind: 'loading' } | { kind: 'ok'; owner: string; full: LessonFull } | { kind: 'plan' } | { kind: 'error' };
+type State =
+  | { kind: 'loading' }
+  | { kind: 'ok'; owner: string; full: LessonFull }
+  | { kind: 'plan' | 'login' | 'error'; owner: string };
 
 /**
  * Bài khoá theo thuê bao (C5). HTML công khai (cache dùng chung) không chứa nội dung; khách có gói tải bản đầy đủ ở trình duyệt,
@@ -39,7 +42,9 @@ export function LockedLesson({ lessonId, title }: { lessonId: string; title: str
         if (!cancelled) setState({ kind: 'ok', owner: customerId, full });
       } catch (err) {
         if (cancelled) return;
-        setState(err instanceof ApiError && err.status === 402 ? { kind: 'plan' } : { kind: 'error' });
+        // 401 (phiên hết hạn) → mời đăng nhập lại; 402 → mời đăng ký gói; còn lại → lỗi tải.
+        const kind = err instanceof ApiError && err.status === 402 ? 'plan' : err instanceof ApiError && err.status === 401 ? 'login' : 'error';
+        setState({ kind, owner: customerId });
       }
     })();
     return () => {
@@ -48,8 +53,12 @@ export function LockedLesson({ lessonId, title }: { lessonId: string; title: str
   }, [customerId, getToken, lessonId, locale]);
 
   if (!auth || auth.status === 'loading') return null;
-  if (customerId && state.kind === 'ok' && state.owner === customerId) return <LessonBody title={title} full={state.full} />;
-  if (customerId && state.kind === 'loading') return <p className="text-body-md text-on-surface-variant">{t('lockedLoading')}</p>;
+  // Kết quả của khách trước (chưa kịp reset) coi như đang tải, không hiện nhầm cho khách mới.
+  const current = state.kind !== 'loading' && state.owner === customerId ? state : null;
+  if (customerId && current?.kind === 'ok') return <LessonBody title={title} full={current.full} />;
+  if (customerId && !current) return <p className="text-body-md text-on-surface-variant">{t('lockedLoading')}</p>;
+  const needLogin = !customerId || current?.kind === 'login';
+  const needPlan = !customerId || current?.kind === 'plan';
 
   return (
     <section aria-labelledby="lesson-locked" className="flex flex-col items-start gap-3 rounded-md border border-outline-variant p-4">
@@ -57,19 +66,19 @@ export function LockedLesson({ lessonId, title }: { lessonId: string; title: str
         <Lock aria-hidden="true" className="size-5" />
         {t('lockedTitle')}
       </h2>
-      {customerId && state.kind === 'error' ? (
+      {customerId && current?.kind === 'error' ? (
         <p role="alert" className="text-body-md text-error">
           {t('lockedError')}
         </p>
       ) : (
-        <p className="text-body-md text-on-surface-variant">{customerId ? t('lockedNeedPlan') : t('lockedBody')}</p>
+        <p className="text-body-md text-on-surface-variant">{customerId && current?.kind === 'plan' ? t('lockedNeedPlan') : t('lockedBody')}</p>
       )}
-      {!customerId ? (
+      {needLogin ? (
         <button type="button" className={button} onClick={() => auth.openAuth('login')}>
           {t('lockedLogin')}
         </button>
       ) : null}
-      {!customerId || state.kind === 'plan' ? (
+      {needPlan ? (
         <Link href="/pricing" className={button}>
           {t('lockedPricing')}
         </Link>

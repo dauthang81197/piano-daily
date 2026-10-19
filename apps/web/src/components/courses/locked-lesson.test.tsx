@@ -95,6 +95,15 @@ describe('Bài khoá theo thuê bao (C5)', () => {
     expect(screen.queryByRole('button', { name: 'Đăng nhập' })).toBeNull();
   });
 
+  it('phiên hết hạn (401 từ /full): mời đăng nhập lại thay vì báo lỗi chung', async () => {
+    signIn();
+    api.lessonFull.mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', 'x'));
+    view();
+    await userEvent.click(await screen.findByRole('button', { name: 'Đăng nhập' }));
+    expect(openAuth).toHaveBeenCalledWith('login');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('lỗi khác (mạng/500): báo lỗi, không đẩy sang trang gói', async () => {
     signIn();
     api.lessonFull.mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'x'));

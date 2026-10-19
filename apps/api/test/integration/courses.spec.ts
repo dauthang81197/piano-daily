@@ -1132,7 +1132,10 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       const cancelled = await subscribe(alice.id, { status: 'CANCELLED' });
       await full(alice.token, id).expect(402);
       await prisma.subscription.delete({ where: { id: cancelled.id } });
-      expect(await prisma.customer.count({ where: { emailVerifiedAt: { not: null } } })).toBe(1); // đang trong dùng thử mà vẫn 402
+      // Khách đang trong dùng thử thật (email đã xác minh, còn lượt) mà vẫn 402.
+      const ent = (await as(alice.token, api().get('/customer/entitlement').set('CF-Connecting-IP', ip())).expect(200)).body;
+      expect(ent.trial.active).toBe(true);
+      await full(alice.token, id).expect(402);
       await full(alice.token, a.lessons[1]!.id).expect(200);
       await subscribe(alice.id);
       const ok = await full(alice.token, id).expect(200);
@@ -1143,10 +1146,21 @@ describe('Khoá học C1: soạn, công khai, nhạc MIDI (Postgres + SeaweedFS 
       await full(alice.token, id, '?locale=xx').expect(400);
     });
 
+    it('sửa bài không gửi isFreePreview thì giữ nguyên cờ xem thử (client cũ không khoá lại bài)', async () => {
+      const a = await twoLessons();
+      const id = a.lessons[1]!.id;
+      expect(adminLessonSchema.parse((await sup(api().patch(`/admin/courses/lessons/${id}`).send({ title: 'Xem thử đổi tên', content: 'Nội dung mở', isPublished: true })).expect(200)).body).isFreePreview).toBe(true);
+      expect((await sup(api().patch(`/admin/courses/lessons/${id}`).send({ title: 'x', content: 'y', isPublished: true, isFreePreview: false })).expect(200)).body.isFreePreview).toBe(false);
+      expect((await sup(api().post('/admin/courses/lessons').send({ sectionId: a.section.id, title: 'Mới', content: 'z' })).expect(201)).body.isFreePreview).toBe(false);
+    });
+
     it('/full: bài ẩn hoặc lạ -> 404; khách bị khoá có gói vẫn bị từ chối', async () => {
       const a = await twoLessons();
       await enforce(true);
       await subscribe(alice.id);
+      await setPub('sections', a.section.id, false);
+      await full(alice.token, a.lessons[0]!.id).expect(404); // cha ẩn
+      await setPub('sections', a.section.id, true);
       await full(alice.token, MISSING).expect(404);
       await full(alice.token, 'khong-phai-uuid').expect(404);
       await setPub('lessons', a.lessons[0]!.id, false);

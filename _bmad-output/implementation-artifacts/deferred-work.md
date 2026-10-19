@@ -275,4 +275,5 @@
 - Bật cưỡng chế khoá mọi bài hiện có (mặc định `is_free_preview=false`): chưa có thao tác hàng loạt "đặt xem thử cho cả level/section" ở admin.
 - Hết hạn gói giữa lúc đang xem chỉ có hiệu lực ở lần tải/ghi kế tiếp (nội dung đã tải vẫn hiện tới khi tải lại trang); tiến độ C2 vẫn ghi được ở bài khoá.
 - Chưa test trên trình duyệt thật (kiểm bằng test jsdom).
+- (C5 review) Form nộp bài/bình luận vẫn hiện cho khách chưa có gói ở bài khoá (chỉ báo 402 kèm link gói khi gửi); `enforcementOn()` đọc cài đặt mỗi request (chưa cache TTL) và revalidate tag là best-effort; chưa cảnh báo/đếm bài xem thử hay công cụ hàng loạt khi bật cưỡng chế; tiến độ C2 vẫn ghi được ở bài khoá; chưa nút thử lại khi tải bài khoá lỗi; chưa test đơn vị riêng cho `CourseAccessService` và `LessonBody` tiếng Anh.
 

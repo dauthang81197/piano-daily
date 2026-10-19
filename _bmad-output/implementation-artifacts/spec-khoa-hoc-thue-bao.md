@@ -2,7 +2,7 @@
 title: 'Khoá học piano C5: gating theo thuê bao'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-review'
+status: 'done'
 baseline_commit: '3109e651c3e7eb764737852616cc1e54241c6205'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -83,6 +83,30 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|-----------|---------|--------------------|
+| 1 | `isFreePreview` có `.default(false)` nên sửa bài từ client cũ/script không gửi trường sẽ tắt xem thử và khoá lại bài khi enforcement BẬT (Blind, Edge) | high | patch: trường tuỳ chọn, vắng thì giữ nguyên; tạo mới mặc định false ở DB; thêm test sửa không gửi trường |
+| 2 | Test "chỉ dùng thử" trống rỗng: chỉ đếm khách đã xác minh, không chứng minh đang dùng thử (Blind, Edge, Gap) | medium | patch: gọi `/customer/entitlement` xác nhận `trial.active=true` rồi mới kiểm 402 |
+| 3 | Web: `/full` trả 401 (phiên hết hạn) hiện lỗi chung, không có đường đăng nhập lại (Blind, Edge) | medium | patch: trạng thái `login` → nút đăng nhập; thêm test |
+| 4 | Web: một lần render còn kết quả/trạng thái của khách trước khi effect reset (Edge) | low | patch: mọi trạng thái mang `owner`, khác chủ coi như đang tải |
+| 5 | Lỗi 402 ở nộp bài/bình luận/sao chỉ có chữ, không có đường tới `/pricing` (Edge, claim) | medium | patch: thêm link "Xem các gói"; thêm assert |
+| 6 | Không test `/full` khi cha (section/level) bị ẩn (Gap) | low | patch: thêm vào test 404 |
+| 7 | Wrapper `customerApi.lessonFull` (đường dẫn, locale, Bearer, parse) chỉ test sau mock (Gap) | medium | patch: `customer-api.test.ts` với `fetch` giả |
+| 8 | `/full` không giới hạn tốc độ (Blind, Edge) | false | controller khách có `@Throttle` 60/phút ở cấp class, áp cho cả GET `/full` |
+| 9 | Sửa bình luận ở bài đã ẩn trả 404 thay vì cho sửa (Edge) | false | từ C4 `edit` vốn đã yêu cầu bài công khai (`lesson: VISIBLE_LESSON`); C5 không đổi hành vi này |
+| 10 | Tiến độ (C2) không bị khoá ở bài khoá (Blind, Gap) | false | cố ý: spec chỉ khoá nội dung và hành động cộng đồng; ghi nhận ở deferred |
+| 11 | Metadata/JSON-LD/sitemap có thể lộ nội dung bài khoá (Blind) | false | `generateMetadata` dùng `lesson.content` từ API công khai, vốn đã là `''` với bài khoá; sitemap chỉ có id/ngày |
+| 12 | Đọc submission/community "của tôi" ở bài khoá (Edge) | false | chỉ trả dữ liệu của chính khách; không lộ gì của người khác |
+| 13 | DTO bài khoá vẫn có cờ `hasVideo`/`hasMusic` ở cây (Edge) | false | cố ý (spec): chỉ là cờ, không lộ nội dung |
+| 14 | Lỗi đọc cài đặt khi tính khoá (Edge) | low | reject: `subscriptionConfig()` ném lỗi → 500 qua filter chung, không bao giờ mở nội dung (fail-closed ngầm) |
+| 15 | Form nộp bài/bình luận vẫn hiện cho khách chưa có gói ở bài khoá (Blind) | low | defer: lỗi 402 đã có thông báo + link gói |
+| 16 | `enforcementOn()` đọc DB mỗi request; chưa cache TTL; notify có thể trễ (Blind) | low | defer |
+| 17 | Bật cưỡng chế khoá cả thư viện, chưa có cảnh báo/đếm bài xem thử/công cụ hàng loạt ở admin (Blind) | medium | defer (đã ghi C5 deferred); README cảnh báo |
+| 18 | Hết hạn gói giữa chừng, nút thử lại cho lỗi tải, layout shift khi tải phiên (Blind) | low | defer |
+| 19 | Test đơn vị riêng cho `CourseAccessService` (biên `currentPeriodEnd`, khách bị khoá), `LessonBody` tiếng Anh (Gap) | low | defer: biên hạn và khách bị khoá đã phủ qua integration (gói hết hạn, khách `isActive=false`) |
+| 20 | Claim: Code Map ghi `lesson-gate.tsx` nhưng file thực là `locked-lesson.tsx`; diff không có deferred-work (Edge) | false | ghi chú thực hiện đã nêu `LockedLesson`; `deferred-work.md` nằm ngoài diff vì loại thư mục `_bmad-output` |
+| 21 | Dọn nhỏ: thứ tự import, dòng trống cuối file test, nhập `title` của `LessonBody` (Blind) | low | reject: không có hại |
 
 ## Verification
 

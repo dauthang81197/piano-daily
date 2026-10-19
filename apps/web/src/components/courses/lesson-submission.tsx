@@ -3,12 +3,14 @@
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
+import { Link } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { ApiError } from '@/lib/public-api';
 import type { MySubmission } from '@piano-daily/shared';
 
 const button =
   'inline-flex min-h-11 items-center rounded-md border border-outline-variant px-4 py-2 text-body-md font-semibold text-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-60';
+const link = 'text-body-md font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 const field =
   'min-h-11 w-full rounded-md border border-outline-variant bg-surface px-3 py-2 text-body-md text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
@@ -26,6 +28,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needPlan, setNeedPlan] = useState(false);
   /** Khoá (khách, bài) hiện tại: kết quả lưu/xoá về muộn sau khi đổi khách hoặc bài thì bỏ qua. */
   const current = useRef('');
   current.current = `${customerId ?? ''}:${lessonId}`;
@@ -56,7 +59,10 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const fail = useCallback(
     (err: unknown) => {
       if (err instanceof ApiError && err.status === 429) setError(t('submissionTooMany'));
-      else if (err instanceof ApiError && err.status === 402) setError(t('planRequired'));
+      else if (err instanceof ApiError && err.status === 402) {
+        setError(t('planRequired'));
+        setNeedPlan(true);
+      }
       else if (err instanceof ApiError && (err.status === 404 || err.status === 401)) setError(t('submissionUnavailable'));
       else if (err instanceof ApiError && err.status === 400) {
         const first = Array.isArray(err.details) ? (err.details[0] as { path?: string } | undefined) : undefined;
@@ -99,6 +105,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
   const run = async (action: (token: string) => Promise<void>) => {
     setBusy(true);
     setError(null);
+    setNeedPlan(false);
     try {
       const token = await getToken?.();
       if (!token) throw new Error('no token');
@@ -184,6 +191,11 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
         <p role="alert" className="text-body-md text-error">
           {error}
         </p>
+      ) : null}
+      {needPlan ? (
+        <Link href="/pricing" className={link}>
+          {t('lockedPricing')}
+        </Link>
       ) : null}
     </section>
   );

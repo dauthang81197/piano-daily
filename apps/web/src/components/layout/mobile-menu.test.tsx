@@ -31,4 +31,13 @@ describe('MobileMenu', () => {
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(button).toHaveFocus();
   });
+
+  it('bấm một link trong menu thì menu đóng', async () => {
+    render(withIntl(<MobileMenu />));
+    const button = screen.getByRole('button', { name: 'Open menu' });
+    await userEvent.click(button);
+    await userEvent.click(screen.getByRole('link', { name: 'Pricing' }));
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
 });

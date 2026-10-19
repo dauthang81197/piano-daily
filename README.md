@@ -128,6 +128,8 @@ pnpm --filter @piano-daily/api dev                       # cổng 4000
 pnpm --filter @piano-daily/web shots -- --label before   # ảnh ở apps/web/.shots/before/<mobile|tablet|desktop>/
 ```
 
+Ảnh bìa/ảnh trang cần `NEXT_PUBLIC_MEDIA_BASE_URL=http://localhost:8333` trong `.env` (nếu thiếu, CSP chặn ảnh từ SeaweedFS và thẻ hiện ảnh vỡ).
+
 Script dùng Chromium sẵn có trong cache Playwright, hoặc đặt `PLAYWRIGHT_CHROMIUM_PATH` tới `chrome-headless-shell`. Tuỳ chọn: `--base`, `--api`, `--locale`. Seed chưa có khoá học nên các trang khoá học chỉ chụp danh sách rỗng. Thư mục `.shots/` không commit.
 
 ## CI/CD và deploy (GitHub Actions → Docker Hub → VPS)

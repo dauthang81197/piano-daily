@@ -38,7 +38,7 @@ export function HeaderAuth({ className = '' }: { className?: string }) {
   if (!auth || auth.status === 'loading') return null;
   if (auth.status === 'anonymous' || !auth.customer) {
     return (
-      <Button variant="secondary" className={`px-4 py-1.5 ${className}`.trim()} onClick={() => auth.openAuth('login')}>
+      <Button variant="secondary" className={`whitespace-nowrap px-4 py-1.5 ${className}`.trim()} onClick={() => auth.openAuth('login')}>
         {t('login')}
       </Button>
     );
@@ -51,7 +51,7 @@ export function HeaderAuth({ className = '' }: { className?: string }) {
         </span>
         <EntitlementNote entitlement={auth.entitlement} />
       </span>
-      <Button variant="secondary" className="px-4 py-1.5" onClick={() => void auth.logout()}>
+      <Button variant="secondary" className="whitespace-nowrap px-4 py-1.5" onClick={() => void auth.logout()}>
         {t('logout')}
       </Button>
     </div>

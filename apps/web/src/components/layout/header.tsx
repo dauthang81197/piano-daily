@@ -1,59 +1,41 @@
 import { useTranslations } from 'next-intl';
 import { HeaderAuth } from '@/components/auth/header-auth';
 import { Link } from '@/i18n/navigation';
-import { LEVELS } from '@/lib/levels';
 import { LanguageSwitcher } from './language-switcher';
 import { MobileMenu } from './mobile-menu';
+import { PrimaryNav } from './nav-links';
 import { SearchForm } from './search-form';
-
-const navLink =
-  'rounded-md px-2 py-1 text-body-md text-on-surface hover:text-primary ' +
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?: string; logoUrl?: string | null } = {}) {
   const t = useTranslations('Nav');
   return (
-    <header className="relative border-b border-outline-variant bg-surface">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-gutter px-margin-mobile py-4 md:px-margin-desktop">
-        <Link
-          href="/"
-          aria-label={t('logoLabel', { name: siteName })}
-          className="rounded-md font-display text-headline-sm text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-        >
-          {logoUrl ? (
-            <span className="flex items-center gap-2">
-              <img src={logoUrl} alt="" className="h-8 w-auto max-w-[8rem] object-contain" />
-              <span>{siteName}</span>
-            </span>
-          ) : (
-            siteName
-          )}
-        </Link>
-        <nav aria-label={t('primary')} className="hidden items-center gap-2 md:flex">
-          <Link href="/" className={navLink}>
-            {t('home')}
+    <header className="sticky top-0 z-40 border-b border-outline-variant bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/85">
+      <div className="mx-auto max-w-7xl px-margin-mobile md:px-margin-desktop">
+        <div className="flex items-center justify-between gap-4 py-3 md:gap-6">
+          <Link
+            href="/"
+            aria-label={t('logoLabel', { name: siteName })}
+            className="shrink-0 whitespace-nowrap rounded-md font-display text-headline-sm text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+          >
+            {logoUrl ? (
+              <span className="flex items-center gap-2">
+                <img src={logoUrl} alt="" className="h-8 w-auto max-w-[8rem] object-contain" />
+                <span>{siteName}</span>
+              </span>
+            ) : (
+              siteName
+            )}
           </Link>
-          <Link href="/search" className={navLink}>
-            {t('search')}
-          </Link>
-          {LEVELS.map((level) => (
-            <Link key={level} href={`/level/${level}`} className={navLink}>
-              {t(`levels.${level}`)}
-            </Link>
-          ))}
-          <Link href="/courses" className={navLink}>
-            {t('courses')}
-          </Link>
-          <Link href="/pricing" className={navLink}>
-            {t('pricing')}
-          </Link>
-        </nav>
-        <div className="hidden items-center gap-3 md:flex">
-          <SearchForm className="w-64" />
-          <LanguageSwitcher />
-          <HeaderAuth />
+          <div className="hidden min-w-0 flex-1 justify-center md:flex">
+            <SearchForm compact className="w-full max-w-md" />
+          </div>
+          <div className="hidden shrink-0 items-center gap-3 md:flex">
+            <LanguageSwitcher />
+            <HeaderAuth />
+          </div>
+          <MobileMenu />
         </div>
-        <MobileMenu />
+        <PrimaryNav variant="bar" className="-mx-3 hidden border-t border-outline-variant/60 py-1 md:flex" />
       </div>
     </header>
   );

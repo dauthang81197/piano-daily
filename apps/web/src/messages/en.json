@@ -49,13 +49,33 @@
     "about": "Piano Daily is a curated library of piano sheet music, arranged by skill level so players can find suitable pieces with ease.",
     "levelsTitle": "Levels",
     "disclaimerTitle": "Copyright",
-    "disclaimer": "All musical works remain the property of their respective authors and publishers. Content on this site is provided for personal study and reference only."
+    "disclaimer": "All musical works remain the property of their respective authors and publishers. Content on this site is provided for personal study and reference only.",
+    "learnTitle": "Learn & plans",
+    "rights": "© {year} {name}. All rights reserved."
   },
   "Home": {
     "eyebrow": "Piano sheet library",
     "title": "Piano Daily",
     "tagline": "Clear scores, organised by skill level, easy to preview and easy to find.",
-    "browseByLevel": "Browse by level"
+    "browseByLevel": "Browse by level",
+    "ctaStart": "Start with Beginner",
+    "ctaCourses": "Browse courses",
+    "levelDesc": {
+      "beginner": "Get to know the keys, finger exercises and familiar melodies.",
+      "intermediate": "Build speed and complexity with classical and modern pieces.",
+      "advanced": "Demanding technique and multiple voices for confident players.",
+      "expert": "Concert repertoire that asks for the highest level of technique and expression."
+    },
+    "levelCount": "{count, plural, one {# piece} other {# pieces}}",
+    "levelExplore": "Browse sheets",
+    "latestTitle": "Latest sheets",
+    "viewAll": "View all",
+    "coursesTitle": "Learn piano step by step",
+    "coursesBody": "Lesson paths with video, notation and practice submissions for a teacher to review.",
+    "coursesCta": "Explore courses",
+    "pricingTitle": "Membership plans",
+    "pricingBody": "Pick a plan that makes downloading sheets easier.",
+    "pricingCta": "See pricing"
   },
   "NotFound": {
     "title": "Page not found",

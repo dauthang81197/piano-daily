@@ -2,7 +2,12 @@ import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { LatestSheets } from '@/components/home/latest-sheets';
+import { CoursePricingBand } from '@/components/home/course-pricing-band';
+import { Hero } from '@/components/home/hero';
+import { LevelCards } from '@/components/home/level-cards';
+import { fetchLevelSummary, fetchSearch } from '@/lib/catalog';
+import { fetchTracks } from '@/lib/courses';
 import { routing } from '@/i18n/routing';
 import { LEVELS } from '@/lib/levels';
 import { pageMetadata } from '@/lib/seo';
@@ -25,30 +30,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
+/** Phần phụ thuộc API tự ẩn khi lỗi: trang chủ luôn hiện hero và thẻ Level. */
+const orElse = <T,>(promise: Promise<T>, fallback: T): Promise<T> =>
+  promise.catch((error: unknown) => {
+    console.error('Trang chủ: bỏ qua phần lỗi API', error instanceof Error ? error.message : error);
+    return fallback;
+  });
+
 export default async function HomePage({ params }: Props) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const t = await getTranslations('Home');
-  const nav = await getTranslations('Nav');
+
+  const [counts, latest, tracks] = await Promise.all([
+    Promise.all(LEVELS.map((level) => orElse(fetchLevelSummary(level).then((summary) => summary.total as number | null), null))),
+    orElse(fetchSearch({ sort: 'newest', page: 1 }).then((list) => list.items.slice(0, 6)), []),
+    orElse(fetchTracks(locale), []),
+  ]);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
-      <p className="font-sans text-label-caps uppercase text-secondary">{t('eyebrow')}</p>
-      <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
-      <p className="max-w-prose text-body-lg text-on-surface-variant">{t('tagline')}</p>
-      <div>
-        <h2 className="font-display text-headline-sm text-on-surface">{t('browseByLevel')}</h2>
-        <ul className="mt-4 flex flex-wrap gap-3">
-          {LEVELS.map((level) => (
-            <li key={level}>
-              <Button href={`/${locale}/level/${level}`} variant="secondary">
-                {nav(`levels.${level}`)}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <main className="flex flex-col gap-section-gap pb-section-gap">
+      <Hero locale={locale} showCourses={tracks.length > 0} />
+      <LevelCards counts={counts} />
+      <LatestSheets items={latest} />
+      <CoursePricingBand locale={locale} showCourses={tracks.length > 0} />
     </main>
   );
 }

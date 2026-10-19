@@ -285,3 +285,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-ui-u0-nen-tang.md`
   summary: Kiểm tương phản chữ trắng (`text-on-primary`) trên nền màu cấp độ (nhất là `level-advanced` #a97d2f, chữ 12px) và thêm `focus-within` cho `Card interactive`.
   evidence: Chữ trắng trên #a97d2f có thể dưới 4.5:1 (chưa đo); tổ hợp đã có ở SheetCard. Chưa có thẻ nào chứa link bấm bên trong Card.
+
+## UI/UX U1 (khung + trang chủ)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ui-u1-khung-trang-chu.md`
+  summary: Thêm test kiểm tra `en.json` và `vi.json` có cùng tập khoá (hiện chỉ kiểm tay).
+  evidence: Xoá một khoá vi như `Footer.rights` không làm test nào đỏ nhưng người dùng vi sẽ thấy lỗi; phạm vi toàn repo, không riêng U1.
+- source_spec: `_bmad-output/implementation-artifacts/spec-ui-u1-khung-trang-chu.md`
+  summary: Quyết định có commit `apps/web/AGENTS.md` và `CLAUDE.md` (do `next dev` tự sinh) hay thêm vào `.gitignore`.
+  evidence: Hai tệp này bị commit kèm U1 vì `next dev` sinh lại mỗi lần chạy; chúng không thuộc tính năng và là tệp ngữ cảnh agent nên không tự sửa.

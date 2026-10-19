@@ -60,7 +60,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
       </div>
       <div className="border-t border-outline-variant">
         <p className="mx-auto max-w-7xl px-margin-mobile py-4 text-caption text-on-surface-variant md:px-margin-desktop">
-          {t('rights', { year: new Date().getFullYear(), name: siteName })}
+          {t('rights', { year: new Date().getFullYear(), name: siteName || 'Piano Daily' })}
         </p>
       </div>
     </footer>

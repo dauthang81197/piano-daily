@@ -81,6 +81,31 @@ Ngoài spec: không có. Chưa kiểm: header khi đã đăng nhập (tên + quy
 
 ## Review Triage Log
 
+Lượt 1 (3 reviewer: Blind Hunter 11 mục, Edge Case Hunter 12, Verification Gap 3 + 1 phụ).
+
+| Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|---|---|
+| Hero luôn có nút "Xem khoá học" dù chưa có khoá (BH, VG) | medium | Patch: `Hero` nhận `showCourses`; test thêm cả 2 trạng thái. |
+| Menu mobile mất test "bấm link thì đóng" sau refactor sang `PrimaryNav` (VG) | medium | Patch: thêm test bấm Pricing → `aria-expanded=false`. |
+| CTA hero và ô tìm hero không có assertion (VG) | low | Patch: assert href `/en/level/beginner`, `/en/courses`, có searchbox. |
+| Link nav desktop cao ~40px, link stack mobile không `min-h` (ECH, claim ≥ 44px) | low | Patch: `py-2.5` (44px) và `min-h-11`. |
+| `orElse` nuốt lỗi không log (BH) | low | Patch: `console.error` kèm message. |
+| Thẻ bảng giá giãn full-width khi ẩn khoá học (BH) | low | Patch: `md:max-w-3xl` khi một thẻ. |
+| `max-h-[calc(100vh-4rem)]` bỏ qua thanh trình duyệt mobile (BH, ECH) | low | Patch: `100dvh` + `overscroll-contain`. |
+| `siteName` rỗng cho dòng bản quyền (ECH) | low | Patch: `siteName \|\| 'Piano Daily'`. |
+| Vòng cuộn của `shots.mjs` không giới hạn (BH, ECH) | low | Patch: tối đa 60 bước. |
+| Ném đồng bộ làm `.catch` hụt; `total`/`items` thiếu (ECH) | false | `fetchLevelSummary/fetchSearch/fetchTracks` là hàm `async` (lỗi luôn thành rejection) và dữ liệu đã qua `schema.parse`. |
+| Overflow chỉ ghi vào `failed` nên thoát mã 0 (BH, ECH) | false | Cuối `main` có `process.exit(1)` khi `failed.length > 0` (đã thử ở lượt trước). |
+| Chữ gõ dài chui dưới icon ở ô tìm gọn (ECH) | false | `Input` nhận `className` qua `cn`, có `pr-11`; ảnh chụp xác nhận. |
+| Menu mở khi submit tìm / resize lên md (ECH) | low | Reject: form GET tải lại trang nên menu tự đóng; wrapper `md:hidden` ẩn menu khi rộng. |
+| Pathname có `/` cuối hoặc null (ECH) | false | `usePathname` của next-intl trả path đã chuẩn hoá, không null ở client. |
+| 6 lời gọi API/lần render, `fetchSearch` lấy cả trang (BH) | low | Reject: `publicFetch` dùng `force-cache` + tag; API không có tham số kích thước trang công khai. |
+| Năm bản quyền cũ khi trang cache (ECH) | low | Reject: trang làm mới tối đa 10 phút, sai lệch chỉ ở ngày 1/1. |
+| `scroll-padding-top`, `focus-within`, `motion-reduce` của thẻ Level (BH) | false | Không có anchor trong trang; thẻ Level đã có `focus-within` và `Card` có `motion-reduce`. |
+| Spec nói Badge/chấm màu, code dùng viền màu (ECH, claim) | low | Reject: chỉ lệch mô tả Code Map, hành vi đúng ảnh duyệt. |
+| README MEDIA và `AGENTS.md`/`CLAUDE.md` do `next dev` sinh bị commit kèm (BH) | low | Defer: tệp ngữ cảnh agent do Next sinh lại mỗi lần chạy dev (chính tệp ghi nên commit); quyết định giữ/bỏ để người dùng chọn. |
+| Chưa có test song ngữ vi/en khớp khoá (VG) | maybe-false | Defer: chung cả repo; các khoá U1 đủ ở cả 2 file. |
+
 ## Design Notes
 
 Bỏ "Trang chủ"/"Tìm kiếm" khỏi nav vì logo đã về trang chủ và ô tìm luôn hiện; còn 6 link xếp vừa hàng dưới ở 768px mà không cần dropdown (tránh thêm JS, giữ SSR). Hero căn giữa theo mockup `level-page.html`; thẻ Level dùng màu cấp độ làm điểm nhấn thay vì ảnh để không phụ thuộc dữ liệu.

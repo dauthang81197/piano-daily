@@ -122,7 +122,7 @@ async function main() {
           }
           // Cuộn hết trang để ảnh lazy được tải trước khi chụp, rồi kiểm tra tràn ngang.
           await page.evaluate(async () => {
-            for (let y = 0; y < document.body.scrollHeight; y += window.innerHeight) {
+            for (let y = 0, steps = 0; y < document.body.scrollHeight && steps < 60; y += window.innerHeight, steps += 1) {
               window.scrollTo(0, y);
               await new Promise((resolve) => setTimeout(resolve, 80));
             }

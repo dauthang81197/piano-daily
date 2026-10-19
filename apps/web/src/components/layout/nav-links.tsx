@@ -12,10 +12,10 @@ export function isActivePath(pathname: string, href: string): boolean {
 }
 
 const barLink =
-  'whitespace-nowrap rounded-md px-3 py-2 text-body-md text-on-surface transition-colors hover:text-primary ' +
+  'whitespace-nowrap rounded-md px-3 py-2.5 text-body-md text-on-surface transition-colors hover:text-primary ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 const stackLink =
-  'block rounded-md px-3 py-3 text-body-md text-on-surface hover:bg-surface-container-low ' +
+  'block min-h-11 rounded-md px-3 py-3 text-body-md text-on-surface hover:bg-surface-container-low ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /**

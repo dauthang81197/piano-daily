@@ -81,6 +81,9 @@ describe('HomePage', () => {
     expect(screen.getAllByText('12 pieces')).toHaveLength(4);
     expect(screen.getByTestId('grid').children).toHaveLength(6);
     expect(fetchSearch).toHaveBeenCalledWith({ sort: 'newest', page: 1 });
+    expect(screen.getByRole('link', { name: 'Start with Beginner' })).toHaveAttribute('href', '/en/level/beginner');
+    expect(screen.getByRole('link', { name: 'Browse courses' })).toHaveAttribute('href', '/en/courses');
+    expect(screen.getAllByRole('searchbox').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Explore courses' })).toHaveAttribute('href', '/en/courses');
     expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute('href', '/en/pricing');
   });
@@ -95,6 +98,7 @@ describe('HomePage', () => {
     expect(screen.queryByText(/^\d+ pieces?$/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('grid')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Explore courses' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Browse courses' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See pricing' })).toBeInTheDocument();
   });
 
@@ -105,6 +109,7 @@ describe('HomePage', () => {
     await renderHome();
     expect(screen.queryByTestId('grid')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Explore courses' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Browse courses' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See pricing' })).toBeInTheDocument();
   });
 });

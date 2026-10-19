@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 export function CoursePricingBand({ locale, showCourses }: { locale: string; showCourses: boolean }) {
   const t = useTranslations('Home');
   return (
-    <section className={`mx-auto grid w-full max-w-7xl gap-gutter px-margin-mobile md:px-margin-desktop ${showCourses ? 'md:grid-cols-2' : ''}`}>
+    <section className={`mx-auto grid w-full max-w-7xl gap-gutter px-margin-mobile md:px-margin-desktop ${showCourses ? 'md:grid-cols-2' : 'md:max-w-3xl'}`}>
       {showCourses ? (
         <Card className="flex flex-col items-start gap-4 bg-surface-container-low p-8">
           <h2 className="font-display text-headline-md text-on-surface">{t('coursesTitle')}</h2>

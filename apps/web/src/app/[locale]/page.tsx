@@ -31,7 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /** Phần phụ thuộc API tự ẩn khi lỗi: trang chủ luôn hiện hero và thẻ Level. */
-const orElse = <T,>(promise: Promise<T>, fallback: T): Promise<T> => promise.catch(() => fallback);
+const orElse = <T,>(promise: Promise<T>, fallback: T): Promise<T> =>
+  promise.catch((error: unknown) => {
+    console.error('Trang chủ: bỏ qua phần lỗi API', error instanceof Error ? error.message : error);
+    return fallback;
+  });
 
 export default async function HomePage({ params }: Props) {
   const { locale } = await params;
@@ -46,7 +50,7 @@ export default async function HomePage({ params }: Props) {
 
   return (
     <main className="flex flex-col gap-section-gap pb-section-gap">
-      <Hero locale={locale} />
+      <Hero locale={locale} showCourses={tracks.length > 0} />
       <LevelCards counts={counts} />
       <LatestSheets items={latest} />
       <CoursePricingBand locale={locale} showCourses={tracks.length > 0} />

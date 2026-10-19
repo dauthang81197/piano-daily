@@ -54,7 +54,7 @@ export function SearchFilters({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-level`} className="text-caption text-on-surface-variant">
             {t('levelLabel')}
@@ -81,7 +81,7 @@ export function SearchFilters({
             ))}
           </select>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1 md:col-span-1">
           <label htmlFor={`${id}-format`} className="text-caption text-on-surface-variant">
             {t('formatLabel')}
           </label>

@@ -25,9 +25,14 @@ type ButtonAsButton = ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefin
 type ButtonAsLink = AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
 export type ButtonProps = (ButtonAsButton | ButtonAsLink) & { variant?: Variant; size?: Size };
 
+/** Lớp CSS của nút, để gắn lên `Link` (giữ tiền tố locale) khi cần giao diện nút. */
+export function buttonClasses({ variant = 'primary', size = 'md', className }: { variant?: Variant; size?: Size; className?: string } = {}): string {
+  return cn(base, sizes[size], variants[variant], className);
+}
+
 /** `primary` walnut, `secondary` outline, `ghost` nền trong; cỡ `sm`/`md`/`lg`. Có `href` thì render như link. */
 export function Button({ variant = 'primary', size = 'md', className, ...props }: ButtonProps) {
-  const classes = cn(base, sizes[size], variants[variant], className);
+  const classes = buttonClasses({ variant, size, className });
   if ('href' in props && props.href !== undefined) {
     return <a {...(props as AnchorHTMLAttributes<HTMLAnchorElement>)} className={classes} />;
   }

@@ -3,12 +3,14 @@ import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/catalog/empty-state';
 import { GenreTags } from '@/components/catalog/genre-tags';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
 import { SearchForm } from '@/components/layout/search-form';
+import { buttonClasses } from '@/components/ui/button';
 import { Link } from '@/i18n/navigation';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
@@ -97,18 +99,13 @@ export default async function LevelPage({ params, searchParams }: Props) {
       </div>
 
       {list.items.length === 0 ? (
-        <section className="flex flex-col gap-3 py-section-gap">
-          <h2 className="font-display text-headline-sm text-on-surface">{t('emptyTitle')}</h2>
-          <p className="text-body-md text-on-surface-variant">{t('emptyHint')}</p>
+        <EmptyState title={t('emptyTitle')} hint={t('emptyHint')}>
           {genre ? (
-            <Link
-              href={levelHref(level, { sort })}
-              className="w-fit rounded-sm text-body-md text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-            >
+            <Link href={levelHref(level, { sort })} className={buttonClasses({ variant: 'secondary' })}>
               {t('clearFilter')}
             </Link>
           ) : null}
-        </section>
+        </EmptyState>
       ) : (
         <SheetGrid items={list.items} />
       )}

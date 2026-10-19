@@ -179,3 +179,44 @@ describe('Pagination', () => {
     expect(pageWindow(5, 10)).toEqual([1, null, 4, 5, 6, null, 10]);
   });
 });
+
+describe('SheetCard (giao diện U2)', () => {
+  it('nhãn Nâng cao dùng màu đậm đạt AA; mỗi cấp độ có tông riêng', () => {
+    const { rerender } = render(withIntl(<SheetCard sheet={{ ...sheet, level: 'ADVANCED' }} />));
+    expect(screen.getByText('Advanced').className).toContain('bg-level-advanced-strong');
+    rerender(withIntl(<SheetCard sheet={{ ...sheet, level: 'EXPERT' }} />));
+    expect(screen.getByText('Expert').className).toContain('bg-level-expert');
+  });
+});
+
+describe('GenreTags cuộn tới tag đang chọn', () => {
+  it('gọi scrollIntoView cho tag aria-current khi có lựa chọn', () => {
+    const calls: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      calls.push(this);
+    };
+    try {
+      render(withIntl(<GenreTags genres={[{ id: 'g1', slug: 'jazz', name: 'Jazz', count: 3 }]} selectedSlug="jazz" hrefFor={(s) => `/x?g=${s ?? ''}`} />));
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toHaveAttribute('aria-current', 'true');
+    expect(calls[0]).toHaveTextContent('Jazz (3)');
+  });
+});
+
+describe('EmptyState', () => {
+  it('hiện tiêu đề, gợi ý và hành động', async () => {
+    const { EmptyState } = await import('./empty-state');
+    render(
+      <EmptyState title="Không có gì" hint="Thử bỏ lọc">
+        <button type="button">Bỏ lọc</button>
+      </EmptyState>,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Không có gì' })).toBeInTheDocument();
+    expect(screen.getByText('Thử bỏ lọc')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bỏ lọc' })).toBeInTheDocument();
+  });
+});

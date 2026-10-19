@@ -70,6 +70,7 @@ async function buildPages(args) {
     ['level-intermediate', `/${l}/level/intermediate`],
     ['search', `/${l}/search`],
     ['search-query', `/${l}/search?q=a`],
+    ['search-empty', `/${l}/search?q=zzzzqqq`],
     ['pricing', `/${l}/pricing`],
     ['courses', `/${l}/courses`],
     ['not-found', `/${l}/khong-ton-tai`, 404],
@@ -78,6 +79,11 @@ async function buildPages(args) {
   const slug = sheets?.items?.[0]?.slug;
   if (slug) pages.push(['sheet', `/${l}/sheet/${encodeURIComponent(slug)}`]);
   else console.warn(`Bỏ qua trang sheet: API ${args.api} không trả sheet nào (API tắt hoặc chưa seed?).`);
+  const composer = sheets?.items?.[0]?.composer?.slug;
+  if (composer) pages.push(['composer', `/${l}/composer/${encodeURIComponent(composer)}`]);
+  const facets = await json(`${args.api}/sheets/facets`);
+  const genre = facets?.genres?.[0]?.slug;
+  if (genre) pages.push(['genre', `/${l}/genre/${encodeURIComponent(genre)}`]);
   const tracks = await json(`${args.api}/courses?locale=${l}`);
   const track = (tracks?.items ?? tracks)?.[0]?.slug;
   if (!track) console.warn('Bỏ qua trang khoá học: chưa có khoá học nào để chụp (course-track, course-lesson).');
@@ -129,6 +135,16 @@ async function main() {
             window.scrollTo(0, 0);
           });
           await page.waitForLoadState('networkidle').catch(() => undefined);
+          // Lỗi runtime của Next dev vẫn trả 200 nhưng hiện lớp phủ lỗi: coi là trang lỗi.
+          const overlay = await page.evaluate(() => {
+            const portal = document.querySelector('nextjs-portal');
+            const text = portal?.shadowRoot?.textContent ?? '';
+            return /Runtime Error|Build Error|Unhandled Runtime Error/.test(text) ? text.slice(0, 160) : null;
+          });
+          if (overlay) {
+            failed.push(`${path} → lỗi Next: ${overlay}`);
+            console.warn(`Cảnh báo: ${path} hiện lớp phủ lỗi Next: ${overlay}`);
+          }
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
           if (overflow > 0) {
             failed.push(`${path} → tràn ngang ${overflow}px ở ${viewport.name}`);

@@ -115,6 +115,21 @@ POSTGRES_TEST_PORT=55433 docker compose --profile test up -d --wait postgres-tes
 TEST_DATABASE_URL=postgresql://piano:piano@localhost:55433/piano_daily_test pnpm test
 ```
 
+## Chụp ảnh giao diện
+
+Để duyệt giao diện user trước/sau mỗi thay đổi UI: dựng dữ liệu mẫu rồi chụp 3 cỡ màn hình (390/768/1280px).
+
+```bash
+docker compose up -d postgres seaweedfs
+pnpm --filter @piano-daily/shared build
+(cd apps/api && npx prisma migrate deploy && ADMIN_EMAIL=admin@piano-daily.local ADMIN_PASSWORD='<mật khẩu từ 12 ký tự>' ADMIN_NAME=Founder pnpm db:seed)
+pnpm --filter @piano-daily/api dev                       # cổng 4000
+(cd apps/web && set -a && . ../../.env && set +a && pnpm dev)   # cổng 4100, cần API_INTERNAL_URL/INTERNAL_API_SECRET từ .env
+pnpm --filter @piano-daily/web shots -- --label before   # ảnh ở apps/web/.shots/before/<mobile|tablet|desktop>/
+```
+
+Script dùng Chromium sẵn có trong cache Playwright, hoặc đặt `PLAYWRIGHT_CHROMIUM_PATH` tới `chrome-headless-shell`. Tuỳ chọn: `--base`, `--api`, `--locale`. Seed chưa có khoá học nên các trang khoá học chỉ chụp danh sách rỗng. Thư mục `.shots/` không commit.
+
 ## CI/CD và deploy (GitHub Actions → Docker Hub → VPS)
 
 `.github/workflows/ci-cd.yml`: mọi PR chạy lint, typecheck, build và toàn bộ test (kể cả integration với Postgres/SeaweedFS). Push vào `develop` còn build 3 image (`<user>/piano-daily-{api,web,admin}:sha-<7 ký tự>` và `:latest`), đẩy lên Docker Hub rồi SSH vào VPS chạy `docker compose -f docker-compose.prod.yml up -d --wait`. API tự chạy `prisma migrate deploy` khi khởi động.

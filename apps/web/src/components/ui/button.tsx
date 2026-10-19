@@ -1,25 +1,33 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'ghost';
+type Size = 'sm' | 'md' | 'lg';
 
 const base =
-  'inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-body-md font-semibold transition-colors ' +
+  'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary ' +
   'disabled:pointer-events-none disabled:opacity-50';
 
 const variants: Record<Variant, string> = {
   primary: 'bg-primary text-on-primary hover:bg-primary/90',
   secondary: 'border border-primary bg-transparent text-primary hover:bg-surface-container-low',
+  ghost: 'bg-transparent text-primary hover:bg-surface-container-low',
+};
+
+const sizes: Record<Size, string> = {
+  sm: 'min-h-9 px-3 py-1.5 text-caption',
+  md: 'px-5 py-2.5 text-body-md',
+  lg: 'min-h-12 px-7 py-3 text-body-lg',
 };
 
 type ButtonAsButton = ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined };
 type ButtonAsLink = AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
-export type ButtonProps = (ButtonAsButton | ButtonAsLink) & { variant?: Variant };
+export type ButtonProps = (ButtonAsButton | ButtonAsLink) & { variant?: Variant; size?: Size };
 
-/** `primary` walnut, `secondary` outline. Có `href` thì render như link. */
-export function Button({ variant = 'primary', className, ...props }: ButtonProps) {
-  const classes = cn(base, variants[variant], className);
+/** `primary` walnut, `secondary` outline, `ghost` nền trong; cỡ `sm`/`md`/`lg`. Có `href` thì render như link. */
+export function Button({ variant = 'primary', size = 'md', className, ...props }: ButtonProps) {
+  const classes = cn(base, sizes[size], variants[variant], className);
   if ('href' in props && props.href !== undefined) {
     return <a {...(props as AnchorHTMLAttributes<HTMLAnchorElement>)} className={classes} />;
   }

@@ -31,7 +31,7 @@ export function detectScoreFileKind(buffer: Uint8Array): ScoreFileKind | null {
   // `.mxl` là file zip (PK\x03\x04).
   if (buffer.length >= 4 && at(0) === 0x50 && at(1) === 0x4b && at(2) === 0x03 && at(3) === 0x04) return 'mxl';
   // MusicXML: văn bản XML; bỏ BOM và khoảng trắng đầu, rồi phải bắt đầu bằng `<?xml` hoặc `<score-`.
-  const head = Buffer.from(buffer.subarray(0, 512)).toString('utf8').replace(/^﻿/, '').trimStart();
+  const head = Buffer.from(buffer.subarray(0, 512)).toString('utf8').replace(/^\uFEFF/, '').trimStart();
   if (head.startsWith('<?xml') || head.startsWith('<score-partwise') || head.startsWith('<score-timewise')) return 'musicxml';
   return null;
 }

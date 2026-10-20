@@ -4,9 +4,12 @@ import { Badge, levelTone } from '@/components/ui/badge';
 import { Link } from '@/i18n/navigation';
 import { genreHref, sheetHref } from '@/lib/query';
 import { Breadcrumb } from './breadcrumb';
+import { Card } from '@/components/ui/card';
+import { Music2 } from 'lucide-react';
 import { AdSlotFrame, findAdSlot } from '@/components/ads/ad-slot-frame';
 import { PurchaseProvider } from '@/components/payment/purchase-provider';
 import { AudioDownloadCallout, DownloadButtons } from './download-buttons';
+import { calloutCardClass } from './download-button-class';
 import { apiBase, availableDownloads } from './download-helpers';
 import { PurchaseButtons } from './purchase-buttons';
 import { Lyrics } from './lyrics';
@@ -21,14 +24,23 @@ const tag =
 function SheetLinks({ title, items }: { title: string; items: PublicSheetItem[] }) {
   if (items.length === 0) return null;
   return (
-    <section aria-label={title} className="flex flex-col gap-3">
+    <section aria-label={title} className={calloutCardClass}>
       <h2 className="font-display text-headline-sm text-on-surface">{title}</h2>
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {items.map((item) => (
           <li key={item.id}>
-            <Link href={sheetHref(item.slug)} className={`${link} block no-underline hover:underline`}>
-              <span className="text-body-md font-semibold">{item.title}</span>
-              <span className="block text-caption text-on-surface-variant">{item.composer.name}</span>
+            <Link href={sheetHref(item.slug)} className={`${link} flex items-center gap-3 no-underline hover:underline`}>
+              <span className="flex h-14 w-11 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-outline-variant bg-surface-container-low">
+                {item.thumbnailUrl ? (
+                  <img src={item.thumbnailUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover object-top" />
+                ) : (
+                  <Music2 aria-hidden="true" className="size-5 text-outline" />
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className="block break-words text-body-md font-semibold">{item.title}</span>
+                <span className="block text-caption text-on-surface-variant">{item.composer.name}</span>
+              </span>
             </Link>
           </li>
         ))}
@@ -76,76 +88,80 @@ export function SheetDetail({
         ]}
       />
 
-      <header className="flex flex-col gap-4">
-        <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">
-          {t('heading', { title: sheet.title })}
-        </h1>
-        {sheet.subtitle ? <p className="text-body-lg text-on-surface-variant">{sheet.subtitle}</p> : null}
+      <header className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-12">
+        <div className="flex min-w-0 flex-col gap-4 lg:flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={levelTone(sheet.level)}>{nav(`levels.${levelSlug as 'beginner'}`)}</Badge>
+            {sheet.isHot ? <Badge tone="hot">{t('hot')}</Badge> : null}
+          </div>
+          <h1 className="break-words font-display text-display-lg-mobile text-primary md:text-display-lg">
+            {t('heading', { title: sheet.title })}
+          </h1>
+          {sheet.subtitle ? <p className="text-body-lg text-on-surface-variant">{sheet.subtitle}</p> : null}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={levelTone(sheet.level)}>{nav(`levels.${levelSlug as 'beginner'}`)}</Badge>
-          {sheet.isHot ? <Badge tone="hot">{t('hot')}</Badge> : null}
-        </div>
-
-        <dl className="grid gap-x-6 gap-y-2 text-body-md sm:grid-cols-2">
-          <div>
+          <dl className="text-body-md">
             <dt className="text-caption text-on-surface-variant">{t('composer')}</dt>
             <dd>
               <Link href={`/composer/${encodeURIComponent(sheet.composer.slug)}`} className={link}>
                 {sheet.composer.name}
               </Link>
             </dd>
-          </div>
-          {sheet.series ? (
-            <div>
-              <dt className="text-caption text-on-surface-variant">{t('series')}</dt>
-              <dd>{sheet.series.name}</dd>
-            </div>
-          ) : null}
-          {sheet.difficultyScore !== null ? (
-            <div>
-              <dt className="text-caption text-on-surface-variant">{t('difficulty')}</dt>
-              <dd>
-                {t('difficultyScore', { score: sheet.difficultyScore })}
-                {sheet.difficultyNote ? ` — ${sheet.difficultyNote}` : ''}
-              </dd>
-            </div>
-          ) : null}
-          <div>
-            <dt className="text-caption text-on-surface-variant">{t('views')}</dt>
-            <dd>{format.number(sheet.viewCount)}</dd>
-          </div>
-          {sheet.pageCount > 0 ? (
-            <div>
-              <dt className="text-caption text-on-surface-variant">{t('pages')}</dt>
-              <dd>{sheet.pageCount}</dd>
-            </div>
-          ) : null}
-          <div>
-            <dt className="text-caption text-on-surface-variant">{t('updated')}</dt>
-            <dd>{format.dateTime(new Date(sheet.updatedAt), { dateStyle: 'long', timeZone: 'UTC' })}</dd>
-          </div>
-        </dl>
+          </dl>
 
-        {sheet.genres.length > 0 ? (
-          <ul aria-label={t('genres')} className="flex flex-wrap gap-2">
-            {sheet.genres.map((genre) => (
-              <li key={genre.id}>
-                <Link href={genreHref(genre.slug)} className={tag}>
-                  {genre.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+          {sheet.genres.length > 0 ? (
+            <ul aria-label={t('genres')} className="flex flex-wrap gap-2">
+              {sheet.genres.map((genre) => (
+                <li key={genre.id}>
+                  <Link href={genreHref(genre.slug)} className={tag}>
+                    {genre.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
 
-        {purchase ? (
-          <PurchaseButtons variant="group" title={sheet.title} types={downloads} />
-        ) : sheet.isFree && downloads.length > 0 ? (
-          <section aria-label={t('downloadGroup')}>
-            <DownloadButtons sheetId={sheet.id} title={sheet.title} types={downloads} />
-          </section>
-        ) : null}
+        <Card className="flex w-full flex-col gap-5 p-5 md:p-6 lg:w-96 lg:shrink-0">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+            {sheet.series ? (
+              <div className="col-span-2">
+                <dt className="text-caption text-on-surface-variant">{t('series')}</dt>
+                <dd>{sheet.series.name}</dd>
+              </div>
+            ) : null}
+            {sheet.difficultyScore !== null ? (
+              <div className="col-span-2">
+                <dt className="text-caption text-on-surface-variant">{t('difficulty')}</dt>
+                <dd>
+                  {t('difficultyScore', { score: sheet.difficultyScore })}
+                  {sheet.difficultyNote ? ` — ${sheet.difficultyNote}` : ''}
+                </dd>
+              </div>
+            ) : null}
+            <div>
+              <dt className="text-caption text-on-surface-variant">{t('views')}</dt>
+              <dd>{format.number(sheet.viewCount)}</dd>
+            </div>
+            {sheet.pageCount > 0 ? (
+              <div>
+                <dt className="text-caption text-on-surface-variant">{t('pages')}</dt>
+                <dd>{sheet.pageCount}</dd>
+              </div>
+            ) : null}
+            <div className="col-span-2">
+              <dt className="text-caption text-on-surface-variant">{t('updated')}</dt>
+              <dd>{format.dateTime(new Date(sheet.updatedAt), { dateStyle: 'long', timeZone: 'UTC' })}</dd>
+            </div>
+          </dl>
+
+          {purchase ? (
+            <PurchaseButtons variant="group" title={sheet.title} types={downloads} />
+          ) : sheet.isFree && downloads.length > 0 ? (
+            <section aria-label={t('downloadGroup')}>
+              <DownloadButtons sheetId={sheet.id} title={sheet.title} types={downloads} />
+            </section>
+          ) : null}
+        </Card>
       </header>
       {/* Player rộng gần hết chiều ngang trang, nên nằm ngoài lưới hai cột bên dưới. */}
       <PlayerSlot midi={sheet.midi} title={sheet.title} />
@@ -165,14 +181,14 @@ export function SheetDetail({
               <h2 id="sheet-pages" className="font-display text-headline-sm text-on-surface">
                 {t('pagesTitle')}
               </h2>
-              <ol className="flex flex-col gap-4">
+              <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {sheet.pages.map((page, i) => (
                   <li key={page.pageNumber}>
                     <img
                       src={page.url}
                       alt={t('pageAlt', { title: sheet.title, page: page.pageNumber })}
                       loading={i === 0 ? 'eager' : 'lazy'}
-                      className="h-auto w-full rounded-md border border-outline-variant bg-surface-container-low"
+                      className="h-auto w-full rounded-sm border border-outline-variant bg-surface-bright shadow-card"
                     />
                   </li>
                 ))}
@@ -189,12 +205,12 @@ export function SheetDetail({
         </article>
 
         {showPdf || hasRightAd || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
-          <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter">
+          <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter lg:sticky lg:top-40 lg:self-start">
             <AdSlotFrame slots={adSlots} position="SIDEBAR_RIGHT" />
             {showPdf && purchase ? (
               <PurchaseButtons variant="pdf" title={sheet.title} types={['PDF']} />
             ) : showPdf ? (
-              <section aria-label={t('pdfSidebarTitle')} className="flex flex-col gap-3">
+              <section aria-label={t('pdfSidebarTitle')} className={calloutCardClass}>
                 <h2 className="font-display text-headline-sm text-on-surface">{t('pdfSidebarTitle')}</h2>
                 <DownloadButtons sheetId={sheet.id} title={sheet.title} types={['PDF']} />
               </section>

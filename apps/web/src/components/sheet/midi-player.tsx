@@ -9,6 +9,7 @@ import { PlayerCore, PLAYBACK_RATES, type AudioPort } from '@/lib/midi/player-co
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
 import { canShowHands } from '@/lib/midi/hands/capabilities';
 import { claimAudio } from '@/lib/midi/audio-exclusive';
+import { calloutCardClass } from './download-button-class';
 import {
   clearViewSettings,
   DEFAULT_VIEW_SETTINGS,
@@ -59,7 +60,7 @@ const clock = (seconds: number) => {
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
 /** Player rộng khoảng 77% chiều ngang cửa sổ (thoát khỏi cột nội dung, căn giữa theo cửa sổ). */
-const PLAYER_WIDTH = 'relative left-1/2 flex w-[77vw] -translate-x-1/2 flex-col gap-3';
+const PLAYER_WIDTH = calloutCardClass;
 
 const HANDS_PREF_KEY = 'piano-daily:show-hands';
 const NOTATION_PREF_KEY = 'piano-daily:show-notation';
@@ -99,7 +100,7 @@ function writeHandsPref(on: boolean) {
 }
 
 const control =
-  'rounded-sm border border-outline-variant bg-surface-bright px-2 py-1 text-body-md text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+  'min-h-11 rounded-md border border-outline-variant bg-surface-bright px-3 py-1 text-body-md text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /**
  * MIDI player (Story 2.8): chỉ đọc note-JSON công khai (không bao giờ file `.mid` gốc). Vào trang chỉ hiện khối tĩnh;

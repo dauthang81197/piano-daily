@@ -158,6 +158,34 @@ describe('SheetDetail', () => {
     expect(within(aside).getByText('In the same series')).toBeInTheDocument();
   });
 
+  it('thẻ thông tin (header) gom độ khó, lượt xem, số trang, cập nhật; Composer và Genre nằm cột trái', () => {
+    view(full);
+    const info = screen.getByText('Views').closest('dl')!;
+    expect(within(info).getByText('Pages')).toBeInTheDocument();
+    expect(within(info).getByText('Updated')).toBeInTheDocument();
+    expect(within(info).getByText('Difficulty')).toBeInTheDocument();
+    expect(within(info).queryByText('Composer')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Beethoven' })).toBeInTheDocument();
+  });
+
+  it('ảnh trang nằm trong danh sách có thứ tự (lưới 2 cột từ sm)', () => {
+    view(full);
+    const list = document.querySelector('section[aria-labelledby="sheet-pages"] ol')!;
+    expect(list.querySelectorAll('img')).toHaveLength(2);
+    expect(list.className).toContain('sm:grid-cols-2');
+  });
+
+  it('bài liên quan: có ảnh bìa thì hiện ảnh, không có thì placeholder (không ảnh vỡ)', () => {
+    const withThumb = { ...full, related: [{ ...item('t', 'Has thumb'), thumbnailUrl: 'http://cdn/t.webp' }, item('n', 'No thumb')] };
+    view(withThumb);
+    const aside = screen.getByRole('complementary');
+    const rows = within(aside).getByText('Has thumb').closest('a')!;
+    expect(rows.querySelector('img')).toHaveAttribute('src', 'http://cdn/t.webp');
+    const none = within(aside).getByText('No thumb').closest('a')!;
+    expect(none.querySelector('img')).toBeNull();
+    expect(none.querySelector('svg')).not.toBeNull();
+  });
+
   it('breadcrumb: Home › Level (link) › tên bài (trang hiện tại, không link)', () => {
     view(full);
     const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });

@@ -11,17 +11,17 @@ const note = (midi: number, time: number, duration = 1): PlayerNote => ({
 });
 
 describe('layoutKeyboard', () => {
-  it('không có nốt: dải mặc định C3..B5, 21 phím trắng và 36 phím', () => {
+  it('không có nốt: dải mở từ C3..B5 ra 5 quãng tám C2..B6, 35 phím trắng và 60 phím', () => {
     const l = layoutKeyboard([]);
-    expect(l.keys[0]!.name).toBe('C3');
-    expect(l.keys.at(-1)!.name).toBe('B5');
-    expect(l.keys).toHaveLength(36);
-    expect(l.whiteKeys).toBe(21);
+    expect(l.keys[0]!.name).toBe('C2');
+    expect(l.keys.at(-1)!.name).toBe('B6');
+    expect(l.keys).toHaveLength(60);
+    expect(l.whiteKeys).toBe(35);
   });
 
-  it('mở ra trọn quãng tám và tối thiểu 3 quãng tám, phủ mọi nốt', () => {
+  it('mở ra trọn quãng tám và tối thiểu 5 quãng tám, phủ mọi nốt', () => {
     const l = layoutKeyboard([note(60, 0), note(64, 1)]);
-    expect(l.keys.length).toBeGreaterThanOrEqual(36);
+    expect(l.keys.length).toBeGreaterThanOrEqual(60);
     expect(l.keys.length % 12).toBe(0);
     expect(l.keys[0]!.name.startsWith('C')).toBe(true);
     expect(l.byMidi.has(60) && l.byMidi.has(64)).toBe(true);
@@ -34,7 +34,7 @@ describe('layoutKeyboard', () => {
     expect(withLow.keys.at(-1)!.midi).toBe(only60.keys.at(-1)!.midi);
   });
 
-  it('dải rộng hơn 3 quãng tám thì giữ đúng dải nốt', () => {
+  it('dải rộng hơn 5 quãng tám thì giữ đúng dải nốt', () => {
     const l = layoutKeyboard([note(36, 0), note(96, 1)]);
     expect(l.keys[0]!.midi).toBe(36);
     expect(l.keys.at(-1)!.midi).toBe(107);
@@ -54,12 +54,12 @@ describe('layoutKeyboard', () => {
       expect(k.x).toBe(i);
       expect(k.width).toBe(1);
     });
-    const cSharp = l.byMidi.get(49)!; // C#3
+    const cSharp = l.byMidi.get(37)!; // C#2
     expect(cSharp.black).toBe(true);
     expect(cSharp.width).toBe(0.6);
     expect(cSharp.x).toBeCloseTo(1 - 0.3);
     // E–F và B–C không có phím đen.
-    expect(l.keys.filter((k) => k.black)).toHaveLength(15);
+    expect(l.keys.filter((k) => k.black)).toHaveLength(25);
   });
 });
 

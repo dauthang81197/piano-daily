@@ -11,7 +11,7 @@ import type { PianoScene } from './piano-scene';
 /** Model bàn tay (MIT, xem `public/models/LICENSE-hand.md`). */
 export const HAND_MODEL_URL = '/models/hand-right.glb';
 /** Tỉ lệ khung hình rộng : cao của cảnh 3D (giữ trùng `VIEW_ASPECT` trong `piano-scene.ts`, không import để khỏi kéo `three`). */
-const VIEW_ASPECT = 2;
+const VIEW_ASPECT = 3;
 
 /**
  * Phím đàn 3D góc nghiêng kèm bàn tay. `three`, loader và model chỉ được nạp (import động) khi component này dựng, tức

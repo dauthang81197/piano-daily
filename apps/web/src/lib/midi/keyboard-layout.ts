@@ -13,7 +13,7 @@ export const BLACK_H = 2.1;
 
 const BLACK_PITCH_CLASSES = new Set([1, 3, 6, 8, 10]);
 const BLACK_WIDTH = 0.6;
-const MIN_KEYS = 36;
+const MIN_KEYS = 60;
 /** Dải nốt dùng để suy ra phạm vi phím: đàn piano 88 phím (A0..C8). */
 const PIANO_LOW = 21;
 const PIANO_HIGH = 108;
@@ -41,7 +41,7 @@ export interface KeyboardLayout {
 const isBlack = (midi: number) => BLACK_PITCH_CLASSES.has(midi % 12);
 
 /**
- * Bố cục phím: dải phủ mọi nốt (trong 12–119), mở ra trọn quãng tám và tối thiểu 3 quãng tám.
+ * Bố cục phím: dải phủ mọi nốt (trong 12–119), mở ra trọn quãng tám và tối thiểu 5 quãng tám.
  * Không có nốt thì dùng dải mặc định.
  */
 export function layoutKeyboard(notes: readonly PlayerNote[]): KeyboardLayout {

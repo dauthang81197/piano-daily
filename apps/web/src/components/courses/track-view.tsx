@@ -36,7 +36,7 @@ export function TrackView({ track }: { track: PublicTrackTree }) {
             <div className="flex flex-col gap-1">
               <div className="flex flex-wrap items-baseline gap-x-3">
                 <h2 id={`level-${level.id}`} className="font-display text-headline-md text-on-surface">
-                  <span className="text-secondary">{levelIndex + 1}.</span> {level.title}
+                  <span className="text-secondary-strong">{levelIndex + 1}.</span> {level.title}
                 </h2>
                 <ScopeProgress lessonIds={level.sections.flatMap((s) => s.lessons.map((l) => l.id))} />
               </div>

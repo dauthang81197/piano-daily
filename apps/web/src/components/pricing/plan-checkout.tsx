@@ -88,7 +88,7 @@ export function PlanChooseButton({ plan, vietqrEnabled = false }: { plan: Public
         onClick={onClick}
         disabled={!configured || !auth || plan.priceUsdCents <= 0}
         aria-describedby="pricing-soon"
-        className="mt-auto inline-flex min-h-11 items-center justify-center rounded-md bg-secondary px-6 py-2 text-body-md font-semibold text-on-secondary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-50"
+        className="mt-auto inline-flex min-h-11 items-center justify-center rounded-md bg-secondary-strong px-6 py-2 text-body-md font-semibold text-on-secondary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-50"
       >
         {configured ? t('choose') : t('checkout.comingSoon')}
       </button>

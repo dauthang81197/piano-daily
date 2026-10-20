@@ -7,7 +7,7 @@ export function Hero({ locale, showCourses }: { locale: string; showCourses: boo
   const t = useTranslations('Home');
   return (
     <section className="flex flex-col items-center gap-6 px-margin-mobile pb-12 pt-16 text-center md:px-margin-desktop md:pb-16 md:pt-24">
-      <p className="text-label-caps uppercase text-secondary">{t('eyebrow')}</p>
+      <p className="text-label-caps uppercase text-secondary-strong">{t('eyebrow')}</p>
       <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
       <p className="max-w-prose text-body-lg text-on-surface-variant">{t('tagline')}</p>
       <SearchForm large className="w-full max-w-xl" />

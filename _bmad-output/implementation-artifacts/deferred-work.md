@@ -300,3 +300,9 @@
 - Khi ẩn thanh toán (`NEXT_PUBLIC_PAYMENTS_ENABLED` tắt) mà admin vẫn bật cưỡng chế thuê bao, tải Sheet free trả 402 sẽ chỉ hiện lỗi chung và bài khoá không có hướng đi. Cần tắt cưỡng chế thuê bao ở admin khi thanh toán ẩn; xem xét gắn hai cờ lại với nhau.
 - Thử `<h3>` trong `<summary>` (section khoá học) và mục lục bài học với trình đọc màn hình ở U5.
 - Footer còn nhãn cột "Học và gói" khi thanh toán ẩn: đổi chữ ở U5.
+
+## Từ review U5 (2026-10-20)
+
+- Admin còn dùng `text-secondary` cho chữ nhỏ (đăng nhập, sidebar) ở ~3.4:1: đổi sang `secondary-strong` khi rà giao diện admin.
+- Không dùng chữ `secondary-strong` trên nền `surface-container-high` (4.12:1, thấp hơn AA).
+- Thử `<summary>` (section khoá học), mục lục bài học và skip link với trình đọc màn hình thật; đo LCP/CLS trên mạng và thiết bị thật (số hiện có là trên máy local).

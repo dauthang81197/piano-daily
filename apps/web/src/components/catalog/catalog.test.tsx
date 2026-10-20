@@ -87,20 +87,20 @@ describe('GenreTags', () => {
   ];
   const hrefFor = (slug: string | undefined) => `/x?genre=${slug ?? ''}`;
 
-  it('link dùng hrefFor; tag chọn nền secondary và bấm lại bỏ lọc', () => {
+  it('link dùng hrefFor; tag chọn nền secondary-strong và bấm lại bỏ lọc', () => {
     render(withIntl(<GenreTags genres={genres} selectedSlug="jazz" hrefFor={hrefFor} />));
     const jazz = screen.getByRole('link', { name: /Jazz/ });
     expect(jazz).toHaveAttribute('href', '/x?genre=');
-    expect(jazz).toHaveClass('bg-secondary');
+    expect(jazz).toHaveClass('bg-secondary-strong');
     const pop = screen.getByRole('link', { name: /Pop/ });
     expect(pop).toHaveAttribute('href', '/x?genre=pop');
-    expect(pop).not.toHaveClass('bg-secondary');
+    expect(pop).not.toHaveClass('bg-secondary-strong');
     expect(screen.getByRole('link', { name: 'All' })).toHaveAttribute('href', '/x?genre=');
   });
 
   it('chưa chọn thì "Tất cả" được chọn', () => {
     render(withIntl(<GenreTags genres={genres} selectedSlug={undefined} hrefFor={hrefFor} />));
-    expect(screen.getByRole('link', { name: 'All' })).toHaveClass('bg-secondary');
+    expect(screen.getByRole('link', { name: 'All' })).toHaveClass('bg-secondary-strong');
     expect(screen.getByRole('link', { name: /Jazz/ })).toHaveAttribute('href', '/x?genre=jazz');
   });
 });

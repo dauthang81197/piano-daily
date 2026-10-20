@@ -11,6 +11,7 @@ vi.mock('next-intl', () => ({ hasLocale: (locales: string[], l: string) => local
 vi.mock('@/components/layout/header', () => ({
   Header: ({ siteName, logoUrl }: { siteName: string; logoUrl: string | null }) => `[header:${siteName}|${logoUrl}]`,
 }));
+vi.mock('@/components/layout/skip-link', () => ({ SkipLink: () => '[skip]' }));
 vi.mock('@/components/auth/auth-provider', () => ({ AuthProvider: ({ children }: { children: unknown }) => children }));
 vi.mock('@/components/layout/footer', () => ({ Footer: ({ youtubeUrl }: { youtubeUrl: string }) => `[footer:${youtubeUrl}]` }));
 vi.mock('@/lib/site-settings', () => ({ fetchSiteSettings: vi.fn() }));
@@ -61,6 +62,10 @@ describe('LocaleLayout', () => {
     expect(html).toContain('[header:Studio X|https://cdn.test/logo.webp]');
     expect(html).toContain('[footer:https://youtube.com/@x]');
     expect(html).toContain('nội dung');
+    // Skip link đứng đầu; vùng nội dung có id đích và nhận focus được bằng script.
+    expect(html.indexOf('[skip]')).toBeLessThan(html.indexOf('[header:'));
+    expect(html).toContain('id="main-content"');
+    expect(html).toContain('tabindex="-1"');
     expect(html).not.toContain('[ad:');
     expect(html).not.toContain('[sticky]');
   });

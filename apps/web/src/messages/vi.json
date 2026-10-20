@@ -17,7 +17,8 @@
       "expert": "Chuyên nghiệp"
     },
     "pricing": "Bảng giá",
-    "courses": "Khoá học"
+    "courses": "Khoá học",
+    "skipToContent": "Bỏ qua tới nội dung"
   },
   "Search": {
     "label": "Tìm kiếm bản nhạc",
@@ -51,7 +52,8 @@
     "disclaimerTitle": "Bản quyền",
     "disclaimer": "Các bản nhạc thuộc quyền sở hữu của tác giả và nhà xuất bản tương ứng. Nội dung trên trang chỉ phục vụ mục đích học tập và tham khảo cá nhân.",
     "learnTitle": "Học và gói",
-    "rights": "© {year} {name}. Bảo lưu mọi quyền."
+    "rights": "© {year} {name}. Bảo lưu mọi quyền.",
+    "learnTitleCourses": "Học"
   },
   "Home": {
     "eyebrow": "Thư viện sheet piano",
@@ -513,6 +515,13 @@
     "lockedLoading": "Đang tải bài học…",
     "lockedError": "Chưa tải được nội dung bài. Vui lòng thử lại.",
     "lockedBadge": "Thành viên",
-    "planRequired": "Cần đăng ký gói để tham gia ở bài này."
+    "planRequired": "Cần đăng ký gói để tham gia ở bài này.",
+    "loading": "Đang tải khoá học"
+  },
+  "Error": {
+    "title": "Đã có lỗi xảy ra",
+    "description": "Trang này không tải được. Bạn thử lại, hoặc quay về trang chủ.",
+    "retry": "Thử lại",
+    "backHome": "Về trang chủ"
   }
 }

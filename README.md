@@ -130,7 +130,9 @@ pnpm --filter @piano-daily/web shots -- --label before   # ảnh ở apps/web/.s
 
 Ảnh bìa/ảnh trang cần `NEXT_PUBLIC_MEDIA_BASE_URL=http://localhost:8333` trong `.env` (nếu thiếu, CSP chặn ảnh từ SeaweedFS và thẻ hiện ảnh vỡ).
 
-Script dùng Chromium sẵn có trong cache Playwright, hoặc đặt `PLAYWRIGHT_CHROMIUM_PATH` tới `chrome-headless-shell`. Tuỳ chọn: `--base`, `--api`, `--locale`. Seed chưa có khoá học nên các trang khoá học chỉ chụp danh sách rỗng. Thư mục `.shots/` không commit.
+Script dùng Chromium sẵn có trong cache Playwright, hoặc đặt `PLAYWRIGHT_CHROMIUM_PATH` tới `chrome-headless-shell`. Tuỳ chọn: `--base`, `--api`, `--locale`. Seed có sẵn 1 khoá và 3 gói mẫu nên chụp được trang khoá/bài; trang Bảng giá chỉ chụp khi build/chạy với `NEXT_PUBLIC_PAYMENTS_ENABLED=true` (mặc định thanh toán ẩn, `/pricing` trả 404). Thư mục `.shots/` không commit.
+
+Đo LCP/CLS ở 390px (nên chạy trên bản build, dev server chậm hơn nhiều): `pnpm --filter @piano-daily/web build && pnpm --filter @piano-daily/web start` (không nạp `.env` vào shell lúc build), rồi `pnpm --filter @piano-daily/web vitals`. Thoát mã 1 khi CLS > 0.1 hoặc LCP > 2.5s.
 
 ## CI/CD và deploy (GitHub Actions → Docker Hub → VPS)
 

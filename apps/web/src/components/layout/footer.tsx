@@ -37,7 +37,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
           </ul>
         </section>
         <section>
-          <h2 className="font-display text-headline-sm text-primary">{t('learnTitle')}</h2>
+          <h2 className="font-display text-headline-sm text-primary">{t(paymentsEnabled() ? 'learnTitle' : 'learnTitleCourses')}</h2>
           <ul className="mt-3 flex flex-col gap-1">
             {(
               [

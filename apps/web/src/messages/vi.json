@@ -429,6 +429,8 @@
     "progress": "{done}/{total} bài · {percent}%",
     "progressLabel": "Tiến độ {title}",
     "lessonCount": "{count, plural, other {# bài}}",
+    "levelCount": "{count, plural, other {# cấp độ}}",
+    "outlineTitle": "Mục lục khoá học",
     "emptyTrack": "Nhánh này chưa có bài nào được công khai.",
     "emptySection": "Phần này chưa có bài.",
     "hasMusic": "Nhạc",

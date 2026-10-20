@@ -4,13 +4,14 @@ import type { Entitlement } from '@piano-daily/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/plan-format';
+import { paymentsEnabled } from '@/lib/public-env';
 import { useCustomer } from './auth-provider';
 
 /** Một dòng trạng thái quyền tải cạnh tên khách; không hiện khi chưa bật cưỡng chế hoặc chưa tải được. */
 function EntitlementNote({ entitlement }: { entitlement: Entitlement | null }) {
   const t = useTranslations('Auth.entitlement');
   const locale = useLocale() === 'en' ? 'en' : 'vi';
-  if (!entitlement?.subscriptionsEnabled) return null;
+  if (!paymentsEnabled() || !entitlement?.subscriptionsEnabled) return null;
   let text: string;
   if (entitlement.subscription) {
     const { planName, endsAt, downloadsLeft } = entitlement.subscription;

@@ -2,6 +2,7 @@ import { isSiteYoutubeUrl } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { LEVELS } from '@/lib/levels';
+import { paymentsEnabled } from '@/lib/public-env';
 
 const footerLink =
   'rounded-md text-body-md text-on-surface-variant hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
@@ -41,7 +42,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
             {(
               [
                 ['/courses', nav('courses')],
-                ['/pricing', nav('pricing')],
+                ...(paymentsEnabled() ? ([['/pricing', nav('pricing')]] as const) : []),
                 ['/search', nav('search')],
               ] as const
             ).map(([href, label]) => (

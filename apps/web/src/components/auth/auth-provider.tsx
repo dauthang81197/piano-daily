@@ -7,6 +7,7 @@ import { useRouter } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { navigateTo } from '@/lib/navigate';
 import { ApiError } from '@/lib/public-api';
+import { paymentsEnabled } from '@/lib/public-env';
 import { AuthModal, type AuthTab } from './auth-modal';
 
 export type DownloadResult = 'started' | 'needsLogin' | 'needsVerification' | 'paywall' | 'error';
@@ -153,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         // 402: hết dùng thử / hết lượt / cần gói → chuyển sang trang chọn gói kèm lý do.
         // Chỉ ba mã paywall mới chuyển sang trang giá; 402 khác là lỗi chung (không gán nhầm thành hết dùng thử).
-        if (err instanceof ApiError && err.status === 402 && (PAYWALL_REASONS as readonly string[]).includes(err.code)) {
+        if (paymentsEnabled() && err instanceof ApiError && err.status === 402 && (PAYWALL_REASONS as readonly string[]).includes(err.code)) {
           void loadEntitlement();
           router.push(`/pricing?reason=${err.code}`);
           return 'paywall';

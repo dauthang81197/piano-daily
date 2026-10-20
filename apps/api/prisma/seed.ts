@@ -236,6 +236,90 @@ async function seedSheets(services: Services, ids: Awaited<ReturnType<typeof see
   );
 }
 
+/** Khoá học mẫu (một nhánh, 2 level, vài bài; bài đầu xem thử miễn phí) và 3 gói giá. Idempotent: chỉ tạo khi chưa có. */
+async function seedCourses(prisma: PrismaService): Promise<void> {
+  const slug = 'piano-co-ban-mau';
+  if (!(await prisma.courseTrack.findUnique({ where: { slug } }))) {
+    const lesson = (title: string, minutes: number, free = false, video = false) => ({
+      title,
+      titleEn: title,
+      durationMinutes: minutes,
+      isPublished: true,
+      isFreePreview: free,
+      content: `## ${title}\n\nNội dung mẫu cho bài học này.\n\n- Ý chính thứ nhất\n- Ý chính thứ hai`,
+      ...(video ? { youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' } : {}),
+    });
+    await prisma.courseTrack.create({
+      data: {
+        slug,
+        title: 'Piano cơ bản (mẫu)',
+        titleEn: 'Piano basics (sample)',
+        description: 'Lộ trình mẫu cho người mới: làm quen phím đàn, đọc nốt và bản nhạc đầu tiên.',
+        descriptionEn: 'Sample path for beginners: keys, reading notes and a first piece.',
+        isPublished: true,
+        levels: {
+          create: [
+            {
+              title: 'Làm quen',
+              titleEn: 'Getting started',
+              preset: 'BEGINNER',
+              isPublished: true,
+              sortOrder: 0,
+              sections: {
+                create: [
+                  {
+                    title: 'Phím đàn và tư thế',
+                    titleEn: 'Keys and posture',
+                    isPublished: true,
+                    sortOrder: 0,
+                    lessons: { create: [{ ...lesson('Giới thiệu phím đàn', 8, true, true), sortOrder: 0 }, { ...lesson('Tư thế ngồi và đặt tay', 12), sortOrder: 1 }] },
+                  },
+                  {
+                    title: 'Đọc nốt đầu tiên',
+                    titleEn: 'First notes',
+                    isPublished: true,
+                    sortOrder: 1,
+                    lessons: { create: [{ ...lesson('Khuông nhạc và khoá Sol', 10, false, true), sortOrder: 0 }, { ...lesson('Nốt Đô đến Son', 15), sortOrder: 1 }] },
+                  },
+                ],
+              },
+            },
+            {
+              title: 'Bản nhạc đầu tay',
+              titleEn: 'First piece',
+              preset: 'INTERMEDIATE',
+              isPublished: true,
+              sortOrder: 1,
+              sections: {
+                create: [
+                  {
+                    title: 'Hai tay phối hợp',
+                    titleEn: 'Hands together',
+                    isPublished: true,
+                    sortOrder: 0,
+                    lessons: { create: [{ ...lesson('Tay trái giữ nhịp', 14, false, true), sortOrder: 0 }] },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    });
+    console.log('Seed: khoá học mẫu — đã tạo 1 nhánh.');
+  }
+  if ((await prisma.plan.count()) === 0) {
+    await prisma.plan.createMany({
+      data: [
+        { nameVi: 'Dùng thử', nameEn: 'Trial', descriptionVi: 'Làm quen thư viện.', descriptionEn: 'Get to know the library.', priceVnd: 0, priceUsdCents: 0, durationDays: 7, downloadQuota: 3, sortOrder: 0 },
+        { nameVi: 'Tháng', nameEn: 'Monthly', descriptionVi: 'Tải thoải mái trong 30 ngày.', descriptionEn: 'Download freely for 30 days.', priceVnd: 99000, priceUsdCents: 399, durationDays: 30, downloadQuota: 30, sortOrder: 1 },
+        { nameVi: 'Năm', nameEn: 'Yearly', descriptionVi: 'Tiết kiệm nhất, không giới hạn lượt tải.', descriptionEn: 'Best value, unlimited downloads.', priceVnd: 990000, priceUsdCents: 3900, durationDays: 365, downloadQuota: null, sortOrder: 2 },
+      ],
+    });
+    console.log('Seed: gói giá mẫu — đã tạo 3 gói.');
+  }
+}
+
 async function main(): Promise<void> {
   const env = readEnv();
   assertPdftoppm();
@@ -259,6 +343,7 @@ async function main(): Promise<void> {
     await seedAdmin(prisma, env);
     const ids = await seedTaxonomy(services);
     await seedSheets(services, ids);
+    await seedCourses(prisma);
   } finally {
     await prisma.$disconnect();
     storage.onModuleDestroy();

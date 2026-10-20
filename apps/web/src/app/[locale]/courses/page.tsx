@@ -1,3 +1,4 @@
+import { GraduationCap } from 'lucide-react';
 import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -26,7 +27,8 @@ export default async function CoursesPage({ params }: Props) {
   const [t, tracks] = await Promise.all([getTranslations({ locale, namespace: 'Courses' }), fetchTracks(locale)]);
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-8 px-margin-mobile py-section-gap md:px-margin-desktop">
-      <header className="flex flex-col gap-3">
+      <header className="flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface-container-low px-6 py-10 md:px-10 md:py-14">
+        <GraduationCap aria-hidden="true" className="size-9 text-secondary" />
         <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
         <p className="max-w-3xl text-body-lg text-on-surface-variant">{t('intro')}</p>
       </header>

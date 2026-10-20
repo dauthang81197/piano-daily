@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { PricingView, paywallReason } from '@/components/pricing/pricing-view';
 import { routing } from '@/i18n/routing';
 import { fetchPlans } from '@/lib/plans';
+import { paymentsEnabled } from '@/lib/public-env';
 import { pageMetadata } from '@/lib/seo';
 
 type Props = {
@@ -14,14 +15,15 @@ type Props = {
 
 export async function generateMetadata({ params }: Pick<Props, 'params'>): Promise<Metadata> {
   const { locale } = await params;
-  if (!hasLocale(routing.locales, locale)) return {};
+  if (!hasLocale(routing.locales, locale) || !paymentsEnabled()) return {};
   const t = await getTranslations({ locale, namespace: 'Pricing' });
   return pageMetadata({ locale, path: '/pricing', title: t('title'), description: t('intro') });
 }
 
 export default async function PricingPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  if (!hasLocale(routing.locales, locale)) notFound();
+  // Thanh toán đang ẩn: trang giá không tồn tại (đường dẫn cũ nhận 404).
+  if (!hasLocale(routing.locales, locale) || !paymentsEnabled()) notFound();
   setRequestLocale(locale);
   const [data, query] = await Promise.all([fetchPlans(), searchParams]);
   return <PricingView data={data} reason={paywallReason(query.reason)} />;

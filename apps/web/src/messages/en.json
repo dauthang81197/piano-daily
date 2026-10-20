@@ -429,6 +429,8 @@
     "progress": "{done}/{total} lessons · {percent}%",
     "progressLabel": "Progress in {title}",
     "lessonCount": "{count, plural, one {# lesson} other {# lessons}}",
+    "levelCount": "{count, plural, one {# level} other {# levels}}",
+    "outlineTitle": "Course outline",
     "emptyTrack": "This track has no published lessons yet.",
     "emptySection": "No lessons in this section yet.",
     "hasMusic": "Music",

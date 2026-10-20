@@ -71,8 +71,10 @@ async function buildPages(args) {
     ['search', `/${l}/search`],
     ['search-query', `/${l}/search?q=a`],
     ['search-empty', `/${l}/search?q=zzzzqqq`],
-    ['pricing', `/${l}/pricing`],
+    // Bảng giá chỉ tồn tại khi thanh toán bật (NEXT_PUBLIC_PAYMENTS_ENABLED=true); tắt thì trang này 404.
+    ...(process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === 'true' ? [['pricing', `/${l}/pricing`]] : []),
     ['courses', `/${l}/courses`],
+    ['auth-modal', `/${l}`, 200, 'auth'],
     ['not-found', `/${l}/khong-ton-tai`, 404],
   ];
   const sheets = await json(`${args.api}/sheets?pageSize=1`);
@@ -119,7 +121,7 @@ async function main() {
       const dir = join(out, viewport.name);
       mkdirSync(dir, { recursive: true });
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, reducedMotion: 'reduce' });
-      for (const [name, path, expected = 200] of pages) {
+      for (const [name, path, expected = 200, action] of pages) {
         const page = await context.newPage();
         try {
           const res = await page.goto(`${args.base}${path}`, { waitUntil: 'networkidle', timeout: 30000 });
@@ -151,6 +153,15 @@ async function main() {
           if (overflow > 0) {
             failed.push(`${path} → tràn ngang ${overflow}px ở ${viewport.name}`);
             console.warn(`Cảnh báo: ${path} tràn ngang ${overflow}px ở ${viewport.name}`);
+          }
+          if (action === 'auth') {
+            // Mở modal đăng nhập từ nút ở header (mobile: mở menu trước nếu nút chưa thấy), chụp đúng khung nhìn.
+            const login = page.getByRole('button', { name: /Đăng nhập|Log in/ }).first();
+            if (!(await login.isVisible())) await page.getByRole('button', { name: /Menu|Mở menu|Open menu/ }).first().click();
+            await page.getByRole('button', { name: /Đăng nhập|Log in/ }).first().click();
+            await page.getByRole('dialog').waitFor({ timeout: 5000 });
+            await page.screenshot({ path: join(dir, `${name}.png`) });
+            continue;
           }
           await page.screenshot({ path: join(dir, `${name}.png`), fullPage: true });
         } catch (error) {

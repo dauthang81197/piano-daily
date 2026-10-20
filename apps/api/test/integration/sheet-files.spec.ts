@@ -12,6 +12,7 @@ import {
 import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { SCORE_GC_JOB } from '../../src/modules/scores/score-gc.service';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StorageService } from '../../src/modules/media/storage.service';
 import { SheetMediaService } from '../../src/modules/media/sheet-media.service';
@@ -126,12 +127,16 @@ describe('POST /admin/sheets/:id/files (Postgres + SeaweedFS thật)', () => {
     const options = Reflect.getMetadata('SCHEDULE_CRON_OPTIONS', SheetFileGcService.prototype.scheduledRun) as { cronTime: string };
     expect(options.cronTime).toBe(CronExpression.EVERY_HOUR);
 
-    const jobs = app.get(SchedulerRegistry).getCronJobs();
-    expect(jobs.size).toBeGreaterThan(0);
+    // Bỏ job GC chuyển nhạc (module khác) để "cron đầu tiên" vẫn là của GC Sheet như trước.
+    const jobs = [...app.get(SchedulerRegistry).getCronJobs()].filter(([name]) => name !== SCORE_GC_JOB).map(([, job]) => job);
+    expect(jobs.length).toBeGreaterThan(0);
     const runSpy = vi.spyOn(gc, 'run').mockResolvedValue();
-    await [...jobs.values()][0]!.fireOnTick();
-    expect(runSpy).toHaveBeenCalledOnce();
-    runSpy.mockRestore();
+    try {
+      await jobs[0]!.fireOnTick();
+      expect(runSpy).toHaveBeenCalledOnce();
+    } finally {
+      runSpy.mockRestore();
+    }
   });
 
   it('PDF 3 trang -> 201; hasSheet, pageCount 3, thumbnail + 3 trang đọc được công khai; PDF gốc chỉ ở bucket private', async () => {

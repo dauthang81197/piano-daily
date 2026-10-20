@@ -2,6 +2,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ScoresService } from './scores.service';
 
+export const SCORE_GC_JOB = 'score-gc';
+
 /** Dọn bản chuyển nhạc hết hạn và đưa việc kẹt sang FAILED. Lúc khởi động mọi việc dang dở đều kẹt (tiến trình chạy chúng đã mất). */
 @Injectable()
 export class ScoreGcService implements OnApplicationBootstrap {
@@ -19,7 +21,8 @@ export class ScoreGcService implements OnApplicationBootstrap {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
+  /** Có tên cố định để test lịch GC của Sheet (lấy cron đầu tiên) loại được job này. */
+  @Cron(CronExpression.EVERY_10_MINUTES, { name: SCORE_GC_JOB })
   scheduledRun(): Promise<void> {
     return this.run();
   }

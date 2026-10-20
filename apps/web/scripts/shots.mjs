@@ -75,6 +75,8 @@ async function buildPages(args) {
     ...(process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === 'true' ? [['pricing', `/${l}/pricing`]] : []),
     ['courses', `/${l}/courses`],
     ['auth-modal', `/${l}`, 200, 'auth'],
+    // Chưa đăng nhập: thấy lời mời đăng nhập (các trạng thái sau đăng nhập cần tài khoản + dịch vụ musicscore, xem README).
+    ['convert', `/${l}/convert`],
     ['not-found', `/${l}/khong-ton-tai`, 404],
   ];
   const sheets = await json(`${args.api}/sheets?pageSize=1`);

@@ -178,6 +178,27 @@ export const envSchema = z.object({
   /** Mã ngắn ngân hàng theo SePay/VietQR (vd. `Vietcombank`, `MBBank`). */
   SEPAY_BANK_NAME: z.preprocess(emptyAsUndefined, z.string().min(1).max(60).optional()),
   SEPAY_ACCOUNT_HOLDER: z.preprocess(emptyAsUndefined, z.string().min(1).max(100).optional()),
+  /**
+   * Chuyển PDF/ảnh/MusicXML bản nhạc sang MIDI (module `scores`): URL nội bộ của dịch vụ `musicscore` (vd. `http://piano-musicscore:3000`).
+   * Tuỳ chọn: thiếu thì tính năng tắt (`POST /customer/scores` trả 503 `FEATURE_DISABLED`). Dịch vụ KHÔNG được mở ra Internet.
+   */
+  MUSICSCORE_URL: z.preprocess(
+    emptyAsUndefined,
+    z
+      .url({ protocol: /^https?$/, error: 'phải là URL http(s)://' })
+      .transform((value) => value.replace(/\/+$/, ''))
+      .optional(),
+  ),
+  /** Dung lượng tối đa của file nhạc tải lên (MB); không vượt giới hạn 25MB của `musicscore`. */
+  SCORE_MAX_UPLOAD_MB: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(25).default(20)),
+  /** Số lần chuyển nhạc tối đa của một khách trong 24 giờ (việc lỗi do hạ tầng không tính). */
+  SCORE_DAILY_LIMIT: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(1000).default(10)),
+  /** Số giờ giữ kết quả tạm trước khi tự xoá. */
+  SCORE_RESULT_TTL_HOURS: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(168).default(6)),
+  /** Số việc nhận dạng chạy đồng thời tối đa trong API (vượt thì từ chối sớm bằng 503). */
+  SCORE_MAX_CONCURRENT: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(20).default(2)),
+  /** Thời gian chờ tối đa một lần gọi `musicscore` (ms). */
+  SCORE_JOB_TIMEOUT_MS: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(10_000).max(30 * 60_000).default(11 * 60_000)),
   SITE_URL: z.preprocess(
     emptyAsUndefined,
     z

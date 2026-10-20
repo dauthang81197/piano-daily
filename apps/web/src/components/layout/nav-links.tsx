@@ -38,6 +38,7 @@ export function PrimaryNav({
     ...(variant === 'stack' ? [{ href: '/', label: t('home') }] : []),
     ...LEVELS.map((level) => ({ href: `/level/${level}`, label: t(`levels.${level}`) })),
     { href: '/courses', label: t('courses') },
+    { href: '/convert', label: t('convert') },
     ...(paymentsEnabled() ? [{ href: '/pricing', label: t('pricing') }] : []),
   ];
   return (

@@ -39,6 +39,9 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Thiếu INTERNAL_API_SECRET trong .env}
       VIEW_SALT: ${VIEW_SALT:?Thiếu VIEW_SALT trong .env}
       WEB_INTERNAL_URL: http://web:4100
+      # Chuyển PDF sang MIDI: dịch vụ musicscore (project riêng, alias piano-musicscore trên network của NPM). Đặt MUSICSCORE_URL= (rỗng) để tắt tính năng.
+      MUSICSCORE_URL: ${MUSICSCORE_URL-http://piano-musicscore:3000}
+      SCORE_DAILY_LIMIT: ${SCORE_DAILY_LIMIT:-10}
       # PayPal (Story 3.3, 3.8): thiếu client id/secret thì tạo đơn trả 503; thiếu webhook id thì POST /webhooks/paypal trả 503.
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}

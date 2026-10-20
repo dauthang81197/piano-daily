@@ -134,6 +134,19 @@ Script dùng Chromium sẵn có trong cache Playwright, hoặc đặt `PLAYWRIGH
 
 Đo LCP/CLS ở 390px (nên chạy trên bản build, dev server chậm hơn nhiều): `pnpm --filter @piano-daily/web build && pnpm --filter @piano-daily/web start` (không nạp `.env` vào shell lúc build), rồi `pnpm --filter @piano-daily/web vitals`. Thoát mã 1 khi CLS > 0.1 hoặc LCP > 2.5s.
 
+## Chuyển PDF bản nhạc sang MIDI (`/convert`)
+
+Khách đã đăng nhập (và đã xác minh email) tải PDF/ảnh/MusicXML lên `/convert`, xem khuông nhạc, nghe thử và tải MIDI. `apps/api` nhận file (`POST /customer/scores`, trả 202), xử lý nền bằng dịch vụ riêng `services/musicscore` (`POST /midi`) và lưu **kết quả tạm** (tự xoá sau `SCORE_RESULT_TTL_HOURS`, mặc định 6 giờ); file gốc không được lưu. Giới hạn: 1 việc đang chạy và `SCORE_DAILY_LIMIT` (10) lượt/khách/24 giờ.
+
+Chạy thử cục bộ (MusicXML chạy không cần Audiveris; PDF/ảnh cần cài [Audiveris](https://github.com/Audiveris/audiveris/releases)):
+
+```bash
+cd services/musicscore && npm ci && node src/server.ts   # cổng 3000
+# trong .env: MUSICSCORE_URL=http://localhost:3000 rồi chạy lại API (`pnpm dev` ở apps/api)
+```
+
+Bỏ trống `MUSICSCORE_URL` thì tính năng tắt (API trả 503 `FEATURE_DISABLED`, trang `/convert` báo chưa mở khi gửi). Production: `docker-compose.prod.yml` mặc định `MUSICSCORE_URL=http://piano-musicscore:3000` (dịch vụ `musicscore` chạy project riêng cùng network NPM, không mở cổng ra ngoài); đặt `MUSICSCORE_URL=` (rỗng) để tắt. Biến tuỳ chọn khác: `SCORE_MAX_UPLOAD_MB` (20), `SCORE_MAX_CONCURRENT` (2), `SCORE_JOB_TIMEOUT_MS`.
+
 ## CI/CD và deploy (GitHub Actions → Docker Hub → VPS)
 
 `.github/workflows/ci-cd.yml`: mọi PR chạy lint, typecheck, build và toàn bộ test (kể cả integration với Postgres/SeaweedFS). Push vào `develop` còn build 3 image (`<user>/piano-daily-{api,web,admin}:sha-<7 ký tự>` và `:latest`), đẩy lên Docker Hub rồi SSH vào VPS chạy `docker compose -f docker-compose.prod.yml up -d --wait`. API tự chạy `prisma migrate deploy` khi khởi động.

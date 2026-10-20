@@ -29,6 +29,8 @@ import {
   type MyRating,
   myRatingSchema,
   lessonSubmissionSchema,
+  type ScoreConversion,
+  scoreConversionSchema,
 } from '@piano-daily/shared';
 import type { z } from 'zod';
 import { ApiError, toApiError } from '@/lib/public-api';
@@ -46,7 +48,8 @@ async function call(path: string, init: RequestInit, accessToken?: string): Prom
       credentials: 'include',
       cache: 'no-store',
       headers: {
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        // FormData: để trình duyệt tự đặt Content-Type kèm boundary.
+        ...(init.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
     });
@@ -159,6 +162,19 @@ export const customerApi = {
       await call(`/customer/subscriptions/payments/${encodeURIComponent(code)}`, { method: 'GET' }, accessToken),
       paymentStatusResponseSchema,
     );
+  },
+  /** Chuyển bản nhạc (PDF/ảnh/MusicXML) sang MIDI: trả 202 kèm việc `PENDING`; lỗi 429/415/413/503 mang mã API. */
+  async createScore(accessToken: string, file: File, transpose: number): Promise<ScoreConversion> {
+    const form = new FormData();
+    form.append('transpose', String(transpose));
+    form.append('file', file);
+    return parsed(await call('/customer/scores', { method: 'POST', body: form }, accessToken), scoreConversionSchema);
+  },
+  async getScore(accessToken: string, id: string): Promise<ScoreConversion> {
+    return parsed(await call(`/customer/scores/${encodeURIComponent(id)}`, { method: 'GET' }, accessToken), scoreConversionSchema);
+  },
+  async deleteScore(accessToken: string, id: string): Promise<void> {
+    await call(`/customer/scores/${encodeURIComponent(id)}`, { method: 'DELETE' }, accessToken);
   },
   async download(accessToken: string, sheetId: string, fileType: string): Promise<CustomerDownloadResponse> {
     const res = await call(

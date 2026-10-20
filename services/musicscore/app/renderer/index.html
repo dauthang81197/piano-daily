@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; font-src data:; media-src 'none'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>music-core</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header id="toolbar">
+      <div class="group">
+        <button id="btn-new" title="Bản nhạc mới">Mới</button>
+        <button id="btn-open" title="Mở PDF, ảnh hoặc MusicXML (Ctrl+O)">Mở…</button>
+        <button id="btn-example" title="Mở bản nhạc ví dụ để thử">Ví dụ</button>
+        <button id="btn-save" title="Lưu MusicXML (Ctrl+S)">Lưu</button>
+        <button id="btn-saveas" title="Lưu thành… (Ctrl+Shift+S)">Lưu thành…</button>
+      </div>
+      <div class="group">
+        <button id="btn-midi" title="Xuất file MIDI">Xuất MIDI</button>
+        <button id="btn-pdf" title="Xuất file PDF">Xuất PDF</button>
+      </div>
+      <div class="group">
+        <button id="btn-undo" title="Hoàn tác (Ctrl+Z)">↶ Hoàn tác</button>
+        <button id="btn-redo" title="Làm lại (Ctrl+Y)">↷ Làm lại</button>
+      </div>
+      <div class="group">
+        <button id="btn-play" title="Phát / dừng (Space)">▶ Phát</button>
+        <span id="play-time" class="muted"></span>
+      </div>
+      <div class="group">
+        <button id="btn-zoom-out" title="Thu nhỏ (Ctrl+-)">−</button>
+        <span id="zoom-label" class="muted">100%</span>
+        <button id="btn-zoom-in" title="Phóng to (Ctrl++)">+</button>
+      </div>
+      <div class="group grow">
+        <input id="search" type="text" placeholder="Tìm / Đi tới: 12, 5-9, p2, rA (Ctrl+F)" spellcheck="false" />
+      </div>
+      <div class="group">
+        <button id="btn-help" title="Phím tắt (F1)">?</button>
+      </div>
+    </header>
+    <div id="toolbar2"></div>
+
+    <div id="main">
+      <aside id="palette"></aside>
+      <div id="scroll"><div id="pages"></div></div>
+      <aside id="panel"></aside>
+    </div>
+
+    <footer id="status">
+      <span id="status-msg">Sẵn sàng</span>
+      <span id="status-pos" class="muted"></span>
+    </footer>
+
+    <div id="ghost"></div>
+    <div id="band"></div>
+
+    <div id="busy" hidden>
+      <div class="busy-card"><div class="spinner"></div><div id="busy-msg">Đang xử lý…</div></div>
+    </div>
+
+    <div id="help" hidden>
+      <div class="help-card">
+        <h2>Phím tắt &amp; thao tác chuột</h2>
+        <table>
+          <tr><th colspan="2">Chọn</th></tr>
+          <tr><td>Bấm nốt / dấu lặng</td><td>Chọn một</td></tr>
+          <tr><td>Shift + bấm</td><td>Chọn cả dải từ chỗ đã chọn đến chỗ bấm</td></tr>
+          <tr><td>Ctrl + bấm</td><td>Thêm / bớt một nốt</td></tr>
+          <tr><td>Kéo khung trên vùng trống</td><td>Chọn mọi nốt trong khung (giữ Ctrl để thêm)</td></tr>
+          <tr><td>Bấm vùng trống của ô nhịp</td><td>Chọn cả ô nhịp (Shift để chọn nhiều ô)</td></tr>
+          <tr><td>Ctrl + A</td><td>Chọn tất cả</td></tr>
+          <tr><td>← →, Shift + ← →</td><td>Sang nốt trước / sau, mở rộng vùng chọn</td></tr>
+          <tr><th colspan="2">Sửa</th></tr>
+          <tr><td>Kéo nốt lên / xuống</td><td>Đổi cao độ (cả vùng chọn nếu nốt đó đang được chọn)</td></tr>
+          <tr><td>↑ ↓, Ctrl + ↑ ↓</td><td>Nửa cung, quãng tám</td></tr>
+          <tr><td>A–G, Shift + A–G</td><td>Đặt nốt trên dấu lặng / đổi tên nốt; thêm vào hợp âm</td></tr>
+          <tr><td>1 2 3 4 5 6 7, .</td><td>Trường độ 1/64 … nguyên; chấm dôi</td></tr>
+          <tr><td>0, Delete</td><td>Dấu lặng; xoá</td></tr>
+          <tr><td>T, S</td><td>Nối luyến; luyến phrase</td></tr>
+          <tr><td>Ctrl + 3</td><td>Tam liên</td></tr>
+          <tr><td>Ctrl + C / X / V</td><td>Chép / cắt / dán</td></tr>
+          <tr><td>Ctrl + Z / Y</td><td>Hoàn tác / làm lại</td></tr>
+          <tr><th colspan="2">Nhập nốt bằng chuột</th></tr>
+          <tr><td>N</td><td>Bật / tắt chế độ nhập nốt; bấm lên khuông để đặt nốt, cao độ theo vị trí chuột</td></tr>
+          <tr><th colspan="2">Khác</th></tr>
+          <tr><td>Ctrl + L</td><td>Gõ lời hát (Space sang nốt kế, <code>-</code> nối chữ)</td></tr>
+          <tr><td>Ctrl + F</td><td>Tìm: <code>12</code> ô nhịp · <code>5-9</code> dải · <code>p2</code> trang · <code>rA</code> dấu tập</td></tr>
+          <tr><td>Space</td><td>Phát / dừng (theo dấu nhắc lại)</td></tr>
+          <tr><td>F12</td><td>Công cụ nhà phát triển</td></tr>
+        </table>
+        <p class="muted">Nhấn F1 hoặc Esc để đóng.</p>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

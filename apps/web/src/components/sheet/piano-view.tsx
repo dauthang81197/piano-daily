@@ -28,6 +28,7 @@ export default function PianoView({
   label,
   onUnavailable,
   view = DEFAULT_VIEW_SETTINGS,
+  fill = false,
 }: {
   notes: readonly PlayerNote[];
   layout: KeyboardLayout;
@@ -41,6 +42,8 @@ export default function PianoView({
   onUnavailable: () => void;
   /** Góc nhìn và màu của cảnh; đổi thì áp ngay (không dựng lại cảnh). */
   view?: ViewSettings;
+  /** Lấp đầy khung chứa (toàn màn hình) thay vì giữ tỉ lệ cố định. */
+  fill?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<PianoScene | null>(null);
@@ -147,7 +150,10 @@ export default function PianoView({
   }, [ready, playing, getTime]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-md border border-outline-variant bg-surface-container-low" style={{ aspectRatio: VIEW_ASPECT }}>
+    <div
+      className={`relative w-full overflow-hidden rounded-md border border-outline-variant bg-surface-container-low ${fill ? 'min-h-[16rem] flex-1' : ''}`}
+      style={fill ? undefined : { aspectRatio: VIEW_ASPECT }}
+    >
       <canvas ref={canvasRef} role="img" aria-label={label} data-testid="piano-canvas" className="absolute inset-0 h-full w-full" />
       {debugText && (
         <div data-testid="hands-debug" aria-hidden="true" className="absolute left-1 top-1 rounded-sm bg-black/60 px-2 py-0.5 text-caption text-white">

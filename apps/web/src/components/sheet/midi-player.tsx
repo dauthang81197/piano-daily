@@ -2,10 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
 import type { ParsedNotes } from '@/lib/midi/note-json';
-import { PlayerCore, PLAYBACK_RATES, type AudioPort } from '@/lib/midi/player-core';
+import { baseBpm, stepBpm } from '@/lib/midi/bpm';
+import { PlayerCore, type AudioPort } from '@/lib/midi/player-core';
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
 import { canShowHands } from '@/lib/midi/hands/capabilities';
 import { claimAudio } from '@/lib/midi/audio-exclusive';
@@ -20,6 +20,21 @@ import {
 } from '@/lib/midi/scene3d/view-settings';
 import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
+import { PlayerProgress } from '@/components/player/player-progress';
+import { PlayerToolbar } from '@/components/player/player-toolbar';
+import {
+  clampZoom,
+  type PlayerView,
+  readDark,
+  readView,
+  readZoom,
+  writeDark,
+  writeView,
+  writeZoom,
+  ZOOM_STEP,
+} from '@/components/player/player-prefs';
+import { useFullscreen } from '@/components/player/use-fullscreen';
+import { cn } from '@/lib/cn';
 import { PianoKeyboard } from './piano-keyboard';
 import { NotationBoundary } from './notation-boundary';
 import { ViewSettingsPanel } from './view-settings-panel';
@@ -59,11 +74,9 @@ const clock = (seconds: number) => {
 
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
-/** Player rộng khoảng 77% chiều ngang cửa sổ (thoát khỏi cột nội dung, căn giữa theo cửa sổ). */
 const PLAYER_WIDTH = calloutCardClass;
 
 const HANDS_PREF_KEY = 'piano-daily:show-hands';
-const NOTATION_PREF_KEY = 'piano-daily:show-notation';
 
 /** Bàn tay bật mặc định; chỉ khi người dùng từng tắt thì mới tắt. Bộ nhớ trình duyệt có thể bị chặn nên bọc try/catch. */
 function readHandsPref(): boolean {
@@ -71,23 +84,6 @@ function readHandsPref(): boolean {
     return localStorage.getItem(HANDS_PREF_KEY) !== 'off';
   } catch {
     return true;
-  }
-}
-
-/** Khuông nhạc bật mặc định; chỉ khi người dùng từng tắt thì mới tắt. */
-function readNotationPref(): boolean {
-  try {
-    return localStorage.getItem(NOTATION_PREF_KEY) !== 'off';
-  } catch {
-    return true;
-  }
-}
-
-function writeNotationPref(on: boolean) {
-  try {
-    localStorage.setItem(NOTATION_PREF_KEY, on ? 'on' : 'off');
-  } catch {
-    // Không lưu được thì thôi: lần sau vẫn bật mặc định.
   }
 }
 
@@ -135,7 +131,14 @@ export function MidiPlayer({
   /** Góc nhìn và màu của cảnh 3D: mặc định, rồi đọc từ trình duyệt sau khi mount (tránh lệch hydration). */
   const [viewSettings, setViewSettings] = useState<ViewSettings>({ ...DEFAULT_VIEW_SETTINGS });
   const [viewOpen, setViewOpen] = useState(false);
-  const [notationPref, setNotationPref] = useState(true);
+  /** Chế độ xem người dùng chọn lần trước (null = chưa từng chọn: mặc định khuông nhạc nếu có, không thì phím đàn). */
+  const [viewPref, setViewPref] = useState<PlayerView | null>(null);
+  const [dark, setDark] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const rootRef = useRef<HTMLElement>(null);
+  const fullscreenButton = useRef<HTMLButtonElement>(null);
+  const fullscreen = useFullscreen(rootRef);
+  const wasFullscreen = useRef(false);
   const use3d = view3dAvailable && phase === 'ready' && parsed !== null;
   const handsOn = use3d && handsPref;
   const mounted = useRef(true);
@@ -151,7 +154,9 @@ export function MidiPlayer({
     setSupported(hasWebAudio());
     setView3dAvailable(canShowHands());
     setHandsPref(readHandsPref());
-    setNotationPref(readNotationPref());
+    setViewPref(readView());
+    setDark(readDark());
+    setZoom(readZoom());
     setViewSettings(readViewSettings());
     return () => {
       mounted.current = false;
@@ -180,15 +185,15 @@ export function MidiPlayer({
 
   const layout = useMemo(() => layoutKeyboard(parsed?.notes ?? []), [parsed]);
   const index = useMemo(() => new NoteIndex(parsed?.notes ?? []), [parsed]);
-  const view = useMemo(() => index.window(position), [index, position]);
-  const activeMidi = useMemo(() => new Set(view.active.map((n) => n.midi)), [view]);
+  const frame = useMemo(() => index.window(position), [index, position]);
+  const activeMidi = useMemo(() => new Set(frame.active.map((n) => n.midi)), [frame]);
   // Chỉ liệt kê nốt có phím trên bàn phím (nốt ngoài dải vẫn phát nhưng không có phím để sáng).
   const activeNames = useMemo(
     () =>
-      [...new Map(view.active.filter((n) => layout.byMidi.has(n.midi)).map((n) => [n.midi, n.name])).entries()]
+      [...new Map(frame.active.filter((n) => layout.byMidi.has(n.midi)).map((n) => [n.midi, n.name])).entries()]
         .sort((a, b) => a[0] - b[0])
         .map(([, name]) => name),
-    [view, layout],
+    [frame, layout],
   );
 
   /** Nguồn khác (nghe thử trên thẻ) bắt đầu phát: tạm dừng player chính, không huỷ trạng thái. */
@@ -290,10 +295,19 @@ export function MidiPlayer({
     setHandsPref(next);
     writeHandsPref(next);
   };
-  const onToggleNotation = () => {
-    const next = !notationPref;
-    setNotationPref(next);
-    writeNotationPref(next);
+  const onView = (next: PlayerView) => {
+    setViewPref(next);
+    writeView(next);
+  };
+  const onToggleDark = () => {
+    const next = !dark;
+    setDark(next);
+    writeDark(next);
+  };
+  const onZoom = (delta: 1 | -1) => {
+    const next = clampZoom(zoom + delta * ZOOM_STEP);
+    setZoom(next);
+    writeZoom(next);
   };
   const onViewChange = (next: ViewSettings) => {
     const clean = sanitizeViewSettings(next);
@@ -307,6 +321,31 @@ export function MidiPlayer({
   const onRate = (value: number) => {
     setRate(value);
     coreRef.current?.setRate(value);
+  };
+  const base = baseBpm(parsed?.header);
+  const onBpmStep = (delta: 1 | -1) => {
+    const next = stepBpm(base, rate, delta);
+    if (next !== null) onRate(next);
+  };
+  const onRestart = () => {
+    const c = coreRef.current;
+    if (!c) return;
+    c.seek(0);
+    setPosition(c.position());
+    setPlaying(c.state === 'playing');
+  };
+  // Thoát toàn màn hình (nút, Esc, hay trình duyệt tự thoát): trả focus về nút để người dùng bàn phím không bị lạc.
+  useEffect(() => {
+    if (wasFullscreen.current && !fullscreen.active) fullscreenButton.current?.focus();
+    wasFullscreen.current = fullscreen.active;
+  }, [fullscreen.active]);
+  // Space bật/tắt phát khi focus nằm trong player nhưng không phải ở một điều khiển có hành vi Space riêng.
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== ' ' || event.defaultPrevented) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button, input, select, textarea, a, [contenteditable="true"]')) return;
+    event.preventDefault();
+    void onToggle();
   };
 
   if (!supported) {
@@ -323,54 +362,64 @@ export function MidiPlayer({
   }
 
   const duration = parsed?.duration ?? 0;
-  const label =
-    phase === 'loading' ? t('loading') : phase === 'ready' ? (playing ? t('pause') : t('play')) : t('playPractice');
+  const views: PlayerView[] = notation ? ['notation', 'piano'] : ['piano'];
+  const view: PlayerView = notation ? (viewPref ?? 'notation') : 'piano';
+  const fill = fullscreen.active;
+  const keyboardLabel = t('keyboardLabel', { title });
+  const progressClock = `${clock(position)} / ${clock(duration)}`;
 
   return (
-    <section aria-labelledby="sheet-player" className={PLAYER_WIDTH}>
-      <h2 id="sheet-player" className="font-display text-headline-sm text-on-surface">
+    <section
+      ref={rootRef}
+      aria-labelledby="sheet-player"
+      onKeyDown={onKeyDown}
+      className={cn(
+        PLAYER_WIDTH,
+        'min-w-0',
+        dark && 'player-dark text-on-surface',
+        fill && 'fixed inset-0 z-50 h-dvh w-full max-w-none gap-2 overflow-y-auto rounded-none border-0 p-3 shadow-none md:p-4',
+      )}
+    >
+      <h2 id="sheet-player" className={cn('font-display text-headline-sm text-on-surface', fill && 'sr-only')}>
         {t('title')}
       </h2>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          onClick={onToggle}
-          disabled={phase === 'loading'}
-          aria-pressed={phase === 'ready' ? playing : undefined}
-          aria-busy={phase === 'loading' || undefined}
-        >
-          {label}
-        </Button>
+      <PlayerToolbar
+        loading={phase === 'loading'}
+        playing={playing}
+        idle={phase === 'idle' || phase === 'error'}
+        ready={phase === 'ready'}
+        clock={progressClock}
+        onToggle={() => void onToggle()}
+        onRestart={onRestart}
+        baseBpm={base}
+        rate={rate}
+        onBpmStep={onBpmStep}
+        dark={dark}
+        onToggleDark={onToggleDark}
+        views={views}
+        view={view}
+        onView={onView}
+        zoom={zoom}
+        onZoom={onZoom}
+        fullscreen={fullscreen.active}
+        onToggleFullscreen={() => void fullscreen.toggle()}
+        fullscreenRef={fullscreenButton}
+      />
 
-        <label className="flex items-center gap-2 text-caption text-on-surface-variant">
-          {t('speedLabel')}
-          <select
-            value={rate}
-            onChange={(e) => onRate(Number(e.target.value))}
-            disabled={phase === 'loading'}
-            className={control}
-          >
-            {PLAYBACK_RATES.map((r) => (
-              <option key={r} value={r}>
-                {t('speedOption', { rate: r })}
-              </option>
-            ))}
-          </select>
-        </label>
+      <PlayerProgress position={position} duration={duration} disabled={phase !== 'ready'} clock={progressClock} onSeek={onSeek} />
 
-        {use3d ? (
+      {phase === 'error' ? (
+        <p role="alert" className="text-body-md text-error">
+          {errorKind === 'empty' ? t('errorEmpty') : t('errorLoad')}
+        </p>
+      ) : null}
+
+      {view === 'piano' && use3d ? (
+        <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={onToggleHands} aria-pressed={handsOn} className={control}>
             {t('handsToggle')}
           </button>
-        ) : null}
-
-        {notation ? (
-          <button type="button" onClick={onToggleNotation} aria-pressed={notationPref} className={control}>
-            {t('notationToggle')}
-          </button>
-        ) : null}
-
-        {use3d ? (
           <button
             type="button"
             onClick={() => setViewOpen((open) => !open)}
@@ -380,50 +429,25 @@ export function MidiPlayer({
           >
             {t('viewSettingsToggle')}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      {use3d && viewOpen ? (
+      {view === 'piano' && use3d && viewOpen ? (
         <ViewSettingsPanel id="view-settings-panel" value={viewSettings} onChange={onViewChange} onReset={onViewReset} />
       ) : null}
 
-      {phase === 'error' ? (
-        <p role="alert" className="text-body-md text-error">
-          {errorKind === 'empty' ? t('errorEmpty') : t('errorLoad')}
-        </p>
-      ) : null}
-
-      <div className="flex items-center gap-3">
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={0.1}
-          value={Math.min(position, duration || 1)}
-          disabled={phase !== 'ready'}
-          aria-label={t('seekLabel')}
-          aria-valuetext={`${clock(position)} / ${clock(duration)}`}
-          onChange={(e) => onSeek(Number(e.target.value))}
-          className="h-2 w-full accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
-        />
-        <span className="shrink-0 text-caption tabular-nums text-on-surface-variant">
-          {clock(position)} / {clock(duration)}
-        </span>
-      </div>
-
-      <div className={notation && notationPref ? 'grid gap-4 lg:grid-cols-2' : 'contents'}>
-        {notation && notationPref ? (
+      <div className={cn('flex min-h-0 flex-col', fill && 'flex-1')}>
+        {view === 'notation' ? (
           parsed ? (
             <Suspense fallback={null}>
               <NotationBoundary fallback={<p role="status" className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationError')}</p>}>
-                <NotationView parsed={parsed} position={position} onSeek={onSeek} title={title} />
+                <NotationView parsed={parsed} position={position} onSeek={onSeek} title={title} zoom={zoom} fill={fill} />
               </NotationBoundary>
             </Suspense>
           ) : (
             <p className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationHint')}</p>
           )
-        ) : null}
-        {use3d && parsed ? (
+        ) : use3d && parsed ? (
           <Suspense fallback={null}>
             <PianoView
               notes={parsed.notes}
@@ -432,13 +456,14 @@ export function MidiPlayer({
               position={position}
               getTime={getTime}
               showHands={handsPref}
-              label={t('keyboardLabel', { title })}
+              label={keyboardLabel}
               onUnavailable={onViewUnavailable}
               view={viewSettings}
+              fill={fill}
             />
           </Suspense>
         ) : (
-          <PianoKeyboard layout={layout} active={activeMidi} falling={view.falling} label={t('keyboardLabel', { title })} />
+          <PianoKeyboard layout={layout} active={activeMidi} falling={frame.falling} label={keyboardLabel} />
         )}
       </div>
 
@@ -448,7 +473,7 @@ export function MidiPlayer({
       </p>
 
       <p className="text-caption text-on-surface-variant">{t('simulatedNote')}</p>
-      {handsOn ? <p className="text-caption text-on-surface-variant">{t('handsNote')}</p> : null}
+      {handsOn && view === 'piano' ? <p className="text-caption text-on-surface-variant">{t('handsNote')}</p> : null}
     </section>
   );
 }

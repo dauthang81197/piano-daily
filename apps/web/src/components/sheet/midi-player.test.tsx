@@ -205,6 +205,76 @@ describe('MidiPlayer', () => {
     expect(screen.queryByRole('button', { name: 'Zoom in the staff' })).toBeNull();
   });
 
+  it('Transpose: hiện 0, −/+ đổi từng nửa cung, kẹp ±12; đặt trước khi phát thì âm thanh và "đang phát" đều theo nốt đã dịch', async () => {
+    const { audio } = setup();
+    const group = screen.getByRole('group', { name: 'Transpose' });
+    expect(group).toHaveTextContent('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Up 1 semitone' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Up 1 semitone' }));
+    expect(group).toHaveTextContent('+2');
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    expect(audio.calls.map((c) => c.name)).toEqual(expect.arrayContaining(['D4', 'F#4']));
+    expect(audio.calls.map((c) => c.name)).not.toContain('C4');
+    expect(screen.getByTestId('now-playing')).toHaveTextContent('D4');
+    for (let i = 0; i < 20; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Down 1 semitone' }));
+    expect(group).toHaveTextContent('−12');
+    expect(screen.getByRole('button', { name: 'Down 1 semitone' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Up 1 semitone' })).toBeEnabled();
+  });
+
+  it('Transpose khi đang phát: nốt chưa phát theo giọng mới ngay', async () => {
+    const { audio } = setup();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    audio.calls.length = 0;
+    fireEvent.click(screen.getByRole('button', { name: 'Up 1 semitone' }));
+    expect(audio.calls.map((c) => c.name)).toEqual(expect.arrayContaining(['C#4']));
+  });
+
+  it('Loop: nút Lặp bật/tắt (aria-pressed) và hiện dải + vạch A/B trên thanh tiến trình sau khi tải; đặt A/B tại vị trí hiện tại; xoá', async () => {
+    setup();
+    const toggle = screen.getByRole('button', { name: 'Loop' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Loop range options' }));
+    expect(screen.getByRole('button', { name: /Set point A/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    expect(screen.queryByTestId('loop-band')).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('loop-band')).toBeInTheDocument();
+    expect(screen.getByText(/Looping the whole piece/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Seek within the piece'), { target: { value: '1' } });
+    // Tua được áp vào lõi sau khoảng lặng 150ms (debounce); đợi xong rồi mới đặt điểm A tại vị trí đó.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    fireEvent.click(screen.getByRole('button', { name: /Set point A/ }));
+    expect(screen.getByText(/Loop range: 0:01/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear loop range' }));
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByTestId('loop-band')).toBeNull();
+  });
+
+  it('Mixer: mở bảng âm lượng từng tay; tắt tiếng cả hai tay thì không phát nốt nào; kéo thanh tự bật lại tiếng', async () => {
+    const { audio } = setup();
+    const toggle = screen.getByRole('button', { name: 'Mixer' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const right = screen.getByRole('button', { name: 'Mute right hand' });
+    const left = screen.getByRole('button', { name: 'Mute left hand' });
+    fireEvent.click(right);
+    fireEvent.click(left);
+    expect(right).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Right hand volume')).toHaveValue('0');
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    expect(audio.calls).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText('Right hand volume'), { target: { value: '50' } });
+    expect(screen.getByRole('button', { name: 'Mute right hand' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByLabelText('Right hand volume')).toHaveValue('50');
+  });
+
   it('thiếu Web Audio: thay player bằng thông báo, không có nút phát', async () => {
     vi.unstubAllGlobals();
     vi.stubGlobal('AudioContext', undefined);

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from './test-utils';
 
 vi.mock('@/i18n/navigation', () => ({
@@ -62,5 +62,17 @@ describe('Footer', () => {
     expect(screen.queryByRole('link', { name: 'YouTube channel' })).not.toBeInTheDocument();
     render(withIntl(<Footer />));
     expect(screen.queryByRole('link', { name: 'YouTube channel' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Thanh toán đang ẩn (NEXT_PUBLIC_PAYMENTS_ENABLED tắt)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('menu chính và footer không có link Bảng giá', () => {
+    vi.stubEnv('NEXT_PUBLIC_PAYMENTS_ENABLED', '');
+    render(withIntl(<Header />));
+    render(withIntl(<Footer />));
+    expect(screen.queryByRole('link', { name: 'Pricing' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'Courses' }).length).toBeGreaterThan(0);
   });
 });

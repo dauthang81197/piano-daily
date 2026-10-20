@@ -1,7 +1,9 @@
+import { GraduationCap } from 'lucide-react';
 import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/catalog/empty-state';
 import { TrackCard } from '@/components/courses/track-card';
 import { routing } from '@/i18n/routing';
 import { fetchTracks } from '@/lib/courses';
@@ -26,12 +28,13 @@ export default async function CoursesPage({ params }: Props) {
   const [t, tracks] = await Promise.all([getTranslations({ locale, namespace: 'Courses' }), fetchTracks(locale)]);
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-8 px-margin-mobile py-section-gap md:px-margin-desktop">
-      <header className="flex flex-col gap-3">
+      <header className="flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface-container-low px-6 py-10 md:px-10 md:py-14">
+        <GraduationCap aria-hidden="true" className="size-9 text-secondary" />
         <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
         <p className="max-w-3xl text-body-lg text-on-surface-variant">{t('intro')}</p>
       </header>
       {tracks.length === 0 ? (
-        <p className="rounded-md bg-surface-container-low p-6 text-body-lg text-on-surface">{t('empty')}</p>
+        <EmptyState icon={GraduationCap} title={t('empty')} hint={t('emptyHint')} />
       ) : (
         <ul className="grid gap-gutter md:grid-cols-2 lg:grid-cols-3">
           {tracks.map((track) => (

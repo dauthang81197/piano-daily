@@ -3,6 +3,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { Badge, levelTone } from '@/components/ui/badge';
 import { Link } from '@/i18n/navigation';
 import { genreHref, sheetHref } from '@/lib/query';
+import { paymentsEnabled } from '@/lib/public-env';
 import { Breadcrumb } from './breadcrumb';
 import { Card } from '@/components/ui/card';
 import { Music2 } from 'lucide-react';
@@ -70,7 +71,7 @@ export function SheetDetail({
   const downloads = availableDownloads(sheet, showDownloads);
   const hasPdf = downloads.includes('PDF');
   // Sheet không free: nút mở modal thanh toán (Story 3.6); cần API base cho báo giá/tạo đơn.
-  const purchase = !sheet.isFree && downloads.length > 0 && apiBase() !== null;
+  const purchase = paymentsEnabled() && !sheet.isFree && downloads.length > 0 && apiBase() !== null;
   const showPdf = hasPdf && (purchase || sheet.isFree);
   // Chế độ xem trước (Draft) không hiện quảng cáo.
   const adSlots = showDownloads ? ads : undefined;
@@ -196,7 +197,7 @@ export function SheetDetail({
             </section>
           ) : null}
 
-          <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={downloads} purchase={purchase} />
+          <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={purchase || sheet.isFree ? downloads : []} purchase={purchase} />
 
           <AdSlotFrame slots={adSlots} position="IN_CONTENT" />
 

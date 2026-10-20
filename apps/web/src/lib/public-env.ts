@@ -16,3 +16,11 @@ export function paypalClientId(): string {
 export function googleClientId(): string | null {
   return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || null;
 }
+
+/**
+ * Hiện tính năng thanh toán (bảng giá, nút mua/tải có phí, modal thanh toán, trạng thái gói) hay không. Mặc định ẨN: chỉ bật khi
+ * `NEXT_PUBLIC_PAYMENTS_ENABLED=true` lúc build. Chỉ ẩn phía giao diện; API và dữ liệu không đổi.
+ */
+export function paymentsEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === 'true';
+}

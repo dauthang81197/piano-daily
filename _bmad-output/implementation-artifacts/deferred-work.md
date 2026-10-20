@@ -294,3 +294,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-ui-u1-khung-trang-chu.md`
   summary: Quyết định có commit `apps/web/AGENTS.md` và `CLAUDE.md` (do `next dev` tự sinh) hay thêm vào `.gitignore`.
   evidence: Hai tệp này bị commit kèm U1 vì `next dev` sinh lại mỗi lần chạy; chúng không thuộc tính năng và là tệp ngữ cảnh agent nên không tự sửa.
+
+## Từ review U4 (2026-10-20)
+
+- Khi ẩn thanh toán (`NEXT_PUBLIC_PAYMENTS_ENABLED` tắt) mà admin vẫn bật cưỡng chế thuê bao, tải Sheet free trả 402 sẽ chỉ hiện lỗi chung và bài khoá không có hướng đi. Cần tắt cưỡng chế thuê bao ở admin khi thanh toán ẩn; xem xét gắn hai cờ lại với nhau.
+- Thử `<h3>` trong `<summary>` (section khoá học) và mục lục bài học với trình đọc màn hình ở U5.
+- Footer còn nhãn cột "Học và gói" khi thanh toán ẩn: đổi chữ ở U5.

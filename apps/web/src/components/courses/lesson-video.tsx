@@ -11,7 +11,7 @@ export function LessonVideo({ url, title }: { url: string | null; title: string 
       <h2 id="lesson-video" className="font-display text-headline-sm text-on-surface">
         {t('videoTitle')}
       </h2>
-      <div className="aspect-video w-full overflow-hidden rounded-md bg-surface-container">
+      <div className="aspect-video w-full overflow-hidden rounded-xl border border-outline-variant bg-surface-container shadow-card">
         <iframe
           src={youtubeEmbedUrl(id)}
           title={t('videoFrameTitle', { title })}

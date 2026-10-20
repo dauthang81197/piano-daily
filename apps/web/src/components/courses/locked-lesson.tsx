@@ -5,13 +5,16 @@ import { Lock } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
+import { buttonClasses } from '@/components/ui/button';
+import { calloutCardClass } from '@/components/sheet/download-button-class';
 import { Link } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { ApiError } from '@/lib/public-api';
+import { paymentsEnabled } from '@/lib/public-env';
 import { LessonBody } from './lesson-body';
 
-const button =
-  'inline-flex min-h-11 items-center rounded-md border border-outline-variant px-4 py-2 text-body-md font-semibold text-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+const secondaryButton = buttonClasses({ variant: 'secondary', className: 'min-h-11' });
+const primaryButton = buttonClasses({ className: 'min-h-11' });
 
 type State =
   | { kind: 'loading' }
@@ -58,10 +61,10 @@ export function LockedLesson({ lessonId, title }: { lessonId: string; title: str
   if (customerId && current?.kind === 'ok') return <LessonBody title={title} full={current.full} />;
   if (customerId && !current) return <p className="text-body-md text-on-surface-variant">{t('lockedLoading')}</p>;
   const needLogin = !customerId || current?.kind === 'login';
-  const needPlan = !customerId || current?.kind === 'plan';
+  const needPlan = (!customerId || current?.kind === 'plan') && paymentsEnabled();
 
   return (
-    <section aria-labelledby="lesson-locked" className="flex flex-col items-start gap-3 rounded-md border border-outline-variant p-4">
+    <section aria-labelledby="lesson-locked" className={`${calloutCardClass} items-start`}>
       <h2 id="lesson-locked" className="flex items-center gap-2 font-display text-headline-sm text-on-surface">
         <Lock aria-hidden="true" className="size-5" />
         {t('lockedTitle')}
@@ -71,15 +74,19 @@ export function LockedLesson({ lessonId, title }: { lessonId: string; title: str
           {t('lockedError')}
         </p>
       ) : (
-        <p className="text-body-md text-on-surface-variant">{customerId && current?.kind === 'plan' ? t('lockedNeedPlan') : t('lockedBody')}</p>
+        <p className="text-body-md text-on-surface-variant">
+          {customerId && current?.kind === 'plan'
+            ? t(paymentsEnabled() ? 'lockedNeedPlan' : 'lockedNeedAccess')
+            : t(paymentsEnabled() ? 'lockedBody' : 'lockedBodyFree')}
+        </p>
       )}
       {needLogin ? (
-        <button type="button" className={button} onClick={() => auth.openAuth('login')}>
+        <button type="button" className={primaryButton} onClick={() => auth.openAuth('login')}>
           {t('lockedLogin')}
         </button>
       ) : null}
       {needPlan ? (
-        <Link href="/pricing" className={button}>
+        <Link href="/pricing" className={secondaryButton}>
           {t('lockedPricing')}
         </Link>
       ) : null}

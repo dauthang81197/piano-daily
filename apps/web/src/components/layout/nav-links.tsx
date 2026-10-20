@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/cn';
 import { LEVELS } from '@/lib/levels';
+import { paymentsEnabled } from '@/lib/public-env';
 
 /** Link đang ở đúng trang hoặc trang con của nó (`/level/beginner` khớp `/level/beginner?page=2` và con). */
 export function isActivePath(pathname: string, href: string): boolean {
@@ -37,7 +38,7 @@ export function PrimaryNav({
     ...(variant === 'stack' ? [{ href: '/', label: t('home') }] : []),
     ...LEVELS.map((level) => ({ href: `/level/${level}`, label: t(`levels.${level}`) })),
     { href: '/courses', label: t('courses') },
-    { href: '/pricing', label: t('pricing') },
+    ...(paymentsEnabled() ? [{ href: '/pricing', label: t('pricing') }] : []),
   ];
   return (
     <nav aria-label={t('primary')} className={cn(variant === 'bar' ? 'flex items-center gap-1' : 'flex flex-col gap-1', className)}>

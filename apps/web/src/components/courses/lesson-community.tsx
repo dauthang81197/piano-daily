@@ -8,6 +8,7 @@ import { useCustomer } from '@/components/auth/auth-provider';
 import { Link } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { ApiError, fetchCommunity } from '@/lib/public-api';
+import { paymentsEnabled } from '@/lib/public-env';
 
 const button =
   'inline-flex min-h-11 items-center rounded-md border border-outline-variant px-4 py-2 text-body-md font-semibold text-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:opacity-60';
@@ -317,7 +318,7 @@ export function LessonCommunity({ lessonId }: { lessonId: string }) {
           {error}
         </p>
       ) : null}
-      {needPlan ? (
+      {needPlan && paymentsEnabled() ? (
         <Link href="/pricing" className={link}>
           {t('lockedPricing')}
         </Link>

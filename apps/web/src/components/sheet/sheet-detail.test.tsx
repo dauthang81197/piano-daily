@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicSheetDetail, PublicSheetItem } from '@piano-daily/shared';
 import { withIntl } from '@/components/layout/test-utils';
 
@@ -417,6 +417,26 @@ describe('SheetDetail — nút mua (Story 3.6)', () => {
     expect(screen.getAllByRole('button', { name: /Download PDF/ }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('SheetDetail — thanh toán đang ẩn', () => {
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test');
+    vi.stubEnv('NEXT_PUBLIC_PAYMENTS_ENABLED', '');
+    vi.stubGlobal('fetch', vi.fn());
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('Sheet có giá: không nút mua, không gọi báo giá', () => {
+    view(full);
+    expect(screen.queryByRole('button', { name: /Download/i })).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('Sheet free vẫn có nút tải trực tiếp', () => {
+    view({ ...full, isFree: true });
+    expect(screen.getAllByRole('button', { name: /Download/i }).length).toBeGreaterThan(0);
   });
 });
 

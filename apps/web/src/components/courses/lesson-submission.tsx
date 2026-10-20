@@ -6,6 +6,7 @@ import { useCustomer } from '@/components/auth/auth-provider';
 import { Link } from '@/i18n/navigation';
 import { customerApi } from '@/lib/customer-api';
 import { ApiError } from '@/lib/public-api';
+import { paymentsEnabled } from '@/lib/public-env';
 import type { MySubmission } from '@piano-daily/shared';
 
 const button =
@@ -192,7 +193,7 @@ export function LessonSubmission({ lessonId }: { lessonId: string }) {
           {error}
         </p>
       ) : null}
-      {needPlan ? (
+      {needPlan && paymentsEnabled() ? (
         <Link href="/pricing" className={link}>
           {t('lockedPricing')}
         </Link>

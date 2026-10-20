@@ -80,4 +80,52 @@ describe('khoá học (web)', () => {
     render(withIntl(<TrackView track={{ slug: 't', title: 'T', description: '', lessonCount: 0, levels: [] } as PublicTrackTree} />, 'vi'));
     expect(screen.getByText('Nhánh này chưa có bài nào được công khai.')).toBeInTheDocument();
   });
+
+  const tree = {
+    slug: 't',
+    title: 'T',
+    description: '',
+    lessonCount: 3,
+    levels: [
+      {
+        id: 'lv1',
+        title: 'Cơ bản',
+        description: '',
+        sections: [
+          {
+            id: 's1',
+            title: 'Gam',
+            description: '',
+            lessons: [
+              { id: 'a', title: 'Bài A', locked: false, hasMusic: false, hasVideo: true, durationMinutes: 5 },
+              { id: 'b', title: 'Bài B', locked: true, hasMusic: true, hasVideo: false, durationMinutes: null },
+            ],
+          },
+          { id: 's2', title: 'Rỗng', description: '', lessons: [] },
+        ],
+      },
+    ],
+  } as unknown as PublicTrackTree;
+
+  it('trang khoá: mỗi section là <details> mở sẵn, bài có link, section rỗng có thông báo', () => {
+    const { container } = render(withIntl(<TrackView track={tree} />, 'vi'));
+    const sections = container.querySelectorAll('details');
+    expect(sections).toHaveLength(2);
+    expect([...sections].every((d) => d.open)).toBe(true);
+    expect(screen.getByRole('heading', { level: 3, name: 'Gam' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Bài A/ })).toHaveAttribute('href', '/courses/t/a');
+    expect(screen.getByRole('link', { name: /Bài B/ })).toHaveTextContent('Thành viên');
+  });
+
+  it('mục lục ở trang bài: đánh dấu bài hiện tại, ẩn khi khoá chỉ có 1 bài', () => {
+    const order = [
+      { id: 'a', title: 'Bài A' },
+      { id: 'b', title: 'Bài B' },
+    ];
+    const { rerender } = render(withIntl(<LessonView lesson={lesson({ id: 'b', title: 'Bài B' })} order={order} />, 'vi'));
+    const outline = screen.getByRole('navigation', { name: 'Mục lục khoá học' });
+    expect(outline.querySelector('[aria-current="page"]')).toHaveTextContent('Bài B');
+    rerender(withIntl(<LessonView lesson={lesson({ id: 'b', title: 'Bài B' })} order={[order[1]!]} />, 'vi'));
+    expect(screen.queryByRole('navigation', { name: 'Mục lục khoá học' })).toBeNull();
+  });
 });

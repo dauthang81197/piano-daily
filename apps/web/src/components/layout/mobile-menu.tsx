@@ -44,7 +44,7 @@ export function MobileMenu() {
       {open ? (
         <div
           id={panelId}
-          className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-b border-outline-variant bg-surface px-margin-mobile py-4 shadow-md"
+          className="motion-fade-up absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-b border-outline-variant bg-surface px-margin-mobile py-4 shadow-md"
         >
           <PrimaryNav variant="stack" onNavigate={() => setOpen(false)} />
           <SearchForm className="mt-4" />

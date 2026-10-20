@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "vitals": "node scripts/vitals.mjs"
   },
   "dependencies": {
     "@paypal/react-paypal-js": "10.6.0",

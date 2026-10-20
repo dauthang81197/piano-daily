@@ -71,23 +71,51 @@ describe('ui kit dùng chung', () => {
   });
 });
 
-describe('tương phản nhãn', () => {
-  it('chữ trắng trên level-advanced-strong đạt AA (≥ 4.5:1) và token tồn tại trong theme.css', async () => {
+describe('tương phản (AA ≥ 4.5:1 cho chữ nhỏ)', () => {
+  const channel = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (h: string) => {
+    const n = parseInt(h.slice(1), 16);
+    return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+  };
+  const ratio = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  const tokens = async () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     // vitest chạy với cwd = apps/web.
     const css = readFileSync(join(process.cwd(), '..', '..', 'packages', 'tokens', 'theme.css'), 'utf8');
-    const hex = /--color-level-advanced-strong:\s*(#[0-9a-fA-F]{6})/.exec(css)?.[1];
-    expect(hex).toBeDefined();
-    const channel = (v: number) => {
-      const c = v / 255;
-      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    return (name: string) => {
+      const hex = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)?.[1];
+      expect(hex, `token ${name}`).toBeDefined();
+      return hex!;
     };
-    const luminance = (h: string) => {
-      const n = parseInt(h.slice(1), 16);
-      return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
-    };
-    const ratio = 1.05 / (luminance(hex!) + 0.05);
-    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  };
+
+  it('chữ trắng trên level-advanced-strong và secondary-strong (nhãn, nút Tải, tag Genre đang chọn)', async () => {
+    const get = await tokens();
+    expect(ratio(get('on-secondary'), get('level-advanced-strong'))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(get('on-secondary'), get('secondary-strong'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('chữ secondary-strong đạt AA trên mọi nền bề mặt đang dùng (menu đang chọn, eyebrow, link)', async () => {
+    const get = await tokens();
+    for (const bg of ['surface', 'surface-bright', 'surface-container-low', 'surface-container']) {
+      expect(ratio(get('secondary-strong'), get(bg)), `secondary-strong trên ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('chữ phụ (on-surface-variant) và lỗi đạt AA trên bề mặt; brass gốc KHÔNG đủ cho chữ nhỏ', async () => {
+    const get = await tokens();
+    for (const bg of ['surface', 'surface-bright', 'surface-container-low', 'surface-container', 'surface-container-high']) {
+      expect(ratio(get('on-surface-variant'), get(bg)), `on-surface-variant trên ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(ratio(get('error'), get('surface'))).toBeGreaterThanOrEqual(4.5);
+    // Lý do tồn tại của biến thể "strong": secondary gốc thấp hơn AA cho chữ nhỏ.
+    expect(ratio(get('secondary'), get('surface'))).toBeLessThan(4.5);
   });
 });

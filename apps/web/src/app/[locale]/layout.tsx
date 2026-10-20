@@ -8,6 +8,7 @@ import { StickyBottomAd } from '@/components/ads/sticky-bottom-ad';
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
+import { SkipLink } from '@/components/layout/skip-link';
 import { routing } from '@/i18n/routing';
 import { fetchAds } from '@/lib/ads';
 import { siteUrl } from '@/lib/site';
@@ -44,9 +45,12 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body className="flex min-h-screen flex-col bg-surface font-sans text-body-md text-on-surface antialiased">
         <NextIntlClientProvider>
           <AuthProvider>
+            <SkipLink />
             <Header siteName={site.siteName} logoUrl={site.logoUrl} />
             <AdSlotFrame slots={ads} position="HEADER" />
-            <div className="flex-1">{children}</div>
+            <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+              {children}
+            </div>
             <Footer youtubeUrl={site.youtubeUrl} siteName={site.siteName} />
             <StickyBottomAd slots={ads} />
           </AuthProvider>

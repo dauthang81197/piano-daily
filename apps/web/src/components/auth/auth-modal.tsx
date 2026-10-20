@@ -158,7 +158,7 @@ export function AuthModal({
         aria-modal="true"
         aria-labelledby={`${ids}-title`}
         onKeyDown={onKeyDown}
-        className="flex max-h-[90dvh] w-full flex-col gap-5 overflow-y-auto rounded-t-xl border border-outline-variant bg-surface-container-lowest p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-card-hover md:max-h-full md:max-w-md md:rounded-xl"
+        className="motion-fade-up flex max-h-[90dvh] w-full flex-col gap-5 overflow-y-auto rounded-t-xl border border-outline-variant bg-surface-container-lowest p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-card-hover md:max-h-full md:max-w-md md:rounded-xl"
       >
         <div className="flex items-start justify-between gap-4">
           <h2 id={`${ids}-title`} ref={headingRef} tabIndex={-1} className="font-display text-headline-sm text-on-surface outline-none">

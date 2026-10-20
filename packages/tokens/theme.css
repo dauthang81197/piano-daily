@@ -25,6 +25,8 @@
   --color-on-primary: #ffffff;
   --color-secondary: #a97d2f;
   --color-on-secondary: #ffffff;
+  /* Biến thể đậm của secondary cho CHỮ và nền nút có chữ trắng (≥ 4.5:1); secondary gốc chỉ cho icon/viền/vòng focus. */
+  --color-secondary-strong: #86611f;
   --color-tertiary: #7a2e2a;
   --color-error: #b3261e;
   --color-on-error: #ffffff;

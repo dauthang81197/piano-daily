@@ -17,7 +17,8 @@
       "expert": "Expert"
     },
     "pricing": "Pricing",
-    "courses": "Courses"
+    "courses": "Courses",
+    "skipToContent": "Skip to content"
   },
   "Search": {
     "label": "Search sheet music",
@@ -51,7 +52,8 @@
     "disclaimerTitle": "Copyright",
     "disclaimer": "All musical works remain the property of their respective authors and publishers. Content on this site is provided for personal study and reference only.",
     "learnTitle": "Learn & plans",
-    "rights": "© {year} {name}. All rights reserved."
+    "rights": "© {year} {name}. All rights reserved.",
+    "learnTitleCourses": "Learn"
   },
   "Home": {
     "eyebrow": "Piano sheet library",
@@ -513,6 +515,13 @@
     "lockedLoading": "Loading lesson…",
     "lockedError": "Could not load the lesson. Please try again.",
     "lockedBadge": "Members",
-    "planRequired": "A plan is required to take part in this lesson."
+    "planRequired": "A plan is required to take part in this lesson.",
+    "loading": "Loading courses"
+  },
+  "Error": {
+    "title": "Something went wrong",
+    "description": "This page could not be loaded. Try again, or go back to the home page.",
+    "retry": "Try again",
+    "backHome": "Back to home"
   }
 }

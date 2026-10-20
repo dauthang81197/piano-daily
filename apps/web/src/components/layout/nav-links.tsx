@@ -50,7 +50,7 @@ export function PrimaryNav({
             href={item.href}
             aria-current={active ? 'page' : undefined}
             onClick={onNavigate}
-            className={cn(variant === 'bar' ? barLink : stackLink, active && 'font-semibold text-secondary')}
+            className={cn(variant === 'bar' ? barLink : stackLink, active && 'font-semibold text-secondary-strong')}
           >
             {item.label}
           </Link>

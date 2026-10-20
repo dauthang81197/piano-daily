@@ -55,7 +55,7 @@ export default async function DownloadsPage({ params }: Props) {
             ? t.rich('contactWithEmail', {
                 email: contact,
                 mail: (chunks) => (
-                  <a href={`mailto:${contact}`} className="font-semibold text-secondary underline">
+                  <a href={`mailto:${contact}`} className="font-semibold text-secondary-strong underline">
                     {chunks}
                   </a>
                 ),

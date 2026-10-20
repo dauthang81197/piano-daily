@@ -79,6 +79,26 @@ Chưa làm: thử `<summary>`/mục lục với trình đọc màn hình thật;
 
 ## Review Triage Log
 
+Lượt 1 (3 reviewer: Blind Hunter, Edge Case Hunter, Verification Gap).
+
+| Phát hiện | Verdict | Xử lý / bằng chứng |
+|---|---|---|
+| Nút chọn gói ở `plan-checkout.tsx` còn `bg-secondary` + chữ trắng (3.7:1) (BH, ECH, VG, medium) | true | Patch: `bg-secondary-strong`. Grep xác nhận không còn chữ/nút nhỏ nào dùng `secondary` gốc (còn lại là icon, viền, playhead, vòng focus). |
+| Đích skip link nằm dưới header sticky, không `scroll-margin` (ECH, medium) | true | Patch: `scroll-mt-32` trên `#main-content`. |
+| Quy tắc reduced-motion toàn cục làm vòng xoay "đang xử lý" đứng yên, không có chữ/aria-busy đi kèm (ECH, medium) | true | Patch: `.animate-spin` quay chậm 1.5s trong khối reduced-motion (phản hồi cần thiết). |
+| `Button`: `transition-[color,background-color,transform]` bỏ chuyển border/opacity (BH, ECH, low) | true | Patch: dùng `transition` mặc định của Tailwind (gồm cả border, opacity, bóng, transform). |
+| Test footer chỉ kiểm "không có Learn" khi bật cờ, tên test sai (BH, ECH, VG) | true | Patch: kiểm `Learn & plans` hiện, sửa tên test. |
+| `[trackSlug]/loading.tsx` không khớp bố cục trang bài (ECH, low) | true | Patch: thêm `[lessonId]/loading.tsx` (2 cột, video, mục lục). |
+| `vitals.mjs`: lỗi 1 trang làm dừng cả lượt, không kiểm `--locale`, API lỗi vẫn "thành công", không đo trang bài, base 404 vẫn qua (ECH, low) | true | Patch: try/catch từng trang → cảnh báo + thoát 1, kiểm `--locale`, cảnh báo khi thiếu Sheet/khoá mẫu, đo trang bài, base < 400. Chạy lại: 7 trang, CLS ≤ 0.045. |
+| `#main-content` là `div` nên trình đọc màn hình không đọc landmark khi nhảy tới (BH, ECH, low) | accepted | Trang nào cũng có `<main>` riêng nên landmark vẫn có; skip link phục vụ người dùng bàn phím. Không thêm `id` vào từng trang. |
+| Lỗi ở chính `[locale]/layout.tsx` không bị `error.tsx` bắt, chưa có `global-error.tsx` (BH, ECH, low) | reject | `fetchSiteSettings`/`fetchAds` bắt mọi lỗi và trả mặc định, nên layout không ném; thêm `global-error` cần html/body riêng và không có provider chữ. |
+| `aria-busy` ở skeleton không có vùng live (BH, ECH, low) | reject | Giống mọi `loading.tsx` hiện có; trang thật thay thế skeleton. |
+| `active:scale` có thể làm mất click ở mép (ECH, low); `animation-delay` không chặn (BH, low) | reject | Rất hiếm / không gây hại thực tế. |
+| Thiếu test cho `Button` pressed, CSS skip link ẩn, focus thật sự di chuyển, 404/error nằm trong khung (VG, low) | reject | Quy ước repo không test class CSS; hành vi focus/khung đã kiểm bằng ảnh `u5-after` và vitals. |
+| Test tương phản thiếu `surface-container-high` cho secondary-strong (4.12:1) (BH, ECH, VG, low) | accepted | Không có chữ secondary-strong nào trên nền đó; ghi trong `deferred-work.md` để cấm dùng. |
+| Admin còn `text-secondary` chữ nhỏ (~3.4:1) (ECH, low) | defer | Ngoài phạm vi U5 (admin); ghi `deferred-work.md`. |
+| README, placeholder đổi màu không có trong phần đóng băng của spec (VG, info) | reject | Đã ghi ở Implementation Notes. |
+
 ## Design Notes
 
 Brass (#a97d2f) là màu thương hiệu nên giữ cho trang trí; chữ nhỏ cần biến thể đậm hơn (#86611f) như cách đã làm cho nhãn Level ở U0. Không đổi giá trị token cũ để admin không bị ảnh hưởng. Chuyển động chỉ fade + dịch 8px ≤ 200 ms và có một quy tắc reduced-motion toàn cục để các animation mới không phải nhớ tự tắt.

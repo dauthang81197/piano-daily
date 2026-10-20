@@ -48,6 +48,12 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* Vòng xoay "đang xử lý" là phản hồi cần thiết (không có chữ đi kèm): giữ quay chậm thay vì đứng yên. */
+  .animate-spin {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
 
 /* Skip link (U5): ẩn thị giác cho tới khi nhận focus bàn phím. */

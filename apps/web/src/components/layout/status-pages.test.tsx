@@ -46,13 +46,14 @@ describe('Trang trạng thái', () => {
 describe('Footer: nhãn cột theo cờ thanh toán', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it('thanh toán ẩn: "Learn"; bật: "Learn & plans"-kiểu nhãn gốc', () => {
+  it('thanh toán ẩn: nhãn "Learn"; bật: nhãn gốc "Learn & plans"', () => {
     vi.stubEnv('NEXT_PUBLIC_PAYMENTS_ENABLED', '');
     const { unmount } = render(withIntl(<Footer />, 'en'));
     expect(screen.getByRole('heading', { name: 'Learn' })).toBeInTheDocument();
     unmount();
     vi.stubEnv('NEXT_PUBLIC_PAYMENTS_ENABLED', 'true');
     render(withIntl(<Footer />, 'en'));
+    expect(screen.getByRole('heading', { name: 'Learn & plans' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Learn' })).toBeNull();
   });
 });

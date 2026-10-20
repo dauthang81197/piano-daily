@@ -139,11 +139,11 @@ CI/CD ở `.github/workflows/musicscore.yml` (gốc monorepo).
 
 ```
 curl -X POST "http://piano-musicscore:3000/midi?transpose=0" \
-  -H "X-API-Key: $MUSICSCORE_API_KEY" -H "Content-Type: application/pdf" \
+  -H "Content-Type: application/pdf" \
   --data-binary @bai-hat.pdf -o bai-hat.mid
 ```
 
 - Body thô: `application/pdf`, `image/png`, `image/jpeg`, `image/tiff` hoặc MusicXML (`application/xml`, `application/vnd.recordare.musicxml+xml`).
-- Mã trả về: `200` MIDI; `401` sai khoá; `413` file quá lớn (`MAX_UPLOAD_MB`, mặc định 25); `415` sai loại file; `422` Audiveris không đọc được; `503` đang bận (`MAX_JOBS`, mặc định 2), thử lại sau.
-- `GET /health` không cần khoá. Nhận dạng một bản nhạc mất từ vài chục giây đến vài phút, nên đặt timeout phía gọi đủ dài (≥ 10 phút).
-- Biến môi trường: `API_KEY` (bắt buộc), `PORT`, `MAX_UPLOAD_MB`, `MAX_JOBS`, `JOB_TIMEOUT_MS`, `AUDIVERIS`.
+- Mã trả về: `200` MIDI; `401` sai khoá (chỉ khi đặt `API_KEY`); `413` file quá lớn (`MAX_UPLOAD_MB`, mặc định 25); `415` sai loại file; `422` Audiveris không đọc được; `503` đang bận (`MAX_JOBS`, mặc định 2), thử lại sau.
+- `GET /health` không cần khoá. Mặc định API không đòi khoá vì chỉ chạy trong mạng nội bộ; đặt `API_KEY` nếu muốn bật header `X-API-Key`. Nhận dạng một bản nhạc mất từ vài chục giây đến vài phút, nên đặt timeout phía gọi đủ dài (≥ 10 phút).
+- Biến môi trường: `API_KEY` (tuỳ chọn), `PORT`, `MAX_UPLOAD_MB`, `MAX_JOBS`, `JOB_TIMEOUT_MS`, `AUDIVERIS`.

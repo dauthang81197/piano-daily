@@ -1,8 +1,8 @@
 # musicscore — API đổi PDF/ảnh bản nhạc thành MIDI (POST /midi). Triển khai bằng .github/workflows/musicscore.yml.
 # Chạy thành project RIÊNG (`-p piano-daily-musicscore`) để `docker compose up --remove-orphans` của ci-cd.yml không xoá nó.
 # Không publish cổng ra host: chỉ tham gia network của Nginx Proxy Manager với alias `piano-musicscore`,
-# nên piano-api gọi nội bộ qua http://piano-musicscore:3000/midi (header X-API-Key = MUSICSCORE_API_KEY).
-# Biến cần có trong `.env` TRÊN SERVER (cùng thư mục với docker-compose.prod.yml của piano-daily): MUSICSCORE_API_KEY, NPM_NETWORK, DOCKERHUB_USERNAME.
+# nên piano-api gọi nội bộ qua http://piano-musicscore:3000/midi.
+# Biến cần có trong `.env` TRÊN SERVER (cùng thư mục với docker-compose.prod.yml của piano-daily): NPM_NETWORK, DOCKERHUB_USERNAME.
 name: piano-daily-musicscore
 
 services:
@@ -10,7 +10,6 @@ services:
     image: ${DOCKERHUB_USERNAME:?Thiếu DOCKERHUB_USERNAME}/piano-daily-musicscore:${MUSICSCORE_TAG:-latest}
     restart: unless-stopped
     environment:
-      API_KEY: ${MUSICSCORE_API_KEY:?Thiếu MUSICSCORE_API_KEY trong .env}
       MAX_JOBS: ${MUSICSCORE_MAX_JOBS:-2}
     mem_limit: 4g
     networks:

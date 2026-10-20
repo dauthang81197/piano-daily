@@ -1,6 +1,6 @@
 # CI/CD riêng cho services/musicscore (API PDF → MIDI). Chỉ chạy khi thư mục này (hoặc workflow này) đổi.
 # Dùng lại secrets của ci-cd.yml: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS.
-# Thêm vào .env trên server: MUSICSCORE_API_KEY (chuỗi ngẫu nhiên dài). Biến Actions tuỳ chọn: AUDIVERIS_DEB_URL (mặc định 5.11.0).
+# Biến Actions tuỳ chọn: AUDIVERIS_DEB_URL (mặc định 5.11.0).
 name: musicscore
 
 on:

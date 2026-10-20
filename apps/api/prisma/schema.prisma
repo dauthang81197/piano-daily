@@ -76,6 +76,7 @@ model Customer {
 
   subscriptions        Subscription[]
   subscriptionPayments SubscriptionPayment[]
+  scoreConversions     ScoreConversion[]
   refreshTokens        CustomerRefreshToken[]
   tokens               CustomerToken[]
   downloadLogs         DownloadLog[]
@@ -766,4 +767,30 @@ model AdClick {
 
   @@id([itemId, day])
   @@map("ad_clicks")
+}
+
+/// Việc chuyển PDF/ảnh/MusicXML bản nhạc sang MIDI của khách (kết quả tạm, tự xoá khi `expires_at`). Chỉ module `scores` ghi.
+/// File gốc KHÔNG được lưu; chỉ có MIDI (private) và note-JSON (public, khoá không đoán được) sau khi xong.
+model ScoreConversion {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  customerId      String    @map("customer_id") @db.Uuid
+  /// `PENDING` | `PROCESSING` | `DONE` | `FAILED` (CHECK ở DB).
+  status          String    @default("PENDING")
+  originalName    String?   @map("original_name")
+  transpose       Int       @default(0)
+  /// Khi `FAILED`: `SCORE_UNREADABLE` | `SCORE_UNAVAILABLE`.
+  errorCode       String?   @map("error_code")
+  midiKey         String?   @map("midi_key")
+  noteJsonKey     String?   @map("note_json_key")
+  durationSeconds Float?    @map("duration_seconds")
+  noteCount       Int?      @map("note_count")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(6)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("score_conversions")
 }

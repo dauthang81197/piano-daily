@@ -104,6 +104,8 @@ services:
       SITE_URL: ${SITE_URL:-}
       # API gọi POST /api/revalidate của web khi admin đổi nội dung (Story 2.3).
       WEB_INTERNAL_URL: http://web:4100
+      # Chuyển PDF sang MIDI (tuỳ chọn): URL dịch vụ services/musicscore chạy cục bộ (xem README). Trống thì tính năng tắt.
+      MUSICSCORE_URL: ${MUSICSCORE_URL:-}
       # Object storage (module `media`): API gọi SeaweedFS qua mạng nội bộ; trình duyệt đọc bucket public qua localhost.
       S3_ENDPOINT: http://seaweedfs:8333
       S3_REGION: ${S3_REGION:-us-east-1}

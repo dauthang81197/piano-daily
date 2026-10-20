@@ -42,6 +42,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
             {(
               [
                 ['/courses', nav('courses')],
+                ['/convert', nav('convert')],
                 ...(paymentsEnabled() ? ([['/pricing', nav('pricing')]] as const) : []),
                 ['/search', nav('search')],
               ] as const

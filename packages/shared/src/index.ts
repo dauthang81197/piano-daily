@@ -8,6 +8,7 @@ export * from './order';
 export * from './slug';
 export * from './sheet';
 export * from './courses';
+export * from './scores';
 export * from './pricing';
 export * from './bulk-pricing';
 export * from './settings';

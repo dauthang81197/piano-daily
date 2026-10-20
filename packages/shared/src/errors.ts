@@ -52,6 +52,12 @@ export const ErrorCode = {
   QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
   /** Từng có gói nay đã hết hạn/huỷ và dùng thử đã hết (402). */
   PLAN_REQUIRED: 'PLAN_REQUIRED',
+  /** Tính năng chưa cấu hình/tắt (vd. chuyển PDF sang MIDI khi chưa có `MUSICSCORE_URL`) (503). */
+  FEATURE_DISABLED: 'FEATURE_DISABLED',
+  /** Khách đang có một việc chuyển nhạc chạy dở (429, `details.id`). */
+  SCORE_ACTIVE_JOB: 'SCORE_ACTIVE_JOB',
+  /** Khách hết hạn mức chuyển nhạc trong 24 giờ (429, `details.retryAfterSeconds`). */
+  SCORE_DAILY_LIMIT: 'SCORE_DAILY_LIMIT',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -28,7 +28,21 @@ describe('validateEnv', () => {
       S3_FORCE_PATH_STYLE: true,
       S3_AUTO_CREATE_BUCKETS: false,
       PAYPAL_MODE: 'sandbox',
+      SCORE_MAX_UPLOAD_MB: 20,
+      SCORE_DAILY_LIMIT: 10,
+      SCORE_RESULT_TTL_HOURS: 6,
+      SCORE_MAX_CONCURRENT: 2,
+      SCORE_JOB_TIMEOUT_MS: 11 * 60_000,
     });
+  });
+
+  it('Chuyển nhạc: MUSICSCORE_URL tuỳ chọn, bỏ dấu / cuối, phải là URL; giới hạn upload không vượt 25MB', () => {
+    expect(validateEnv({ ...valid, MUSICSCORE_URL: '' }).MUSICSCORE_URL).toBeUndefined();
+    expect(validateEnv({ ...valid, MUSICSCORE_URL: 'http://piano-musicscore:3000/' }).MUSICSCORE_URL).toBe('http://piano-musicscore:3000');
+    expect(() => validateEnv({ ...valid, MUSICSCORE_URL: 'not a url' })).toThrow(EnvValidationError);
+    expect(validateEnv({ ...valid, SCORE_MAX_UPLOAD_MB: '25' }).SCORE_MAX_UPLOAD_MB).toBe(25);
+    expect(() => validateEnv({ ...valid, SCORE_MAX_UPLOAD_MB: '26' })).toThrow(EnvValidationError);
+    expect(() => validateEnv({ ...valid, SCORE_DAILY_LIMIT: '0' })).toThrow(EnvValidationError);
   });
 
   it('Email: RESEND_API_KEY, EMAIL_FROM, SITE_URL đều tuỳ chọn; SITE_URL phải là URL và bỏ dấu / cuối', () => {

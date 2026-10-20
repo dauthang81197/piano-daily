@@ -42,6 +42,9 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   QUOTA_EXCEEDED: 'Bạn đã dùng hết lượt tải của gói. Vui lòng chọn gói khác để tiếp tục tải.',
   PLAN_REQUIRED: 'Gói của bạn đã hết hạn. Vui lòng chọn gói để tiếp tục tải.',
   ALREADY_PURCHASED: 'Bạn đã mua bài này. Chúng tôi đã gửi lại link tải vào email của bạn.',
+  FEATURE_DISABLED: 'Tính năng này chưa được mở. Vui lòng quay lại sau.',
+  SCORE_ACTIVE_JOB: 'Bạn đang có một bản nhạc được chuyển, hãy đợi nó xong.',
+  SCORE_DAILY_LIMIT: 'Bạn đã dùng hết lượt chuyển nhạc hôm nay. Vui lòng thử lại sau.',
 };
 
 /**

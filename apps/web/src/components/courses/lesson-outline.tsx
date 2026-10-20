@@ -13,7 +13,7 @@ export function LessonOutline({ order, currentId, base }: { order: readonly Less
       <h2 id="lesson-outline" className="font-display text-headline-sm text-on-surface">
         {t('outlineTitle')}
       </h2>
-      <ol className="flex flex-col gap-1 lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto lg:p-1">
+      <ol className="flex max-h-80 flex-col gap-1 overflow-y-auto p-1 lg:max-h-[calc(100dvh-16rem)]">
         {order.map((lesson, i) => {
           const current = lesson.id === currentId;
           return (

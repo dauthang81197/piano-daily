@@ -74,7 +74,11 @@ export function LockedLesson({ lessonId, title }: { lessonId: string; title: str
           {t('lockedError')}
         </p>
       ) : (
-        <p className="text-body-md text-on-surface-variant">{customerId && current?.kind === 'plan' ? t('lockedNeedPlan') : t('lockedBody')}</p>
+        <p className="text-body-md text-on-surface-variant">
+          {customerId && current?.kind === 'plan'
+            ? t(paymentsEnabled() ? 'lockedNeedPlan' : 'lockedNeedAccess')
+            : t(paymentsEnabled() ? 'lockedBody' : 'lockedBodyFree')}
+        </p>
       )}
       {needLogin ? (
         <button type="button" className={primaryButton} onClick={() => auth.openAuth('login')}>

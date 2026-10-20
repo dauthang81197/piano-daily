@@ -157,7 +157,10 @@ async function main() {
           if (action === 'auth') {
             // Mở modal đăng nhập từ nút ở header (mobile: mở menu trước nếu nút chưa thấy), chụp đúng khung nhìn.
             const login = page.getByRole('button', { name: /Đăng nhập|Log in/ }).first();
-            if (!(await login.isVisible())) await page.getByRole('button', { name: /Menu|Mở menu|Open menu/ }).first().click();
+            if (!(await login.isVisible())) {
+              const menu = page.getByRole('button', { name: /Menu|Mở menu|Open menu/ }).first();
+              if (await menu.count()) await menu.click();
+            }
             await page.getByRole('button', { name: /Đăng nhập|Log in/ }).first().click();
             await page.getByRole('dialog').waitFor({ timeout: 5000 });
             await page.screenshot({ path: join(dir, `${name}.png`) });

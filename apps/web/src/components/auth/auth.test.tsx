@@ -166,6 +166,20 @@ describe('Tài khoản khách (web)', () => {
     },
   );
 
+  it('thanh toán ẩn: tải trả 402 mã paywall không chuyển sang /pricing, hiện lỗi tải chung', async () => {
+    vi.stubEnv('NEXT_PUBLIC_PAYMENTS_ENABLED', '');
+    stubApi({
+      'POST /customer/auth/refresh': { body: SESSION },
+      [`POST /customer/downloads/${SHEET}/pdf`]: error(402, 'PLAN_REQUIRED'),
+    });
+    ui();
+    await screen.findByText('Khách');
+    fireEvent.click(screen.getByRole('button', { name: /Download PDF/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not download the file');
+    expect(push).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
   it('402 với mã lạ (không phải mã paywall): không chuyển sang /pricing, hiện lỗi tải chung', async () => {
     stubApi({
       'POST /customer/auth/refresh': { body: SESSION },

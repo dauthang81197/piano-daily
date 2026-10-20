@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/catalog/empty-state';
 import { TrackCard } from '@/components/courses/track-card';
 import { routing } from '@/i18n/routing';
 import { fetchTracks } from '@/lib/courses';
@@ -33,7 +34,7 @@ export default async function CoursesPage({ params }: Props) {
         <p className="max-w-3xl text-body-lg text-on-surface-variant">{t('intro')}</p>
       </header>
       {tracks.length === 0 ? (
-        <p className="rounded-md bg-surface-container-low p-6 text-body-lg text-on-surface">{t('empty')}</p>
+        <EmptyState icon={GraduationCap} title={t('empty')} hint={t('emptyHint')} />
       ) : (
         <ul className="grid gap-gutter md:grid-cols-2 lg:grid-cols-3">
           {tracks.map((track) => (

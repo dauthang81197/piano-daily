@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { PublicTrackTree } from '@piano-daily/shared';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/components/layout/test-utils';
 import { ApiError } from '@/lib/public-api';
 
@@ -146,5 +146,27 @@ describe('Bài khoá theo thuê bao (C5)', () => {
     const b = screen.getByRole('link', { name: /Bài B/ });
     expect(a).toHaveTextContent('Thành viên');
     expect(b).not.toHaveTextContent('Thành viên');
+  });
+});
+
+describe('Bài khoá khi thanh toán đang ẩn', () => {
+  beforeEach(() => vi.stubEnv('NEXT_PUBLIC_PAYMENTS_ENABLED', ''));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('khách: chỉ mời đăng nhập, không nhắc gói, không link /pricing', () => {
+    signOut();
+    view();
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Xem các gói' })).toBeNull();
+    expect(screen.queryByText(/đăng ký gói/)).toBeNull();
+  });
+
+  it('đã đăng nhập nhưng bị 402: thông báo trung tính, không nhắc gói, không link /pricing', async () => {
+    signIn();
+    api.lessonFull.mockRejectedValue(new ApiError(402, 'PLAN_REQUIRED', 'x'));
+    view();
+    expect(await screen.findByText('Bài này hiện chưa mở cho tài khoản của bạn.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Xem các gói' })).toBeNull();
+    expect(screen.queryByText(/gói đang hoạt động/)).toBeNull();
   });
 });

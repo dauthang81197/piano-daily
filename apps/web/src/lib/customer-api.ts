@@ -60,6 +60,30 @@ async function call(path: string, init: RequestInit, accessToken?: string): Prom
   return res;
 }
 
+/**
+ * POST multipart có báo tiến độ tải lên (`fetch` chưa có sự kiện tiến độ upload nên dùng XMLHttpRequest). Trả `Response` để dùng
+ * lại `toApiError`/`parsed`: cùng cách ánh xạ lỗi như `call`. `onProgress` nhận tỉ lệ 0..1.
+ */
+function postWithProgress(path: string, form: FormData, accessToken: string, onProgress: (fraction: number) => void): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${publicApiUrl()}${path}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) onProgress(Math.min(1, event.loaded / event.total));
+    };
+    xhr.onerror = () => reject(new ApiError(0, 'NETWORK_ERROR', 'Không kết nối được máy chủ.'));
+    xhr.ontimeout = xhr.onerror;
+    xhr.onload = () => {
+      const res = new Response(xhr.status === 204 ? null : xhr.responseText, { status: xhr.status, headers: { 'Content-Type': 'application/json' } });
+      if (!res.ok) void toApiError(res).then(reject, reject);
+      else resolve(res);
+    };
+    xhr.send(form);
+  });
+}
+
 async function parsed<S extends z.ZodType>(res: Response, schema: S): Promise<z.output<S>> {
   const result = schema.safeParse(await res.json().catch(() => undefined));
   if (!result.success) throw new ApiError(res.status, 'INTERNAL_ERROR', 'Phản hồi của máy chủ không hợp lệ.');
@@ -164,11 +188,14 @@ export const customerApi = {
     );
   },
   /** Chuyển bản nhạc (PDF/ảnh/MusicXML) sang MIDI: trả 202 kèm việc `PENDING`; lỗi 429/415/413/503 mang mã API. */
-  async createScore(accessToken: string, file: File, transpose: number): Promise<ScoreConversion> {
+  async createScore(accessToken: string, file: File, transpose: number, onProgress?: (fraction: number) => void): Promise<ScoreConversion> {
     const form = new FormData();
     form.append('transpose', String(transpose));
     form.append('file', file);
-    return parsed(await call('/customer/scores', { method: 'POST', body: form }, accessToken), scoreConversionSchema);
+    const res = onProgress
+      ? await postWithProgress('/customer/scores', form, accessToken, onProgress)
+      : await call('/customer/scores', { method: 'POST', body: form }, accessToken);
+    return parsed(res, scoreConversionSchema);
   },
   async getScore(accessToken: string, id: string): Promise<ScoreConversion> {
     return parsed(await call(`/customer/scores/${encodeURIComponent(id)}`, { method: 'GET' }, accessToken), scoreConversionSchema);

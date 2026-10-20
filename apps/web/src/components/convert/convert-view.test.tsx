@@ -109,7 +109,7 @@ describe('ConvertView: form', () => {
     view();
     await userEvent.selectOptions(screen.getByLabelText('Dịch giọng'), '2');
     await pickAndSubmit();
-    expect(api.createScore).toHaveBeenCalledWith('tok', expect.objectContaining({ name: 'bai.pdf' }), 2);
+    expect(api.createScore).toHaveBeenCalledWith('tok', expect.objectContaining({ name: 'bai.pdf' }), 2, expect.any(Function));
     expect(await screen.findByRole('status')).toHaveTextContent('Đang nhận dạng bản nhạc');
     expect(window.location.search).toBe(`?job=${ID}`);
   });
@@ -223,3 +223,64 @@ describe('ConvertView: lỗi khi gửi', () => {
   });
 });
 
+
+describe('ConvertView: tiến trình (% tải lên, các bước, thời gian đã chạy)', () => {
+  it('đang tải lên: thanh % thật theo sự kiện tiến độ, bước 1 đang làm, bước 2-3 chưa tới', async () => {
+    signIn();
+    let report: (f: number) => void = () => undefined;
+    api.createScore.mockImplementation((_t: string, _f: File, _n: number, onProgress: (f: number) => void) => {
+      report = onProgress;
+      return new Promise(() => undefined);
+    });
+    view();
+    await pickAndSubmit();
+    expect(await screen.findByRole('progressbar', { name: 'Tiến độ tải lên' })).toHaveAttribute('aria-valuenow', '0');
+    act(() => report(0.42));
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42');
+    expect(screen.getByRole('heading', { name: 'Đang tải lên… 42%' })).toBeInTheDocument();
+    const steps = screen.getAllByRole('listitem');
+    expect(steps[0]).toHaveAttribute('aria-current', 'step');
+    expect(steps[0]).toHaveTextContent('Tải file lên');
+    expect(steps[1]).not.toHaveAttribute('aria-current');
+    expect(steps[2]).toHaveTextContent('chưa tới');
+  });
+
+  it('đang nhận dạng: bước 1 xong, bước 2 đang làm, không có thanh % giả; hiện thời gian đã chạy và tăng dần', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-10-20T00:01:05.000Z'));
+    signIn();
+    api.getScore.mockResolvedValue(job({ status: 'PROCESSING', createdAt: '2026-10-20T00:00:00.000Z' }));
+    view(ID);
+    expect(await screen.findByText(/Đã chạy 1:05/)).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    const steps = screen.getAllByRole('listitem');
+    expect(steps[0]).toHaveTextContent('xong');
+    expect(steps[1]).toHaveAttribute('aria-current', 'step');
+    expect(steps[1]).toHaveTextContent('đang thực hiện');
+    expect(steps[2]).toHaveTextContent('chưa tới');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText(/Đã chạy 1:10/)).toBeInTheDocument();
+    expect(screen.queryByText(/lâu hơn bình thường/)).toBeNull();
+  });
+
+  it('chạy quá 5 phút: nhắc lần này lâu hơn bình thường, vẫn cho xoá', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-10-20T00:06:00.000Z'));
+    signIn();
+    api.getScore.mockResolvedValue(job({ status: 'PROCESSING', createdAt: '2026-10-20T00:00:00.000Z' }));
+    view(ID);
+    expect(await screen.findByText(/lâu hơn bình thường/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xoá kết quả' })).toBeInTheDocument();
+  });
+
+  it('đồng hồ máy lệch (việc tạo "trong tương lai"): thời gian không bao giờ âm', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-10-19T23:59:00.000Z'));
+    signIn();
+    api.getScore.mockResolvedValue(job({ status: 'PROCESSING', createdAt: '2026-10-20T00:00:00.000Z' }));
+    view(ID);
+    expect(await screen.findByText(/Đã chạy 0:00/)).toBeInTheDocument();
+  });
+});

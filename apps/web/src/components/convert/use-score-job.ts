@@ -17,7 +17,8 @@ export type ConvertError =
 
 export type ConvertState =
   | { phase: 'idle' }
-  | { phase: 'uploading' }
+  /** `progress` = tỉ lệ đã tải lên (0..1). */
+  | { phase: 'uploading'; progress: number }
   | { phase: 'running'; job: ScoreConversion }
   | { phase: 'done'; job: ScoreConversion }
   | { phase: 'failed'; job: ScoreConversion }
@@ -129,11 +130,19 @@ export function useScoreJob(initialId: string | null) {
       const getToken = getTokenRef.current;
       if (!getToken) return;
       stop();
-      setState({ phase: 'uploading' });
+      setState({ phase: 'uploading', progress: 0 });
+      // Chỉ cập nhật khi phần trăm nguyên đổi, tránh dựng lại giao diện hàng trăm lần mỗi giây.
+      let lastPercent = 0;
+      const onProgress = (fraction: number) => {
+        const percent = Math.round(fraction * 100);
+        if (percent === lastPercent) return;
+        lastPercent = percent;
+        setState((prev) => (prev.phase === 'uploading' ? { phase: 'uploading', progress: fraction } : prev));
+      };
       try {
         const token = await getToken();
         if (!token) throw new ApiError(401, 'UNAUTHORIZED', 'no token');
-        const job = await customerApi.createScore(token, file, transpose);
+        const job = await customerApi.createScore(token, file, transpose, onProgress);
         rememberJob(job.id);
         setState({ phase: 'running', job });
         poll(job.id, Date.now());

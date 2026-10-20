@@ -67,3 +67,69 @@ describe('customerApi: chuyển nhạc sang MIDI', () => {
     await expect(customerApi.getScore('tok', job.id)).rejects.toMatchObject({ status: 429, code: 'SCORE_DAILY_LIMIT', details: { retryAfterSeconds: 90 } });
   });
 });
+
+describe('customerApi.createScore: báo tiến độ tải lên (XMLHttpRequest)', () => {
+  const job = { id: '0195b0f0-0000-7000-8000-000000000000', status: 'PENDING', originalName: 'a.pdf', transpose: 0, createdAt: '2026-10-20T00:00:00.000Z', expiresAt: '2026-10-20T06:00:00.000Z', result: null, error: null };
+
+  class FakeXhr {
+    static last: FakeXhr;
+    upload: { onprogress: ((e: { lengthComputable: boolean; loaded: number; total: number }) => void) | null } = { onprogress: null };
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    ontimeout: (() => void) | null = null;
+    withCredentials = false;
+    headers: Record<string, string> = {};
+    status = 0;
+    responseText = '';
+    method = '';
+    url = '';
+    body: unknown;
+    constructor() {
+      FakeXhr.last = this;
+    }
+    open(method: string, url: string) {
+      this.method = method;
+      this.url = url;
+    }
+    setRequestHeader(k: string, v: string) {
+      this.headers[k] = v;
+    }
+    send(body: unknown) {
+      this.body = body;
+    }
+    reply(status: number, body: unknown) {
+      this.status = status;
+      this.responseText = JSON.stringify(body);
+      this.onload?.();
+    }
+  }
+  beforeEach(() => vi.stubGlobal('XMLHttpRequest', FakeXhr));
+
+  it('có onProgress: dùng XHR (không dùng fetch), gửi Bearer + credentials, báo tỉ lệ 0..1 rồi parse kết quả', async () => {
+    const file = new File(['%PDF-1.7'], 'a.pdf', { type: 'application/pdf' });
+    const seen: number[] = [];
+    const promise = customerApi.createScore('tok', file, 3, (f) => seen.push(f));
+    const xhr = FakeXhr.last;
+    expect(xhr).toMatchObject({ method: 'POST', url: 'https://api.test/customer/scores', withCredentials: true });
+    expect(xhr.headers.Authorization).toBe('Bearer tok');
+    expect((xhr.body as FormData).get('transpose')).toBe('3');
+    xhr.upload.onprogress?.({ lengthComputable: true, loaded: 25, total: 100 });
+    xhr.upload.onprogress?.({ lengthComputable: false, loaded: 50, total: 0 });
+    xhr.upload.onprogress?.({ lengthComputable: true, loaded: 100, total: 100 });
+    xhr.reply(202, job);
+    expect((await promise).status).toBe('PENDING');
+    expect(seen).toEqual([0.25, 1]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lỗi HTTP thành ApiError mang mã và details (giống đường fetch); lỗi mạng thành NETWORK_ERROR', async () => {
+    const file = new File(['x'], 'a.pdf');
+    const limited = customerApi.createScore('tok', file, 0, () => undefined);
+    FakeXhr.last.reply(429, { error: { code: 'SCORE_DAILY_LIMIT', message: 'hết lượt', details: { retryAfterSeconds: 60 } } });
+    await expect(limited).rejects.toMatchObject({ status: 429, code: 'SCORE_DAILY_LIMIT', details: { retryAfterSeconds: 60 } });
+
+    const offline = customerApi.createScore('tok', file, 0, () => undefined);
+    FakeXhr.last.onerror?.();
+    await expect(offline).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+  });
+});

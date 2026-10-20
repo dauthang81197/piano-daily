@@ -118,4 +118,26 @@ describe('tương phản (AA ≥ 4.5:1 cho chữ nhỏ)', () => {
     // Lý do tồn tại của biến thể "strong": secondary gốc thấp hơn AA cho chữ nhỏ.
     expect(ratio(get('secondary'), get('surface'))).toBeLessThan(4.5);
   });
+
+  it('palette tối cục bộ của player (`.player-dark` trong globals.css) đạt AA cho chữ và nút', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const css = readFileSync(join(process.cwd(), 'src', 'app', 'globals.css'), 'utf8');
+    const block = /\.player-dark\s*\{([^}]*)\}/.exec(css)?.[1];
+    expect(block, '.player-dark').toBeDefined();
+    const theme = readFileSync(join(process.cwd(), '..', '..', 'packages', 'tokens', 'theme.css'), 'utf8');
+    const color = (name: string) => {
+      const hex = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block!)?.[1] ?? new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(theme)?.[1];
+      expect(hex, `token ${name}`).toBeDefined();
+      return hex!;
+    };
+    for (const bg of ['surface', 'surface-bright', 'surface-container-lowest', 'surface-container-low', 'surface-container', 'surface-container-high']) {
+      expect(ratio(color('on-surface'), color(bg)), `on-surface trên ${bg}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(color('on-surface-variant'), color(bg)), `on-surface-variant trên ${bg}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(color('secondary-strong'), color(bg)), `secondary-strong trên ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(ratio(color('on-primary'), color('primary'))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(color('on-secondary'), color('secondary-strong'))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(color('error'), color('surface'))).toBeGreaterThanOrEqual(4.5);
+  });
 });

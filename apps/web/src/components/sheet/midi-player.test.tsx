@@ -120,18 +120,89 @@ describe('MidiPlayer', () => {
     await waitFor(() => expect(screen.getByTestId('now-playing')).toHaveTextContent('G4'));
   });
 
-  it('dropdown tốc độ có 0.5x–2x và đổi được', async () => {
+  it('BPM: hiện BPM gốc (120 khi thiếu tempo), −/+ chỉ dùng được sau khi tải; mỗi lần bấm đổi 1 BPM và đổi tốc độ phát thật', async () => {
     const { audio } = setup();
-    const select = screen.getByLabelText('Speed') as HTMLSelectElement;
-    expect([...select.options].map((o) => o.text)).toEqual(['0.5x', '0.75x', '1x', '1.25x', '1.5x', '2x']);
-    fireEvent.change(select, { target: { value: '0.5' } });
-    expect(select.value).toBe('0.5');
+    const bpm = screen.getByRole('group', { name: 'BPM' });
+    expect(bpm).toHaveTextContent('120');
+    expect(screen.getByRole('button', { name: 'Decrease 1 BPM' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: FIRST }));
     await screen.findByRole('button', { name: 'Pause' });
-    // ở 0.5x, nốt dài 2 giây phát trong 4 giây thực.
-    expect(audio.calls.find((c) => c.name === 'C4')!.duration).toBeCloseTo(4);
-    fireEvent.change(select, { target: { value: '2' } });
-    expect(select.value).toBe('2');
+    fireEvent.click(screen.getByRole('button', { name: 'Increase 1 BPM' }));
+    expect(bpm).toHaveTextContent('121');
+    for (let i = 0; i < 61; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Decrease 1 BPM' }));
+    expect(bpm).toHaveTextContent('60');
+    // Về đầu rồi lên lịch lại ở 0.5x: nốt dài 2 giây phát trong 4 giây thực.
+    fireEvent.click(screen.getByRole('button', { name: 'Back to start' }));
+    expect(audio.calls.filter((c) => c.name === 'C4').at(-1)!.duration).toBeCloseTo(4);
+  });
+
+  it('BPM chạm biên 0.25×: nút − bị vô hiệu', async () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    for (let i = 0; i < 90; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Decrease 1 BPM' }));
+    expect(screen.getByRole('group', { name: 'BPM' })).toHaveTextContent('30');
+    expect(screen.getByRole('button', { name: 'Decrease 1 BPM' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Increase 1 BPM' })).toBeEnabled();
+  });
+
+  it('Về đầu bài: tua về 0 và giữ trạng thái đang phát', async () => {
+    const { audio } = setup();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    audio.tick(1.5);
+    fireEvent.change(screen.getByLabelText('Seek within the piece'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Back to start' }));
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Seek within the piece')).toHaveValue('0');
+  });
+
+  it('Space bật/tắt phát khi focus ngoài các điều khiển; trên nút/ô nhập thì không bắt', async () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: FIRST }));
+    await screen.findByRole('button', { name: 'Pause' });
+    const section = screen.getByRole('toolbar').closest('section')!;
+    fireEvent.keyDown(section, { key: ' ' });
+    expect(await screen.findByRole('button', { name: 'Play' })).toBeInTheDocument();
+    fireEvent.keyDown(section, { key: ' ' });
+    expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Back to start' }), { key: ' ' });
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('chế độ tối: bật thêm lớp phạm vi `player-dark`, nhớ lựa chọn, mở lại vẫn tối', () => {
+    localStorage.clear();
+    const first = setup();
+    const section = screen.getByRole('toolbar').closest('section')!;
+    expect(section).not.toHaveClass('player-dark');
+    fireEvent.click(screen.getByRole('button', { name: 'Dark mode' }));
+    expect(section).toHaveClass('player-dark');
+    expect(screen.getByRole('button', { name: 'Dark mode' })).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem('piano-daily:player-dark')).toBe('on');
+    first.unmount();
+    setup();
+    expect(screen.getByRole('toolbar').closest('section')).toHaveClass('player-dark');
+  });
+
+  it('toàn màn hình (không có Fullscreen API): phủ kín cửa sổ, Esc thoát và trả focus về nút', async () => {
+    setup();
+    const button = screen.getByRole('button', { name: 'Full screen' });
+    button.focus();
+    fireEvent.click(button);
+    const exit = await screen.findByRole('button', { name: 'Exit full screen' });
+    expect(exit).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('toolbar').closest('section')).toHaveClass('fixed');
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    const back = await screen.findByRole('button', { name: 'Full screen' });
+    await waitFor(() => expect(back).toHaveFocus());
+  });
+
+  it('không bật khuông nhạc: không có nút chuyển chế độ và không có zoom (chỉ phím đàn)', () => {
+    setup();
+    expect(screen.queryByRole('group', { name: 'View' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zoom in the staff' })).toBeNull();
   });
 
   it('thiếu Web Audio: thay player bằng thông báo, không có nút phát', async () => {
@@ -280,12 +351,14 @@ describe('MidiPlayer', () => {
     expect(screen.getByTestId('now-playing')).not.toHaveTextContent('F-1');
   });
 
-  it('lỗi hiện ngay dưới hàng điều khiển, trước thanh tua và phím đàn', async () => {
+  it('lỗi hiện ngay dưới thanh tiến trình, trước phím đàn', async () => {
     setup({ fetchJson: vi.fn().mockRejectedValue(new Error('x')) });
     fireEvent.click(screen.getByRole('button', { name: FIRST }));
     const alert = await screen.findByRole('alert');
     const seek = screen.getByLabelText('Seek within the piece');
-    expect(alert.compareDocumentPosition(seek) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const keyboard = screen.getByRole('img', { name: 'Virtual piano keyboard for Für Elise' });
+    expect(seek.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(alert.compareDocumentPosition(keyboard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   it('lỗi tải: đóng AudioContext đã mở khoá trong cú bấm (không rò rỉ context)', async () => {
     const close = vi.fn().mockResolvedValue(undefined);

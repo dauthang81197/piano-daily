@@ -58,17 +58,39 @@ describe('MidiPlayer với khuông nhạc (C1b)', () => {
     expect(screen.getByRole('button', { name: 'Staff notation' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('tắt khuông: ẩn và nhớ lựa chọn; mở lại player thì vẫn tắt', async () => {
+  it('chuyển sang phím đàn: ẩn khuông, hiện phím, nhớ lựa chọn; mở lại player thì vẫn ở phím đàn; chuyển về khuông được', async () => {
     const first = render(withIntl(<MidiPlayer noteJsonUrl="u" title="t" notation deps={deps()} />));
-    fireEvent.click(screen.getByRole('button', { name: 'Staff notation' }));
-    expect(localStorage.getItem('piano-daily:show-notation')).toBe('off');
+    expect(screen.getByRole('button', { name: 'Keyboard and hands' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard and hands' }));
+    expect(localStorage.getItem('piano-daily:player-view')).toBe('piano');
     expect(screen.queryByText(/appears when you press play/)).toBeNull();
+    expect(screen.getByRole('img', { name: /Virtual piano keyboard/ })).toBeInTheDocument();
     first.unmount();
     render(withIntl(<MidiPlayer noteJsonUrl="u" title="t" notation deps={deps()} />));
-    expect(await screen.findByRole('button', { name: 'Staff notation' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByRole('button', { name: 'Keyboard and hands' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: FIRST }));
     await screen.findByRole('button', { name: 'Pause' });
     expect(screen.queryByTestId('notation')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Staff notation' }));
+    expect(await screen.findByTestId('notation')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /Virtual piano keyboard/ })).toBeNull();
+  });
+
+  it('zoom khuông nhạc: 100% mặc định, bước 10%, giới hạn 70%–200%, nhớ lựa chọn; vô hiệu ở chế độ phím đàn', () => {
+    render(withIntl(<MidiPlayer noteJsonUrl="u" title="t" notation deps={deps()} />));
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in the staff' }));
+    expect(screen.getByText('110%')).toBeInTheDocument();
+    expect(localStorage.getItem('piano-daily:player-zoom')).toBe('1.1');
+    for (let i = 0; i < 20; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Zoom in the staff' }));
+    expect(screen.getByText('200%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom in the staff' })).toBeDisabled();
+    for (let i = 0; i < 20; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Zoom out the staff' }));
+    expect(screen.getByText('70%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom out the staff' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Keyboard and hands' }));
+    expect(screen.getByRole('button', { name: 'Zoom in the staff' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Zoom out the staff' })).toBeDisabled();
   });
 
   it('khuông ném lỗi (hoặc chunk lazy không tải được): chỉ hiện thông báo, player và nút vẫn chạy', async () => {

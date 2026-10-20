@@ -1,0 +1,206 @@
+:root {
+  --bg: #1e1f22;
+  --panel: #2b2d31;
+  --panel-2: #323439;
+  --line: #3f4248;
+  --text: #e6e7ea;
+  --muted: #9a9ea6;
+  --accent: #4c8dff;
+  --accent-soft: rgba(76, 141, 255, 0.18);
+  --danger: #ff6b6b;
+  --page-w: 900px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+body { display: flex; flex-direction: column; }
+
+.muted { color: var(--muted); }
+
+button, input, select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 9px;
+}
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.active { background: var(--accent-soft); border-color: var(--accent); }
+button.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+#toolbar .group { display: flex; align-items: center; gap: 5px; }
+#toolbar .grow { flex: 1; min-width: 220px; }
+#search { width: 100%; }
+
+#toolbar2 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 5px 10px;
+  background: #27292d;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+#toolbar2 .group { display: flex; align-items: center; gap: 4px; }
+#toolbar2 .group + .group { padding-left: 14px; border-left: 1px solid var(--line); }
+#toolbar2 button { min-width: 32px; padding: 3px 7px; }
+
+#main { flex: 1; display: flex; min-height: 0; }
+
+#palette {
+  width: 214px;
+  flex: none;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 4px 10px 16px;
+}
+#palette h3 { margin: 8px 0; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+#palette details { border-bottom: 1px solid var(--line); padding: 6px 0 8px; }
+#palette summary { cursor: pointer; font-weight: 600; padding: 2px 0 6px; }
+.palette-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.palette-grid button { padding: 4px 2px; font-size: 13px; }
+.palette-grid button.dyn { font-style: italic; font-weight: 700; font-family: Georgia, "Times New Roman", serif; }
+.lyric-box { display: flex; flex-direction: column; gap: 6px; }
+.lyric-box input, .lyric-box select { width: 100%; }
+
+
+#scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 18px;
+  background: #3a3c41;
+}
+#pages { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.page {
+  width: var(--page-w);
+  max-width: none;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+.page svg { display: block; width: 100%; height: auto; user-select: none; }
+
+/* Selection of a note or rest: Verovio draws glyphs with fill / stroke inherited from the group. */
+.page g.sel *:not(.nhit) { fill: #e03131 !important; color: #e03131; }
+.page g.sel path { stroke: #e03131; }
+.page g.note, .page g.rest, .page g.mRest { cursor: pointer; }
+/* Verovio styles every rect with a stroke through an id selector, so ours need !important. */
+.page rect.nhit { fill: transparent !important; stroke: none !important; pointer-events: all; }
+.page rect.shit { fill: transparent !important; stroke: none !important; pointer-events: all; }
+.page rect.shit.cur { fill: rgba(76, 141, 255, 0.07) !important; }
+.page rect.shit.sel { fill: rgba(76, 141, 255, 0.22) !important; }
+.page rect.shit.play { fill: rgba(80, 200, 120, 0.28) !important; }
+/* In note-input mode only the glyphs themselves take clicks, so a click beside a note places a new one. */
+.page.input-mode rect.nhit { pointer-events: none; }
+.page.input-mode g.note, .page.input-mode g.rest, .page.input-mode g.mRest { pointer-events: bounding-box; }
+.input-mode-cursor, #pages.input-mode { cursor: crosshair; }
+#pages { touch-action: none; }
+
+#ghost {
+  position: fixed;
+  display: none;
+  z-index: 20;
+  pointer-events: none;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(20, 20, 24, 0.92);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+#band {
+  position: fixed;
+  display: none;
+  z-index: 15;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  background: rgba(76, 141, 255, 0.15);
+}
+
+#panel {
+  width: 310px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  padding: 4px 12px 16px;
+}
+#panel section { border-bottom: 1px solid var(--line); padding: 10px 0 12px; }
+#panel section:last-child { border-bottom: none; }
+#panel h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+#panel .row { display: flex; align-items: center; gap: 6px; margin: 5px 0; flex-wrap: wrap; }
+#panel .row > label { width: 78px; color: var(--muted); flex: none; }
+#panel .row input[type="number"] { width: 64px; }
+#panel .row input[type="text"] { flex: 1; min-width: 0; }
+#panel .row select { flex: 1; min-width: 0; }
+#panel .row select.narrow { flex: none; width: 64px; }
+#panel .info { font-size: 14px; margin-bottom: 6px; min-height: 20px; }
+#panel .part { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+#panel .warn { color: #f0b429; font-size: 12px; margin: 4px 0; }
+
+#status {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  min-height: 26px;
+}
+#status-msg.error { color: var(--danger); }
+
+#busy, #help {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10;
+}
+#busy[hidden], #help[hidden] { display: none; }
+.busy-card, .help-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px 28px;
+  max-width: 560px;
+}
+.busy-card { text-align: center; }
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 12px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.help-card h2 { margin: 0 0 10px; }
+.help-card table { border-collapse: collapse; }
+.help-card td { padding: 3px 14px 3px 0; vertical-align: top; }
+.help-card td:first-child { white-space: nowrap; color: var(--accent); }
+.help-card th { text-align: left; padding: 8px 0 3px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.help-card { max-height: 90vh; overflow-y: auto; max-width: 720px; }
+code { background: var(--panel-2); padding: 0 4px; border-radius: 3px; }

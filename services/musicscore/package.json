@@ -1,0 +1,38 @@
+{
+  "name": "music-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/build-app.mjs && electron .",
+    "build": "node scripts/build-app.mjs",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "smoke": "node scripts/build-app.mjs && node scripts/ui-smoke.mjs ui-smoke-out",
+    "typecheck": "tsc -p . && tsc -p app/renderer",
+    "cli": "node src/cli.ts",
+    "test:ui": "node scripts/build-app.mjs && node scripts/ui-edit-test.mjs ui-test-out && node scripts/ui-menu-test.mjs ui-test-out && node scripts/ui-smoke.mjs ui-test-out && node scripts/perf-envelope.mjs",
+    "test:audio": "node scripts/build-app.mjs && node scripts/perf-envelope.mjs"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "dependencies": {
+    "@vexflow-fonts/bravura": "^1.0.2",
+    "dejavu-fonts-ttf": "^2.37.3",
+    "fast-xml-parser": "^5.11.2",
+    "fflate": "^0.8.3",
+    "pdfkit": "^0.20.2",
+    "svg-to-pdfkit": "^0.1.8",
+    "verovio": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pdfkit": "^0.17.6",
+    "electron": "^44.9.0",
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.64.1",
+    "typescript": "^7.0.2"
+  },
+  "main": "dist/main.mjs",
+  "description": "Import sheet music from PDF, edit it like MuseScore, export MIDI or PDF"
+}

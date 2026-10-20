@@ -1,0 +1,115 @@
+# CI/CD riêng cho services/musicscore (API PDF → MIDI). Chỉ chạy khi thư mục này (hoặc workflow này) đổi.
+# Dùng lại secrets của ci-cd.yml: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS.
+# Biến Actions tuỳ chọn: AUDIVERIS_DEB_URL (mặc định 5.11.0).
+name: musicscore
+
+on:
+  pull_request:
+    paths: ['services/musicscore/**', '.github/workflows/musicscore.yml']
+  push:
+    branches: [develop]
+    paths: ['services/musicscore/**', '.github/workflows/musicscore.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: musicscore-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  AUDIVERIS_DEB_URL: ${{ vars.AUDIVERIS_DEB_URL || 'https://github.com/Audiveris/audiveris/releases/download/5.11.0/Audiveris-5.11.0-ubuntu22.04-x86_64.deb' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: services/musicscore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/musicscore/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      # PR chỉ build thử (không đẩy) để bắt lỗi Dockerfile sớm.
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: services/musicscore
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/piano-daily-musicscore:${{ steps.meta.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/piano-daily-musicscore:latest
+          build-args: AUDIVERIS_DEB_URL=${{ env.AUDIVERIS_DEB_URL }}
+          cache-from: type=gha,scope=musicscore
+          cache-to: type=gha,scope=musicscore,mode=max
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop'
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: deploy-musicscore
+      cancel-in-progress: false
+    env:
+      REMOTE_DIR: /opt/piano-daily
+      REMOTE: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+      SSH_OPTS: -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chuẩn bị SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Đồng bộ compose
+        run: |
+          ssh $SSH_OPTS "$REMOTE" "mkdir -p $REMOTE_DIR"
+          scp $SSH_OPTS services/musicscore/docker-compose.prod.yml "$REMOTE:$REMOTE_DIR/docker-compose.musicscore.yml"
+
+      - name: Pull image và khởi động lại
+        env:
+          MUSICSCORE_TAG: ${{ needs.image.outputs.tag }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          printf '%s\n' "$DOCKERHUB_TOKEN" | ssh $SSH_OPTS "$REMOTE" \
+            "set -euo pipefail; cd $REMOTE_DIR
+             docker login -u '$DOCKERHUB_USERNAME' --password-stdin >/dev/null
+             export DOCKERHUB_USERNAME='$DOCKERHUB_USERNAME' MUSICSCORE_TAG='$MUSICSCORE_TAG'
+             docker compose -f docker-compose.musicscore.yml --env-file .env pull
+             docker compose -f docker-compose.musicscore.yml --env-file .env up -d --remove-orphans --wait --wait-timeout 120
+             docker compose -f docker-compose.musicscore.yml --env-file .env ps
+             echo \"MUSICSCORE_TAG=\$MUSICSCORE_TAG\" > .last-deploy-musicscore
+             docker image prune -f >/dev/null"

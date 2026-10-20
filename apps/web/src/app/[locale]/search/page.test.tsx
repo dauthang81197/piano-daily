@@ -28,6 +28,20 @@ vi.mock('@/components/catalog/genre-tags', () => ({ GenreTags: () => null }));
 vi.mock('@/components/catalog/sort-links', () => ({ SortLinks: () => null }));
 vi.mock('@/components/catalog/pagination', () => ({ Pagination: () => null }));
 vi.mock('@/components/catalog/search-filters', () => ({ SearchFilters: () => null }));
+vi.mock('@/components/catalog/level-links', () => ({
+  LevelLinks: ({ label }: { label: string }) => (
+    <>
+      <p>{label}</p>
+      <ul>
+        {['beginner', 'intermediate', 'advanced', 'expert'].map((v) => (
+          <li key={v}>
+            <a href={`/level/${v}`}>{`levels.${v}`}</a>
+          </li>
+        ))}
+      </ul>
+    </>
+  ),
+}));
 vi.mock('@/components/catalog/sheet-grid', () => ({ SheetGrid: () => <div data-testid="grid" /> }));
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,

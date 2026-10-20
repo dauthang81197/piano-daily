@@ -1,6 +1,6 @@
 import type { PublicAdSlot, PublicSheetDetail, PublicSheetItem } from '@piano-daily/shared';
 import { useFormatter, useTranslations } from 'next-intl';
-import { LEVEL_BADGE, badge } from '@/components/catalog/sheet-card';
+import { Badge, levelTone } from '@/components/ui/badge';
 import { Link } from '@/i18n/navigation';
 import { genreHref, sheetHref } from '@/lib/query';
 import { Breadcrumb } from './breadcrumb';
@@ -83,8 +83,8 @@ export function SheetDetail({
         {sheet.subtitle ? <p className="text-body-lg text-on-surface-variant">{sheet.subtitle}</p> : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`${badge} ${LEVEL_BADGE[sheet.level]}`}>{nav(`levels.${levelSlug as 'beginner'}`)}</span>
-          {sheet.isHot ? <span className={`${badge} bg-hot-accent`}>{t('hot')}</span> : null}
+          <Badge tone={levelTone(sheet.level)}>{nav(`levels.${levelSlug as 'beginner'}`)}</Badge>
+          {sheet.isHot ? <Badge tone="hot">{t('hot')}</Badge> : null}
         </div>
 
         <dl className="grid gap-x-6 gap-y-2 text-body-md sm:grid-cols-2">

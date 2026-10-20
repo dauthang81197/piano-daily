@@ -179,3 +179,71 @@ describe('Pagination', () => {
     expect(pageWindow(5, 10)).toEqual([1, null, 4, 5, 6, null, 10]);
   });
 });
+
+describe('SheetCard (giao diện U2)', () => {
+  it('nhãn Nâng cao dùng màu đậm đạt AA; mỗi cấp độ có tông riêng', () => {
+    const { rerender } = render(withIntl(<SheetCard sheet={{ ...sheet, level: 'ADVANCED' }} />));
+    expect(screen.getByText('Advanced').className).toContain('bg-level-advanced-strong');
+    rerender(withIntl(<SheetCard sheet={{ ...sheet, level: 'EXPERT' }} />));
+    expect(screen.getByText('Expert').className).toContain('bg-level-expert');
+  });
+});
+
+describe('GenreTags cuộn tới tag đang chọn', () => {
+  const genres = [
+    { id: 'g1', slug: 'jazz', name: 'Jazz', count: 3 },
+    { id: 'g2', slug: 'pop', name: 'Pop', count: 1 },
+  ];
+
+  it('đặt scrollLeft để tag đang chọn nằm giữa dải; không có lựa chọn thì về 0', () => {
+    const proto = HTMLElement.prototype;
+    const offsetLeft = Object.getOwnPropertyDescriptor(proto, 'offsetLeft');
+    const clientWidth = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth');
+    Object.defineProperty(proto, 'offsetLeft', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.textContent === 'All' ? 0 : 400;
+      },
+    });
+    Object.defineProperty(proto, 'offsetWidth', { configurable: true, get: () => 100 });
+    Object.defineProperty(Element.prototype, 'clientWidth', { configurable: true, get: () => 300 });
+    try {
+      const { container, rerender } = render(withIntl(<GenreTags genres={genres} selectedSlug="jazz" hrefFor={(s) => `/x?g=${s ?? ''}`} />));
+      const list = container.querySelector('ul') as HTMLUListElement;
+      expect(list.scrollLeft).toBe(400 - (300 - 100) / 2);
+      rerender(withIntl(<GenreTags genres={genres} selectedSlug={undefined} hrefFor={(s) => `/x?g=${s ?? ''}`} />));
+      expect(list.scrollLeft).toBe(0);
+    } finally {
+      if (offsetLeft) Object.defineProperty(proto, 'offsetLeft', offsetLeft);
+      else delete (proto as unknown as Record<string, unknown>).offsetLeft;
+      delete (proto as unknown as Record<string, unknown>).offsetWidth;
+      if (clientWidth) Object.defineProperty(Element.prototype, 'clientWidth', clientWidth);
+    }
+  });
+});
+
+describe('LevelLinks', () => {
+  it('có câu dẫn và 4 link tới từng Level', async () => {
+    const { LevelLinks } = await import('./level-links');
+    render(withIntl(<LevelLinks label="Browse by level" />));
+    expect(screen.getByText('Browse by level')).toBeInTheDocument();
+    for (const level of ['beginner', 'intermediate', 'advanced', 'expert']) {
+      expect(document.querySelector(`a[href="/level/${level}"]`)).not.toBeNull();
+    }
+    expect(screen.getAllByRole('link')).toHaveLength(4);
+  });
+});
+
+describe('EmptyState', () => {
+  it('hiện tiêu đề, gợi ý và hành động', async () => {
+    const { EmptyState } = await import('./empty-state');
+    render(
+      <EmptyState title="Không có gì" hint="Thử bỏ lọc">
+        <button type="button">Bỏ lọc</button>
+      </EmptyState>,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Không có gì' })).toBeInTheDocument();
+    expect(screen.getByText('Thử bỏ lọc')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bỏ lọc' })).toBeInTheDocument();
+  });
+});

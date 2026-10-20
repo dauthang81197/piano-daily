@@ -8,12 +8,12 @@ export function LevelLinks({ label }: { label: string }) {
   return (
     <>
       <p className="pt-2 text-body-md text-on-surface-variant">{label}</p>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1">
+      <ul className="flex flex-wrap justify-center gap-2">
         {LEVELS.map((value) => (
           <li key={value}>
             <Link
               href={`/level/${value}`}
-              className="w-fit rounded-sm text-body-md text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+              className="inline-flex min-h-11 items-center rounded-full border border-outline-variant px-4 py-2 text-body-md text-primary hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
             >
               {nav(`levels.${value}`)}
             </Link>

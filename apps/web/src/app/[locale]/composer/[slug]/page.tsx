@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/catalog/empty-state';
 import { LevelLinks } from '@/components/catalog/level-links';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
@@ -73,11 +74,9 @@ export default async function ComposerPage({ params, searchParams }: Props) {
       </div>
 
       {list.items.length === 0 ? (
-        <section className="flex flex-col gap-3 py-section-gap">
-          <h2 className="font-display text-headline-sm text-on-surface">{t('emptyTitle')}</h2>
-          <p className="text-body-md text-on-surface-variant">{t('emptyHint')}</p>
+        <EmptyState title={t('emptyTitle')} hint={t('emptyHint')}>
           <LevelLinks label={t('browseLevels')} />
-        </section>
+        </EmptyState>
       ) : (
         <SheetGrid items={list.items} />
       )}

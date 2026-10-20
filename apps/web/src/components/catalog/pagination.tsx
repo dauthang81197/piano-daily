@@ -1,8 +1,9 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
 const item =
-  'inline-flex min-w-10 items-center justify-center rounded-md border px-3 py-2 text-body-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full border px-3 py-2 text-body-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /** Trang hiển thị: đầu, cuối, và lân cận trang hiện tại; `null` là dấu ba chấm. */
 export function pageWindow(current: number, total: number): (number | null)[] {
@@ -36,6 +37,7 @@ export function Pagination({
     <nav aria-label={t('label')} className="flex flex-wrap items-center justify-center gap-2">
       {page > 1 ? (
         <Link href={hrefFor(page - 1)} rel="prev" className={idle}>
+          <ChevronLeft aria-hidden="true" className="size-4" />
           {t('previous')}
         </Link>
       ) : null}
@@ -59,6 +61,7 @@ export function Pagination({
       {page < totalPages ? (
         <Link href={hrefFor(page + 1)} rel="next" className={idle}>
           {t('next')}
+          <ChevronRight aria-hidden="true" className="size-4" />
         </Link>
       ) : null}
     </nav>

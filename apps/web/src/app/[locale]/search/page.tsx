@@ -3,17 +3,19 @@ import type { Metadata } from 'next';
 import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { EmptyState } from '@/components/catalog/empty-state';
 import { GenreTags } from '@/components/catalog/genre-tags';
+import { LevelLinks } from '@/components/catalog/level-links';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
 import { SearchFilters } from '@/components/catalog/search-filters';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
+import { buttonClasses } from '@/components/ui/button';
 import { Link } from '@/i18n/navigation';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchFacets, fetchSearch } from '@/lib/catalog';
-import { LEVELS } from '@/lib/levels';
 import {
   parseFormat,
   parseGenre,
@@ -52,9 +54,6 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     ...(filtered ? { robots: { index: false, follow: true } } : {}),
   });
 }
-
-const linkClass =
-  'w-fit rounded-sm text-body-md text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 export default async function SearchPage({ params, searchParams }: Props) {
   const { locale } = await params;
@@ -119,16 +118,14 @@ export default async function SearchPage({ params, searchParams }: Props) {
       </div>
 
       {list.items.length === 0 ? (
-        <section className="flex flex-col gap-3 py-section-gap">
-          <h2 className="font-display text-headline-sm text-on-surface">{t('emptyTitle')}</h2>
-          <p className="text-body-md text-on-surface-variant">{t('emptyHint')}</p>
+        <EmptyState title={t('emptyTitle')} hint={t('emptyHint')}>
           {active.length ? (
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-wrap justify-center gap-2">
               {active.map(({ key, label }) => (
-                <li key={key}>
+                <li key={key} className="max-w-full">
                   <Link
                     href={searchHref({ ...state, [key]: undefined, ...(key === 'q' && sort === 'relevance' ? { sort: undefined } : {}) })}
-                    className={linkClass}
+                    className={buttonClasses({ variant: 'secondary', className: 'max-w-full whitespace-normal break-words text-center' })}
                   >
                     {t('clearFilter', { filter: label })}
                   </Link>
@@ -136,17 +133,8 @@ export default async function SearchPage({ params, searchParams }: Props) {
               ))}
             </ul>
           ) : null}
-          <p className="pt-2 text-body-md text-on-surface-variant">{t('browseLevels')}</p>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1">
-            {LEVELS.map((value) => (
-              <li key={value}>
-                <Link href={`/level/${value}`} className={linkClass}>
-                  {nav(`levels.${value}`)}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <LevelLinks label={t('browseLevels')} />
+        </EmptyState>
       ) : (
         <SheetGrid items={list.items} />
       )}

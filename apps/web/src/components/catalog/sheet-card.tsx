@@ -1,20 +1,15 @@
+import { Music2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { PublicSheetItem } from '@piano-daily/shared';
+import { Badge, levelTone } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
 import { CardPreviewButton } from './card-preview-button';
-
-export const LEVEL_BADGE: Record<PublicSheetItem['level'], string> = {
-  BEGINNER: 'bg-level-beginner',
-  INTERMEDIATE: 'bg-level-intermediate',
-  ADVANCED: 'bg-level-advanced',
-  EXPERT: 'bg-level-expert',
-};
-
-export const badge = 'rounded-sm px-2 py-0.5 text-label-caps uppercase text-on-primary';
 
 /**
  * Thẻ Sheet (`card-sheet`): bấm cả thẻ mở trang chi tiết nhưng không lồng `<a>` trong `<a>`:
  * link tiêu đề phủ kín thẻ (stretched link), link Composer nằm trên lớp phủ (`z-10`).
+ * Ảnh trang đặt như tờ giấy trên nền ngà; `< sm` thẻ nằm ngang (ảnh trái, chữ phải) để quét danh sách nhanh.
  */
 export function SheetCard({ sheet }: { sheet: PublicSheetItem }) {
   const t = useTranslations('Card');
@@ -30,28 +25,35 @@ export function SheetCard({ sheet }: { sheet: PublicSheetItem }) {
   ).filter(([, has]) => has);
 
   return (
-    <div className="group relative h-full rounded-md border border-outline-variant bg-surface-container-low transition-shadow has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-offset-2 has-[h3_a:focus-visible]:outline-secondary hover:shadow-[0_6px_18px_rgba(36,27,20,0.14)]">
-      <div className="relative aspect-[3/4] overflow-hidden rounded-t-md bg-surface-container">
-        {sheet.thumbnailUrl ? (
-          <img
-            src={sheet.thumbnailUrl}
-            alt={t('thumbnailAlt', { title: sheet.title })}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-caption text-on-surface-variant">
-            {t('noThumbnail')}
-          </div>
-        )}
-        <span className={`${badge} absolute left-2 top-2 ${LEVEL_BADGE[sheet.level]}`}>
-          {nav(`levels.${sheet.level.toLowerCase() as 'beginner'}`)}
-        </span>
-        {sheet.isHot ? <span className={`${badge} absolute right-2 top-2 bg-hot-accent`}>{t('hot')}</span> : null}
+    <Card
+      interactive
+      className="group relative flex h-full flex-row overflow-hidden sm:flex-col has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-offset-2 has-[h3_a:focus-visible]:outline-secondary"
+    >
+      <div className="relative w-28 shrink-0 self-start p-3 sm:w-full sm:self-auto sm:bg-surface-container sm:p-4">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-sm border border-outline-variant/60 bg-surface-bright shadow-card sm:border-0">
+          {sheet.thumbnailUrl ? (
+            <img
+              src={sheet.thumbnailUrl}
+              alt={t('thumbnailAlt', { title: sheet.title })}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover object-top transition-transform duration-(--duration-base) ease-standard group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            />
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-container-low px-2 text-center text-caption text-on-surface-variant">
+              <Music2 aria-hidden="true" className="size-8 text-outline" />
+              {t('noThumbnail')}
+            </div>
+          )}
+        </div>
+        {sheet.isHot ? <Badge tone="hot" className="absolute right-4 top-4 sm:right-6 sm:top-6">{t('hot')}</Badge> : null}
         {sheet.noteJsonUrl ? <CardPreviewButton id={sheet.id} title={sheet.title} noteJsonUrl={sheet.noteJsonUrl} /> : null}
       </div>
-      <div className="flex flex-col gap-2 p-4">
-        <h3 className="font-display text-headline-sm text-on-surface">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:p-4">
+        <div>
+          <Badge tone={levelTone(sheet.level)}>{nav(`levels.${sheet.level.toLowerCase() as 'beginner'}`)}</Badge>
+        </div>
+        <h3 className="break-words font-display text-body-lg font-medium text-on-surface sm:text-headline-sm">
           <Link
             href={`/sheet/${sheet.slug}`}
             className="rounded-sm after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
@@ -69,13 +71,15 @@ export function SheetCard({ sheet }: { sheet: PublicSheetItem }) {
           {' · '}
           {t('views', { count: sheet.viewCount })}
         </p>
-        <ul className="flex flex-wrap gap-x-3 gap-y-1 text-label-caps uppercase text-on-surface-variant">
+        <ul className="mt-auto flex flex-wrap gap-1.5 pt-1 text-label-caps uppercase text-on-surface-variant">
           {formats.map(([key]) => (
-            <li key={key}>{t(`formats.${key}`)}</li>
+            <li key={key} className="rounded-sm bg-surface-container px-1.5 py-0.5">
+              {t(`formats.${key}`)}
+            </li>
           ))}
-          {sheet.pageCount > 0 ? <li>{t('pages', { count: sheet.pageCount })}</li> : null}
+          {sheet.pageCount > 0 ? <li className="px-1.5 py-0.5">{t('pages', { count: sheet.pageCount })}</li> : null}
         </ul>
       </div>
-    </div>
+    </Card>
   );
 }

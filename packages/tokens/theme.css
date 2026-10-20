@@ -34,6 +34,8 @@
   --color-level-intermediate: #3e5c74;
   --color-level-advanced: #a97d2f;
   --color-level-expert: #7a2e2a;
+  /* Biến thể đậm của level-advanced cho chữ trắng nhỏ (nhãn): tương phản ≥ 4.5:1; level-advanced giữ cho viền/nền lớn. */
+  --color-level-advanced-strong: #86611f;
   --color-hot-accent: #c9432e;
 
   /* ── Font families ──────────────────────────────────────── */

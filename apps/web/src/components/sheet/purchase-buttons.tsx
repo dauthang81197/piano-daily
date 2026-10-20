@@ -4,7 +4,7 @@ import type { PublicSheetDetail } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { usePurchase } from '@/components/payment/purchase-provider';
-import { downloadButtonClass } from './download-button-class';
+import { calloutCardClass, downloadButtonClass } from './download-button-class';
 
 type DownloadType = PublicSheetDetail['downloadTypes'][number];
 
@@ -68,7 +68,7 @@ export function PurchaseButtons({
     return (
       <section
         aria-labelledby={`${noteId}-audio`}
-        className="flex flex-col gap-3 rounded-md border border-outline-variant bg-surface-container-low p-6"
+        className={calloutCardClass}
       >
         <h2 id={`${noteId}-audio`} className="font-display text-headline-sm text-on-surface">
           {t('audioTitle')}
@@ -80,7 +80,7 @@ export function PurchaseButtons({
   }
   if (variant === 'pdf') {
     return (
-      <section aria-label={t('pdfSidebarTitle')} className="flex flex-col gap-3">
+      <section aria-label={t('pdfSidebarTitle')} className={calloutCardClass}>
         <h2 className="font-display text-headline-sm text-on-surface">{t('pdfSidebarTitle')}</h2>
         {buttons}
       </section>

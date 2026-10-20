@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
-import { downloadButtonClass } from './download-button-class';
+import { calloutCardClass, downloadButtonClass } from './download-button-class';
 import { apiBase, type DownloadType, PATH } from './download-helpers';
 import { PurchaseButtons } from './purchase-buttons';
 
@@ -91,7 +91,7 @@ export function AudioDownloadCallout({
   return (
     <section
       aria-labelledby="sheet-audio-downloads"
-      className="flex flex-col gap-3 rounded-md border border-outline-variant bg-surface-container-low p-6"
+      className={calloutCardClass}
     >
       <h2 id="sheet-audio-downloads" className="font-display text-headline-sm text-on-surface">
         {t('audioTitle')}

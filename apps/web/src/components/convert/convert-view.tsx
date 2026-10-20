@@ -1,7 +1,7 @@
 'use client';
 
 import { SCORE_ACCEPT, SCORE_TRANSPOSE_MAX, SCORE_TRANSPOSE_MIN } from '@piano-daily/shared';
-import { FileMusic, Loader2, Lock, TriangleAlert } from 'lucide-react';
+import { FileMusic, Lock, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useId, useRef, useState } from 'react';
 import { useCustomer } from '@/components/auth/auth-provider';
@@ -9,6 +9,7 @@ import { calloutCardClass } from '@/components/sheet/download-button-class';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConvertProgress } from './convert-progress';
 import { ConvertResult } from './convert-result';
 import { type ConvertError, useScoreJob } from './use-score-job';
 
@@ -92,23 +93,8 @@ export function ConvertView({ initialJobId }: { initialJobId: string | null }) {
 
   if (state.phase === 'done') return <ConvertResult job={state.job} onAnother={another} onDelete={() => void remove().then(another)} />;
 
-  if (state.phase === 'running' || state.phase === 'uploading') {
-    return (
-      <section aria-labelledby="convert-running" role="status" className={`${calloutCardClass} items-start`}>
-        <h2 id="convert-running" className="flex items-center gap-2 font-display text-headline-sm text-on-surface">
-          <Loader2 aria-hidden="true" className="size-5 animate-spin text-secondary" />
-          {state.phase === 'uploading' ? t('uploading') : t('runningTitle')}
-        </h2>
-        {state.phase === 'running' ? <p className="text-body-md text-on-surface-variant">{t('runningHint')}</p> : null}
-        {state.phase === 'running' && state.job.originalName ? <p className="text-caption text-on-surface-variant">{state.job.originalName}</p> : null}
-        {state.phase === 'running' ? (
-          <Button variant="ghost" onClick={() => void remove()}>
-            {t('delete')}
-          </Button>
-        ) : null}
-      </section>
-    );
-  }
+  if (state.phase === 'uploading') return <ConvertProgress phase="uploading" progress={state.progress} />;
+  if (state.phase === 'running') return <ConvertProgress phase="running" job={state.job} onCancel={() => void remove()} />;
 
   if (state.phase === 'failed' || state.phase === 'expired') {
     const unreadable = state.phase === 'failed' && state.job.error === 'SCORE_UNREADABLE';

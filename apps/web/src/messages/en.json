@@ -542,7 +542,6 @@
     "transposeUp": "+{count, plural, one {# semitone} other {# semitones}}",
     "transposeDown": "−{count, plural, one {# semitone} other {# semitones}}",
     "submit": "Convert to MIDI",
-    "uploading": "Uploading…",
     "noticeAccuracy": "Recognition is not perfect: compare the result with the original. A clean, sharp PDF gives the best result.",
     "noticeRights": "Only upload scores you have the right to use. The original file is not stored; the result is deleted after a few hours.",
     "runningTitle": "Reading the score",
@@ -572,6 +571,20 @@
       "dailyLimit": "You have used all of today's conversions.",
       "dailyLimitRetry": "You can try again in about {hours, plural, one {# hour} other {# hours}}.",
       "noFile": "Please choose a score file."
-    }
+    },
+    "uploadingPercent": "Uploading… {percent}%",
+    "progressLabel": "Upload progress",
+    "steps": {
+      "upload": "Upload the file",
+      "recognize": "Read the score",
+      "finish": "Create the MIDI and staff"
+    },
+    "stepState": {
+      "done": "done",
+      "active": "in progress",
+      "pending": "not started"
+    },
+    "elapsed": "Running for {time}",
+    "slowHint": "This is taking longer than usual. You can keep waiting, or delete it and try again."
   }
 }

@@ -542,7 +542,6 @@
     "transposeUp": "+{count} nửa cung",
     "transposeDown": "−{count} nửa cung",
     "submit": "Chuyển sang MIDI",
-    "uploading": "Đang tải lên…",
     "noticeAccuracy": "Nhận dạng không hoàn hảo: hãy đối chiếu kết quả với bản gốc. PDF rõ nét, in sạch cho kết quả tốt nhất.",
     "noticeRights": "Chỉ tải lên bản nhạc bạn có quyền sử dụng. File gốc không được lưu; kết quả tự xoá sau vài giờ.",
     "runningTitle": "Đang nhận dạng bản nhạc",
@@ -572,6 +571,20 @@
       "dailyLimit": "Bạn đã dùng hết lượt chuyển nhạc hôm nay.",
       "dailyLimitRetry": "Bạn có thể thử lại sau khoảng {hours} giờ.",
       "noFile": "Hãy chọn một file bản nhạc."
-    }
+    },
+    "uploadingPercent": "Đang tải lên… {percent}%",
+    "progressLabel": "Tiến độ tải lên",
+    "steps": {
+      "upload": "Tải file lên",
+      "recognize": "Nhận dạng bản nhạc",
+      "finish": "Tạo MIDI và khuông nhạc"
+    },
+    "stepState": {
+      "done": "xong",
+      "active": "đang thực hiện",
+      "pending": "chưa tới"
+    },
+    "elapsed": "Đã chạy {time}",
+    "slowHint": "Lần này lâu hơn bình thường. Bạn có thể đợi thêm, hoặc xoá và thử lại."
   }
 }

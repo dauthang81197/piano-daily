@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
 import type { ParsedNotes } from '@/lib/midi/note-json';
-import { baseBpm, stepBpm } from '@/lib/midi/bpm';
+import { baseBpm, DEFAULT_BPM, rateForBpm, START_BPM, stepBpm } from '@/lib/midi/bpm';
 import { PlayerCore, type AudioPort } from '@/lib/midi/player-core';
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
 import { canShowHands } from '@/lib/midi/hands/capabilities';
@@ -123,7 +123,7 @@ export function MidiPlayer({
   const [core, setCore] = useState<PlayerCore | null>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
-  const [rate, setRate] = useState(1);
+  const [rate, setRate] = useState(() => rateForBpm(DEFAULT_BPM, START_BPM));
   /** Môi trường dùng được cảnh 3D (WebGL, không giảm chuyển động) và cảnh chưa báo lỗi. */
   const [view3dAvailable, setView3dAvailable] = useState(false);
   /** Lựa chọn của người dùng: mặc định bật, nhớ lại lần tắt gần nhất. */
@@ -257,7 +257,10 @@ export function MidiPlayer({
           setPosition(0);
         },
       });
-      next.setRate(rate);
+      // Tempo gốc của bài chỉ biết sau khi tải: đưa tốc độ về đúng BPM khởi đầu (nút −/+ chưa dùng được trước lúc này).
+      const startRate = rateForBpm(baseBpm(data.header), START_BPM);
+      next.setRate(startRate);
+      setRate(startRate);
       coreRef.current = next;
       setCore(next);
       setParsed(data);
@@ -272,7 +275,7 @@ export function MidiPlayer({
       setErrorKind((err as { reason?: unknown })?.reason === 'empty' ? 'empty' : 'load');
       setPhase('error');
     }
-  }, [claim, deps, noteJsonUrl, phase, playing, rate]);
+  }, [claim, deps, noteJsonUrl, phase, playing]);
 
   // Kéo thanh tua: cập nhật hình ngay, nhưng chỉ áp vào lõi phát khi ngừng kéo (debounce). Sau khi áp, lấy lại vị trí
   // thật từ lõi (tua tới cuối bài thì lõi đã tự dừng và về 0).

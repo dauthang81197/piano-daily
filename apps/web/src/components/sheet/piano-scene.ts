@@ -48,7 +48,7 @@ import {
 } from '@/lib/midi/scene3d/world';
 
 /** Tỉ lệ khung hình (rộng : cao) của cảnh. */
-export const VIEW_ASPECT = 2;
+export const VIEW_ASPECT = 3;
 
 const STAGE = 0x26211d;
 /** Màu tay áo (vải tối, trung tính: không trùng nền sân khấu và không theo màu bàn tay). */

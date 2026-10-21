@@ -289,8 +289,8 @@ describe('SheetDetail', () => {
 
   it('route preview (showDownloads=false): không có nút hay link Download/tải', () => {
     const { container } = render(withIntl(<SheetDetail sheet={full} showDownloads={false} />, 'en'));
-    // Chỉ có nút của player (Play/Pause/đang tải), không có nút tải.
-    expect(screen.queryAllByRole('button').every((b) => /play|pause|loading|chơi|phát|tạm dừng|đang tải/i.test(b.textContent ?? ''))).toBe(true);
+    // Chỉ có nút của player (Play/Pause/đang tải) và nút xem toàn màn hình, không có nút tải.
+    expect(screen.queryAllByRole('button').every((b) => /play|pause|loading|chơi|phát|tạm dừng|đang tải|full screen|toàn màn hình/i.test(b.textContent ?? ''))).toBe(true);
     expect(screen.queryByRole('button', { name: /download|tải/i })).toBeNull();
     expect(container.textContent).not.toMatch(/download|tải (xuống|về)/i);
     expect(container.querySelector('a[download]')).toBeNull();

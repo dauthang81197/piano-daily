@@ -15,6 +15,7 @@ import { apiBase, availableDownloads } from './download-helpers';
 import { PurchaseButtons } from './purchase-buttons';
 import { Lyrics } from './lyrics';
 import { PlayerSlot } from './player-slot';
+import { SheetPages } from './sheet-pages';
 import { YoutubeEmbed } from './youtube-embed';
 
 const link =
@@ -184,23 +185,7 @@ export function SheetDetail({
         <article className="flex min-w-0 flex-col gap-gutter">
 
           {sheet.pages.length > 0 ? (
-            <section aria-labelledby="sheet-pages" className="flex flex-col gap-4">
-              <h2 id="sheet-pages" className="font-display text-headline-sm text-on-surface">
-                {t('pagesTitle')}
-              </h2>
-              <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {sheet.pages.map((page, i) => (
-                  <li key={page.pageNumber}>
-                    <img
-                      src={page.url}
-                      alt={t('pageAlt', { title: sheet.title, page: page.pageNumber })}
-                      loading={i === 0 ? 'eager' : 'lazy'}
-                      className="h-auto w-full rounded-sm border border-outline-variant bg-surface-bright shadow-card"
-                    />
-                  </li>
-                ))}
-              </ol>
-            </section>
+            <SheetPages title={sheet.title} pages={sheet.pages} />
           ) : null}
 
           <AudioDownloadCallout sheetId={sheet.id} title={sheet.title} types={purchase || sheet.isFree ? downloads : []} purchase={purchase} />

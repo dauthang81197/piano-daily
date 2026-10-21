@@ -1,8 +1,8 @@
 import type { PublicSheetItem } from '@piano-daily/shared';
 import { SheetCard } from './sheet-card';
 
-/** 3/2/1 cột (lg/md/sm); dùng chung với skeleton để không nhảy bố cục. */
-export const SHEET_GRID_CLASS = 'grid grid-cols-1 gap-gutter md:grid-cols-2 lg:grid-cols-3';
+/** 1 cột dưới `sm`, từ `sm` tự chia cột theo bề rộng (thẻ ≥ 15rem); dùng chung với skeleton để không nhảy bố cục. */
+export const SHEET_GRID_CLASS = 'grid grid-cols-1 gap-gutter sm:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]';
 
 export function SheetGrid({ items }: { items: PublicSheetItem[] }) {
   return (

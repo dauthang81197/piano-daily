@@ -3,6 +3,8 @@ import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/catalog/empty-state';
+import { CatalogShell } from '@/components/catalog/catalog-shell';
+import { FilterSidebar } from '@/components/catalog/filter-sidebar';
 import { LevelLinks } from '@/components/catalog/level-links';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
@@ -11,6 +13,8 @@ import { SortLinks } from '@/components/catalog/sort-links';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchComposer, fetchComposerSheets } from '@/lib/catalog';
+import { loadFilterGroups } from '@/lib/filter-data';
+import { activeFilterCount } from '@/lib/filter-groups';
 import { composerHref, parsePage, parseSort } from '@/lib/query';
 import { pageMetadata } from '@/lib/seo';
 
@@ -52,8 +56,11 @@ export default async function ComposerPage({ params, searchParams }: Props) {
 
   const t = await getTranslations('Composer');
 
+  const filterState = { composer: composer.slug };
+  const groups = await loadFilterGroups(filterState);
+
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
+    <CatalogShell filters={<FilterSidebar groups={groups} />} count={activeFilterCount(filterState)}>
       <header className="flex flex-col gap-4 md:flex-row md:items-start">
         {composer.avatarUrl ? (
           <img
@@ -89,6 +96,6 @@ export default async function ComposerPage({ params, searchParams }: Props) {
         total={list.total}
         hrefFor={(p) => composerHref(composer.slug, { sort, page: p })}
       />
-    </main>
+    </CatalogShell>
   );
 }

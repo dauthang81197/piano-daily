@@ -19,7 +19,8 @@
     "pricing": "Pricing",
     "courses": "Courses",
     "skipToContent": "Skip to content",
-    "convert": "PDF to MIDI"
+    "convert": "PDF to MIDI",
+    "scores": "Scores"
   },
   "Search": {
     "label": "Search sheet music",
@@ -598,5 +599,16 @@
     },
     "elapsed": "Running for {time}",
     "slowHint": "This is taking longer than usual. You can keep waiting, or delete it and try again."
+  },
+  "Filters": {
+    "title": "Filters",
+    "open": "Filters",
+    "groupLevel": "Difficulty level",
+    "groupGenre": "Genre",
+    "groupComposer": "Composer",
+    "groupFormat": "Format",
+    "showAll": "Show all ({count})",
+    "showLess": "Show less",
+    "selected": "selected"
   }
 }

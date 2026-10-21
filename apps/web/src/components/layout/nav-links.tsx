@@ -3,7 +3,6 @@
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/cn';
-import { LEVELS } from '@/lib/levels';
 import { paymentsEnabled } from '@/lib/public-env';
 
 /** Link đang ở đúng trang hoặc trang con của nó (`/level/beginner` khớp `/level/beginner?page=2` và con). */
@@ -11,6 +10,9 @@ export function isActivePath(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+/** Nhóm trang thuộc mục "Bản nhạc": danh sách, tìm kiếm, theo level/thể loại/tác giả và chi tiết Sheet. */
+const SCORES_PREFIXES = ['/search', '/level', '/genre', '/composer', '/sheet'] as const;
 
 const barLink =
   'whitespace-nowrap rounded-md px-3 py-2.5 text-body-md text-on-surface transition-colors hover:text-primary ' +
@@ -20,8 +22,8 @@ const stackLink =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
 
 /**
- * Điều hướng chính: 4 Level, Khoá học, Bảng giá (+ Trang chủ ở dạng `stack` cho mobile).
- * Link của trang hiện tại có `aria-current="page"` và tô brass.
+ * Điều hướng chính: Bản nhạc, Khoá học (+ Bảng giá khi thanh toán bật, + Trang chủ ở dạng `stack` cho mobile).
+ * Link của trang hiện tại có `aria-current="page"` và tô brass; "Bản nhạc" sáng ở mọi trang thuộc nhóm Sheet.
  */
 export function PrimaryNav({
   variant,
@@ -34,17 +36,16 @@ export function PrimaryNav({
 }) {
   const t = useTranslations('Nav');
   const pathname = usePathname();
-  const items = [
-    ...(variant === 'stack' ? [{ href: '/', label: t('home') }] : []),
-    ...LEVELS.map((level) => ({ href: `/level/${level}`, label: t(`levels.${level}`) })),
-    { href: '/courses', label: t('courses') },
-    { href: '/convert', label: t('convert') },
-    ...(paymentsEnabled() ? [{ href: '/pricing', label: t('pricing') }] : []),
+  const items: { href: string; label: string; match: readonly string[] }[] = [
+    ...(variant === 'stack' ? [{ href: '/', label: t('home'), match: ['/'] }] : []),
+    { href: '/search', label: t('scores'), match: SCORES_PREFIXES },
+    { href: '/courses', label: t('courses'), match: ['/courses'] },
+    ...(paymentsEnabled() ? [{ href: '/pricing', label: t('pricing'), match: ['/pricing'] }] : []),
   ];
   return (
     <nav aria-label={t('primary')} className={cn(variant === 'bar' ? 'flex items-center gap-1' : 'flex flex-col gap-1', className)}>
       {items.map((item) => {
-        const active = isActivePath(pathname, item.href);
+        const active = item.match.some((prefix) => isActivePath(pathname, prefix));
         return (
           <Link
             key={item.href}

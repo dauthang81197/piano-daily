@@ -206,7 +206,7 @@ export function SheetDetail({
         </article>
 
         {showPdf || hasRightAd || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
-          <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter lg:sticky lg:top-40 lg:self-start">
+          <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter lg:sticky lg:top-24 lg:self-start">
             <AdSlotFrame slots={adSlots} position="SIDEBAR_RIGHT" />
             {showPdf && purchase ? (
               <PurchaseButtons variant="pdf" title={sheet.title} types={['PDF']} />

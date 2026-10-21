@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from './test-utils';
 
@@ -30,13 +30,20 @@ describe('Header', () => {
 });
 
 describe('Header (bố cục mới)', () => {
-  it('nav chỉ có Level, Khoá học, Bảng giá; ô tìm có nút icon tên "Search"', () => {
-    render(withIntl(<Header />));
+  it('nav chỉ có Bản nhạc (Scores) và Khoá học (+ Bảng giá khi thanh toán bật), cùng một hàng với logo và ô tìm; ô tìm có nút icon tên "Search"', () => {
+    const { container } = render(withIntl(<Header />));
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-    expect(nav).toHaveTextContent('Beginner');
-    expect(nav).toHaveTextContent('Courses');
-    expect(nav).toHaveTextContent('Pricing');
+    expect(within(nav).getAllByRole('link').map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['Scores', '/search'],
+      ['Courses', '/courses'],
+      ['Pricing', '/pricing'],
+    ]);
+    expect(nav).not.toHaveTextContent('Beginner');
+    expect(nav).not.toHaveTextContent('PDF');
     expect(nav).not.toHaveTextContent('Home');
+    // Một hàng: logo, nav và ô tìm cùng nằm trong hàng đầu của header, không còn hàng nav riêng.
+    const row = container.querySelector('header > div > div')!;
+    expect(row).toContainElement(nav);
     expect(screen.getAllByRole('button', { name: 'Search' }).length).toBeGreaterThan(0);
   });
 });
@@ -46,7 +53,8 @@ describe('Footer', () => {
     render(withIntl(<Footer siteName="Studio X" />));
     expect(screen.getByRole('link', { name: 'Courses' })).toHaveAttribute('href', '/courses');
     expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing');
-    expect(screen.getByRole('link', { name: 'Beginner' })).toHaveAttribute('href', '/level/beginner');
+    expect(screen.getByRole('link', { name: 'Beginner' })).toHaveAttribute('href', '/search?level=beginner');
+    expect(screen.getByRole('link', { name: 'PDF to MIDI' })).toHaveAttribute('href', '/convert');
     expect(screen.getByText(new RegExp(`© ${new Date().getFullYear()} Studio X`))).toBeInTheDocument();
   });
 

@@ -120,16 +120,16 @@ describe('MidiPlayer', () => {
     await waitFor(() => expect(screen.getByTestId('now-playing')).toHaveTextContent('G4'));
   });
 
-  it('BPM: hiện BPM gốc (120 khi thiếu tempo), −/+ chỉ dùng được sau khi tải; mỗi lần bấm đổi 1 BPM và đổi tốc độ phát thật', async () => {
+  it('BPM: mở bài ở 70 (tempo gốc 120 khi thiếu tempo), −/+ chỉ dùng được sau khi tải; mỗi lần bấm đổi 1 BPM và đổi tốc độ phát thật', async () => {
     const { audio } = setup();
     const bpm = screen.getByRole('group', { name: 'BPM' });
-    expect(bpm).toHaveTextContent('120');
+    expect(bpm).toHaveTextContent('70');
     expect(screen.getByRole('button', { name: 'Decrease 1 BPM' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: FIRST }));
     await screen.findByRole('button', { name: 'Pause' });
     fireEvent.click(screen.getByRole('button', { name: 'Increase 1 BPM' }));
-    expect(bpm).toHaveTextContent('121');
-    for (let i = 0; i < 61; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Decrease 1 BPM' }));
+    expect(bpm).toHaveTextContent('71');
+    for (let i = 0; i < 11; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Decrease 1 BPM' }));
     expect(bpm).toHaveTextContent('60');
     // Về đầu rồi lên lịch lại ở 0.5x: nốt dài 2 giây phát trong 4 giây thực.
     fireEvent.click(screen.getByRole('button', { name: 'Back to start' }));

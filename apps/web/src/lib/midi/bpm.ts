@@ -2,6 +2,8 @@ import type { NoteHeader } from './note-json';
 
 /** BPM gốc mặc định khi note-JSON không có thông tin tempo (chuẩn MIDI: 120). */
 export const DEFAULT_BPM = 120;
+/** BPM phát lúc mới mở bài (người học chủ động tăng dần); kẹp vào khoảng tốc độ cho phép nếu tempo gốc lệch quá xa. */
+export const START_BPM = 70;
 /** Tốc độ phát tối thiểu/tối đa so với bản gốc. */
 export const MIN_RATE = 0.25;
 export const MAX_RATE = 2;

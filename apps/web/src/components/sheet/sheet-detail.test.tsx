@@ -186,6 +186,15 @@ describe('SheetDetail', () => {
     expect(none.querySelector('svg')).not.toBeNull();
   });
 
+  it('bài do khách đăng hiện "Posted by {tên}" (chỉ tên); bài của hệ thống không có dòng này', () => {
+    const { rerender } = render(withIntl(<SheetDetail sheet={{ ...full, uploader: { name: 'Khách A' } }} />, 'en'));
+    expect(screen.getByTestId('uploaded-by')).toHaveTextContent('Posted by Khách A');
+    rerender(withIntl(<SheetDetail sheet={{ ...full, uploader: null }} />, 'en'));
+    expect(screen.queryByTestId('uploaded-by')).toBeNull();
+    rerender(withIntl(<SheetDetail sheet={full} />, 'en'));
+    expect(screen.queryByTestId('uploaded-by')).toBeNull();
+  });
+
   it('breadcrumb: Home › Level (link) › tên bài (trang hiện tại, không link)', () => {
     view(full);
     const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });

@@ -109,6 +109,12 @@ export function SheetDetail({
             </dd>
           </dl>
 
+          {sheet.uploader ? (
+            <p className="text-body-md text-on-surface-variant" data-testid="uploaded-by">
+              {t('uploadedBy', { name: sheet.uploader.name })}
+            </p>
+          ) : null}
+
           {sheet.genres.length > 0 ? (
             <ul aria-label={t('genres')} className="flex flex-wrap gap-2">
               {sheet.genres.map((genre) => (
@@ -206,7 +212,7 @@ export function SheetDetail({
         </article>
 
         {showPdf || hasRightAd || sheet.seriesSheets.length > 0 || sheet.related.length > 0 ? (
-          <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter lg:sticky lg:top-40 lg:self-start">
+          <aside aria-label={t('sidebarLabel')} className="flex flex-col gap-gutter lg:sticky lg:top-24 lg:self-start">
             <AdSlotFrame slots={adSlots} position="SIDEBAR_RIGHT" />
             {showPdf && purchase ? (
               <PurchaseButtons variant="pdf" title={sheet.title} types={['PDF']} />

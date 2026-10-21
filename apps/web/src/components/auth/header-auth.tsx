@@ -3,6 +3,7 @@
 import type { Entitlement } from '@piano-daily/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { Link } from '@/i18n/navigation';
 import { formatDate } from '@/lib/plan-format';
 import { paymentsEnabled } from '@/lib/public-env';
 import { useCustomer } from './auth-provider';
@@ -35,6 +36,7 @@ function EntitlementNote({ entitlement }: { entitlement: Entitlement | null }) {
 /** Nút Đăng nhập, hoặc tên khách + Đăng xuất. Không render gì ngoài `AuthProvider` hoặc khi đang khôi phục phiên. */
 export function HeaderAuth({ className = '' }: { className?: string }) {
   const t = useTranslations('Auth');
+  const nav = useTranslations('Nav');
   const auth = useCustomer();
   if (!auth || auth.status === 'loading') return null;
   if (auth.status === 'anonymous' || !auth.customer) {
@@ -52,6 +54,9 @@ export function HeaderAuth({ className = '' }: { className?: string }) {
         </span>
         <EntitlementNote entitlement={auth.entitlement} />
       </span>
+      <Link href="/my-sheets" className="whitespace-nowrap rounded-md px-2 py-2 text-body-md text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary">
+        {nav('mySheets')}
+      </Link>
       <Button variant="secondary" className="whitespace-nowrap px-4 py-1.5" onClick={() => void auth.logout()}>
         {t('logout')}
       </Button>

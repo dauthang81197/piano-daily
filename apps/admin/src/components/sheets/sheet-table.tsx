@@ -39,6 +39,11 @@ const STATUS_FILTER = [
   ...Object.values(SheetStatus).map((value) => ({ value, label: SHEET_STATUS_LABELS[value] })),
 ];
 
+const SOURCE_FILTER = [
+  { value: ALL, label: 'Mọi nguồn' },
+  { value: 'customers', label: 'Do người dùng đăng' },
+];
+
 function FilterSelect({
   id,
   label,
@@ -71,7 +76,7 @@ function FilterSelect({
   );
 }
 
-type Filters = Pick<SheetListQueryInput, 'level' | 'status' | 'composerId'>;
+type Filters = Pick<SheetListQueryInput, 'level' | 'status' | 'composerId' | 'uploadedBy'>;
 
 /**
  * Bảng Sheet (UX-DR20): ô tìm (debounce 300ms) và bộ lọc Level/Status/Composer cố định trên đầu bảng,
@@ -83,6 +88,7 @@ export function SheetTable() {
   const [level, setLevel] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [composerId, setComposerId] = useState(ALL);
+  const [source, setSource] = useState(ALL);
   const composers = useComposerOptions();
   const q = useDebouncedValue(search.trim(), SEARCH_DEBOUNCE_MS);
 
@@ -90,6 +96,7 @@ export function SheetTable() {
     ...(level !== ALL ? { level: level as Level } : {}),
     ...(status !== ALL ? { status: status as SheetStatus } : {}),
     ...(composerId !== ALL ? { composerId } : {}),
+    ...(source !== ALL ? { uploadedBy: 'customers' as const } : {}),
   };
   const filterKey = JSON.stringify(filters);
   const [query, setQuery] = useState({ q, filterKey, page: 1 });
@@ -184,6 +191,7 @@ export function SheetTable() {
           value={composerId}
           onChange={setComposerId}
         />
+        <FilterSelect id="sheet-filter-source" label="Nguồn" items={SOURCE_FILTER} value={source} onChange={setSource} />
         <Link href="/sheets/new" className={buttonVariants({ className: 'ml-auto' })}>
           <Plus aria-hidden="true" />
           Tạo Sheet
@@ -198,6 +206,7 @@ export function SheetTable() {
             <TableHead>Tiêu đề</TableHead>
             <TableHead className="w-20">Mã</TableHead>
             <TableHead>Composer</TableHead>
+            <TableHead>Người đăng</TableHead>
             <TableHead>Cấp độ</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead>Cập nhật lúc</TableHead>
@@ -227,6 +236,7 @@ export function SheetTable() {
               </TableCell>
               <TableCell className="text-muted-foreground">#{sheet.publicId}</TableCell>
               <TableCell>{sheet.composer.name}</TableCell>
+              <TableCell className={sheet.uploaderName ? '' : 'text-muted-foreground'}>{sheet.uploaderName ?? '—'}</TableCell>
               <TableCell>{LEVEL_LABELS[sheet.level]}</TableCell>
               <TableCell>{SHEET_STATUS_LABELS[sheet.status]}</TableCell>
               <TableCell className="text-muted-foreground">{dateFormat.format(new Date(sheet.updatedAt))}</TableCell>

@@ -19,7 +19,10 @@
     "pricing": "Bảng giá",
     "courses": "Khoá học",
     "skipToContent": "Bỏ qua tới nội dung",
-    "convert": "PDF sang MIDI"
+    "convert": "PDF sang MIDI",
+    "scores": "Bản nhạc",
+    "mySheets": "Bản nhạc của tôi",
+    "postScore": "Đăng bản nhạc"
   },
   "Search": {
     "label": "Tìm kiếm bản nhạc",
@@ -184,7 +187,8 @@
     "audioTitle": "Tải MIDI và MP3",
     "audioHint": "Dùng file MIDI để luyện tập trên phần mềm của bạn và file MP3 để nghe lại bản trình diễn.",
     "pdfSidebarTitle": "Bản nhạc PDF",
-    "purchaseDisabledNote": "Chức năng mua hàng tạm thời chưa khả dụng. Vui lòng quay lại sau."
+    "purchaseDisabledNote": "Chức năng mua hàng tạm thời chưa khả dụng. Vui lòng quay lại sau.",
+    "uploadedBy": "Đăng bởi {name}"
   },
   "Player": {
     "title": "Nghe thử",
@@ -617,5 +621,97 @@
     },
     "elapsed": "Đã chạy {time}",
     "slowHint": "Lần này lâu hơn bình thường. Bạn có thể đợi thêm, hoặc xoá và thử lại."
+  },
+  "Filters": {
+    "title": "Bộ lọc",
+    "open": "Bộ lọc",
+    "groupLevel": "Độ khó",
+    "groupGenre": "Thể loại",
+    "groupComposer": "Tác giả",
+    "groupFormat": "Định dạng",
+    "showAll": "Xem tất cả ({count})",
+    "showLess": "Thu gọn",
+    "selected": "đang chọn"
+  },
+  "MySheets": {
+    "title": "Bản nhạc của tôi",
+    "intro": "Các bản nhạc bạn đã đăng. Bài đã đăng hiện công khai ngay; bạn sửa, gỡ hoặc xoá được bất cứ lúc nào.",
+    "newCta": "Đăng bản nhạc",
+    "loadingPage": "Đang tải bản nhạc của bạn",
+    "loginTitle": "Đăng nhập để đăng bản nhạc",
+    "loginBody": "Chỉ cần đăng nhập là đăng được bản nhạc của bạn.",
+    "login": "Đăng nhập",
+    "emptyTitle": "Bạn chưa đăng bản nhạc nào",
+    "emptyHint": "Tải lên file PDF bản nhạc để chia sẻ với mọi người.",
+    "status": {
+      "DRAFT": "Bản nháp",
+      "PUBLISHED": "Đã đăng",
+      "ARCHIVED": "Đã bị quản trị gỡ"
+    },
+    "removedByAdmin": "Bản nhạc này đã bị quản trị viên gỡ nên không đăng lại được.",
+    "view": "Xem",
+    "edit": "Sửa",
+    "publish": "Đăng",
+    "unpublish": "Gỡ về bản nháp",
+    "delete": "Xoá",
+    "deleteConfirm": "Xoá bản nhạc này? Không thể hoàn tác.",
+    "deleteYes": "Xoá hẳn",
+    "cancel": "Huỷ",
+    "views": "{count} lượt xem",
+    "pages": "{count} trang",
+    "newTitle": "Đăng bản nhạc",
+    "editTitle": "Sửa bản nhạc",
+    "back": "Về Bản nhạc của tôi",
+    "noticeFree": "Bản nhạc bạn đăng luôn miễn phí và hiện công khai ngay khi bấm Đăng, kèm tên của bạn. Chỉ đăng bản nhạc bạn có quyền chia sẻ.",
+    "fields": {
+      "title": "Tiêu đề",
+      "subtitle": "Phụ đề (tuỳ chọn)",
+      "level": "Độ khó",
+      "difficultyScore": "Điểm độ khó 0–100 (tuỳ chọn)",
+      "difficultyNote": "Ghi chú độ khó (tuỳ chọn)",
+      "composer": "Tác giả",
+      "composerHint": "Chọn từ gợi ý hoặc gõ tên tác giả mới",
+      "genres": "Thể loại",
+      "description": "Mô tả (tuỳ chọn)",
+      "lyrics": "Lời và hợp âm (tuỳ chọn, Markdown)",
+      "youtube": "Link video YouTube (tuỳ chọn)"
+    },
+    "files": {
+      "pdf": "Bản nhạc PDF (bắt buộc)",
+      "midi": "File MIDI (tuỳ chọn)",
+      "mp3": "File MP3 (tuỳ chọn)",
+      "pdfHint": "PDF tối đa {max} MB",
+      "midiHint": "MIDI tối đa {max} MB",
+      "mp3Hint": "MP3 tối đa {max} MB",
+      "choose": "Chọn file",
+      "replace": "Đổi file",
+      "remove": "Gỡ file",
+      "none": "Chưa có file",
+      "uploading": "Đang tải lên… {percent}%",
+      "uploaded": "Đã tải lên",
+      "failed": "Tải lên lỗi"
+    },
+    "submit": "Đăng bản nhạc",
+    "saveDraft": "Lưu bản nháp",
+    "save": "Lưu thay đổi",
+    "saved": "Đã lưu",
+    "working": "Đang xử lý…",
+    "steps": {
+      "create": "Tạo bản nháp",
+      "upload": "Tải file lên",
+      "publish": "Đăng công khai"
+    },
+    "resume": "Thử lại từ bước đang dở",
+    "needPdf": "Cần chọn file PDF để đăng.",
+    "errors": {
+      "generic": "Có lỗi xảy ra. Vui lòng thử lại.",
+      "network": "Không kết nối được máy chủ.",
+      "fileTooLarge": "File vượt quá dung lượng cho phép.",
+      "unsupported": "Định dạng file không đúng.",
+      "processing": "Không xử lý được file. Hãy kiểm tra file rồi thử lại.",
+      "forbidden": "Bạn không thực hiện được thao tác này.",
+      "notFound": "Không tìm thấy bản nhạc của bạn.",
+      "needPublishPdf": "Cần tải lên PDF đã xử lý xong trước khi đăng."
+    }
   }
 }

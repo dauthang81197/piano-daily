@@ -179,7 +179,24 @@ const sheetFields = {
   priceBundleCents: priceCentsSchema.nullable().optional(),
 };
 
+/**
+ * Các trường mô tả khách (không phải admin) được nhập khi đăng bản nhạc: KHÔNG có giá, HOT, Series, miễn phí hay trạng thái.
+ * Dùng chung với `createMemberSheetSchema` (`member-sheet.ts`).
+ */
+export const memberSheetFields = {
+  title: sheetFields.title,
+  subtitle: sheetFields.subtitle,
+  level: sheetFields.level,
+  difficultyScore: sheetFields.difficultyScore,
+  difficultyNote: sheetFields.difficultyNote,
+  description: sheetFields.description,
+  lyricsChords: sheetFields.lyricsChords,
+  youtubeUrl: sheetFields.youtubeUrl,
+  genreIds: sheetFields.genreIds,
+};
+
 const UNKNOWN_KEY_ERROR = 'Trường này không được phép gửi lên.';
+export { UNKNOWN_KEY_ERROR as SHEET_UNKNOWN_KEY_ERROR };
 
 /** `POST /admin/sheets` — luôn tạo ở trạng thái DRAFT. Bắt buộc: `title`, `composerId`, `level`. */
 export const createSheetSchema = z.strictObject(sheetFields, { error: UNKNOWN_KEY_ERROR });
@@ -221,6 +238,8 @@ export const sheetListQuerySchema = z.object({
   level: levelSchema.optional(),
   status: sheetStatusSchema.optional(),
   composerId: z.uuid({ error: 'composerId không hợp lệ.' }).optional(),
+  /** `customers` = chỉ bài do khách đăng. */
+  uploadedBy: z.enum(['customers']).optional(),
   page: z.coerce
     .number({ error: pageMessage })
     .int({ error: pageMessage })
@@ -285,6 +304,10 @@ export type RemovableFileType = (typeof REMOVABLE_FILE_TYPES)[number];
 export const REMOVE_FILE_TYPE_ERROR = 'Loại file không hợp lệ. Chỉ gỡ được pdf, midi hoặc mp3.';
 export const removeFileTypeSchema = z.enum(REMOVABLE_FILE_TYPES, { error: REMOVE_FILE_TYPE_ERROR });
 
+/** Người đăng bài (khách); chỉ admin thấy email. `null`/vắng với bài do admin tạo. */
+export const sheetUploaderSchema = z.object({ id: z.string(), name: z.string(), email: z.string() });
+export type SheetUploader = z.infer<typeof sheetUploaderSchema>;
+
 export const sheetSchema = z.object({
   id: z.string(),
   publicId: z.number().int().positive(),
@@ -324,6 +347,8 @@ export const sheetSchema = z.object({
   firstPublishedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Người đăng (khách), chỉ có với bài do khách đăng. */
+  uploader: sheetUploaderSchema.nullable().optional(),
 });
 export type Sheet = z.infer<typeof sheetSchema>;
 
@@ -337,6 +362,8 @@ export const sheetListItemSchema = z.object({
   composer: refSchema,
   isHot: z.boolean(),
   updatedAt: z.string(),
+  /** Tên người đăng nếu là bài của khách (cột "Người đăng" ở admin). */
+  uploaderName: z.string().nullable().optional(),
 });
 export type SheetListItem = z.infer<typeof sheetListItemSchema>;
 
@@ -530,6 +557,8 @@ export const publicSheetDetailSchema = z.object({
   lyricsChords: z.string().nullable(),
   seriesSheets: z.array(publicSheetItemSchema),
   related: z.array(publicSheetItemSchema),
+  /** Tên người đăng (khách) để hiện "Đăng bởi"; không bao giờ có email. Vắng/`null` với bài của hệ thống. */
+  uploader: z.object({ name: z.string() }).nullable().optional(),
 });
 export type PublicSheetDetail = z.infer<typeof publicSheetDetailSchema>;
 

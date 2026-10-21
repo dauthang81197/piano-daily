@@ -29,8 +29,14 @@ import {
   type MyRating,
   myRatingSchema,
   lessonSubmissionSchema,
+  type CreateMemberSheetRequest,
+  type MemberSheetListItem,
+  memberSheetListSchema,
   type ScoreConversion,
   scoreConversionSchema,
+  type Sheet,
+  sheetSchema,
+  type UpdateMemberSheetRequest,
 } from '@piano-daily/shared';
 import type { z } from 'zod';
 import { ApiError, toApiError } from '@/lib/public-api';
@@ -199,6 +205,40 @@ export const customerApi = {
   },
   async getScore(accessToken: string, id: string): Promise<ScoreConversion> {
     return parsed(await call(`/customer/scores/${encodeURIComponent(id)}`, { method: 'GET' }, accessToken), scoreConversionSchema);
+  },
+  /** Bản nhạc do khách đăng ("Bản nhạc của tôi"). Mọi route yêu cầu đăng nhập; bài của người khác trả 404. */
+  async listMySheets(accessToken: string): Promise<MemberSheetListItem[]> {
+    return parsed(await call('/customer/sheets', { method: 'GET' }, accessToken), memberSheetListSchema);
+  },
+  async getMySheet(accessToken: string, id: string): Promise<Sheet> {
+    return parsed(await call(`/customer/sheets/${encodeURIComponent(id)}`, { method: 'GET' }, accessToken), sheetSchema);
+  },
+  async createMySheet(accessToken: string, body: CreateMemberSheetRequest): Promise<Sheet> {
+    return parsed(await call('/customer/sheets', post(body), accessToken), sheetSchema);
+  },
+  async updateMySheet(accessToken: string, id: string, body: UpdateMemberSheetRequest): Promise<Sheet> {
+    return parsed(await call(`/customer/sheets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }, accessToken), sheetSchema);
+  },
+  /** Tải PDF/MIDI/MP3 lên bài (multipart); có `onProgress` thì báo tỉ lệ tải lên 0..1. */
+  async uploadMySheetFile(accessToken: string, id: string, type: 'PDF' | 'MIDI' | 'MP3', file: File, onProgress?: (fraction: number) => void): Promise<Sheet> {
+    const form = new FormData();
+    form.append('type', type);
+    form.append('file', file);
+    const path = `/customer/sheets/${encodeURIComponent(id)}/files`;
+    const res = onProgress ? await postWithProgress(path, form, accessToken, onProgress) : await call(path, { method: 'POST', body: form }, accessToken);
+    return parsed(res, sheetSchema);
+  },
+  async removeMySheetFile(accessToken: string, id: string, type: 'pdf' | 'midi' | 'mp3'): Promise<void> {
+    await call(`/customer/sheets/${encodeURIComponent(id)}/files/${type}`, { method: 'DELETE' }, accessToken);
+  },
+  async publishMySheet(accessToken: string, id: string): Promise<Sheet> {
+    return parsed(await call(`/customer/sheets/${encodeURIComponent(id)}/publish`, post(), accessToken), sheetSchema);
+  },
+  async unpublishMySheet(accessToken: string, id: string): Promise<Sheet> {
+    return parsed(await call(`/customer/sheets/${encodeURIComponent(id)}/unpublish`, post(), accessToken), sheetSchema);
+  },
+  async deleteMySheet(accessToken: string, id: string): Promise<void> {
+    await call(`/customer/sheets/${encodeURIComponent(id)}`, { method: 'DELETE' }, accessToken);
   },
   async deleteScore(accessToken: string, id: string): Promise<void> {
     await call(`/customer/scores/${encodeURIComponent(id)}`, { method: 'DELETE' }, accessToken);

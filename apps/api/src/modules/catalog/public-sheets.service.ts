@@ -167,6 +167,7 @@ export class PublicSheetsService {
         seriesId: true,
         composer: { select: { id: true, name: true, slug: true } },
         series: { select: { id: true, name: true } },
+        uploader: { select: { name: true } },
         genres: { select: { genre: { select: { id: true, name: true, slug: true } } } },
         pageCount: true,
         viewCount: true,
@@ -226,6 +227,8 @@ export class PublicSheetsService {
       lyricsChords: row.lyricsChords,
       seriesSheets,
       related,
+      // Chỉ tên hiển thị của người đăng (không email); bài của hệ thống không có người đăng.
+      uploader: row.uploader ? { name: row.uploader.name } : null,
     };
   }
 

@@ -38,6 +38,16 @@ vi.mock('@/i18n/navigation', () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
 
+vi.mock('@/lib/filter-data', () => ({ loadFilterGroups: async () => [] }));
+vi.mock('@/components/catalog/filter-sidebar', () => ({ FilterSidebar: () => null }));
+vi.mock('@/components/catalog/catalog-shell', () => ({
+  CatalogShell: ({ children, count }: { children: React.ReactNode; count: number }) => (
+    <main data-testid="shell" data-filter-count={count}>
+      {children}
+    </main>
+  ),
+}));
+
 import GenrePage, { generateMetadata } from './page';
 
 const item = { id: 'g1', slug: 'pop', name: 'Pop', icon: 'music' };

@@ -133,3 +133,48 @@ describe('customerApi.createScore: báo tiến độ tải lên (XMLHttpRequest)
     await expect(offline).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
   });
 });
+
+describe('customerApi: bản nhạc của tôi', () => {
+  const sheet = { id: '0195b0f0-0000-7000-8000-000000000001', publicId: 1, slug: 's', title: 'T', subtitle: null, composer: { id: 'c', name: 'C' }, series: null, level: 'BEGINNER', difficultyScore: null, difficultyNote: null, description: null, lyricsChords: null, youtubeUrl: null, genres: [], hasSheet: false, hasChords: false, hasMidi: false, hasMp3: false, hasVideo: false, pageCount: 0, thumbnailUrl: null, pages: [], pdf: null, midi: null, mp3: null, viewCount: 0, isHot: false, isFree: true, pricePdfCents: null, priceMidiCents: null, priceMp3Cents: null, priceBundleCents: null, status: 'DRAFT', firstPublishedAt: null, createdAt: 'x', updatedAt: 'x' };
+
+  it('createMySheet POST JSON; updateMySheet PATCH; publish/unpublish POST; delete DELETE; đúng đường dẫn và Bearer', async () => {
+    fetchMock.mockResolvedValue(json(201, sheet));
+    await customerApi.createMySheet('tok', { title: 'T', level: 'BEGINNER', composerName: 'C' });
+    expect(called()).toMatchObject({ url: 'https://api.test/customer/sheets', auth: 'Bearer tok' });
+    expect(called().init.method).toBe('POST');
+    expect(JSON.parse(called().init.body as string)).toEqual({ title: 'T', level: 'BEGINNER', composerName: 'C' });
+
+    for (const [call, method, path] of [
+      [() => customerApi.updateMySheet('tok', 'a b', { title: 'N' }), 'PATCH', '/customer/sheets/a%20b'],
+      [() => customerApi.publishMySheet('tok', 'x'), 'POST', '/customer/sheets/x/publish'],
+      [() => customerApi.unpublishMySheet('tok', 'x'), 'POST', '/customer/sheets/x/unpublish'],
+    ] as const) {
+      fetchMock.mockReset();
+      fetchMock.mockResolvedValue(json(200, sheet));
+      await call();
+      expect(called().init.method).toBe(method);
+      expect(called().url).toBe(`https://api.test${path}`);
+    }
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await customerApi.deleteMySheet('tok', 'x');
+    expect(called().init.method).toBe('DELETE');
+    await customerApi.removeMySheetFile('tok', 'x', 'midi');
+    expect(fetchMock.mock.calls[1]![0]).toBe('https://api.test/customer/sheets/x/files/midi');
+  });
+
+  it('listMySheets parse danh sách; getMySheet 404 thành ApiError; uploadMySheetFile (không tiến trình) gửi multipart type + file', async () => {
+    fetchMock.mockResolvedValue(json(200, []));
+    expect(await customerApi.listMySheets('tok')).toEqual([]);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(json(404, { error: { code: 'NOT_FOUND', message: 'x' } }));
+    await expect(customerApi.getMySheet('tok', 'x')).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(json(201, sheet));
+    await customerApi.uploadMySheetFile('tok', 'x', 'PDF', new File(['%PDF'], 'a.pdf'));
+    const form = called().init.body as FormData;
+    expect(form.get('type')).toBe('PDF');
+    expect((form.get('file') as File).name).toBe('a.pdf');
+    expect((called().init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+  });
+});

@@ -4,7 +4,8 @@ import { hasLocale } from 'next-intl';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/catalog/empty-state';
-import { GenreTags } from '@/components/catalog/genre-tags';
+import { CatalogShell } from '@/components/catalog/catalog-shell';
+import { FilterSidebar } from '@/components/catalog/filter-sidebar';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
@@ -15,6 +16,8 @@ import { Link } from '@/i18n/navigation';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchLevelSheets, fetchLevelSummary } from '@/lib/catalog';
+import { loadFilterGroups } from '@/lib/filter-data';
+import { activeFilterCount } from '@/lib/filter-groups';
 import { levelHref, parseGenre, parseLevelSlug, parsePage, parseSort } from '@/lib/query';
 import { pageMetadata } from '@/lib/seo';
 
@@ -70,9 +73,11 @@ export default async function LevelPage({ params, searchParams }: Props) {
   const t = await getTranslations('Level');
   const nav = await getTranslations('Nav');
   const format = await getFormatter();
+  const filterState = { level, genre: genre?.slug };
+  const groups = await loadFilterGroups(filterState);
 
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
+    <CatalogShell filters={<FilterSidebar groups={groups} />} count={activeFilterCount(filterState)}>
       <header className="flex flex-col gap-4">
         <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">
           {t('heroTitle', { level: nav(`levels.${level}`) })}
@@ -87,12 +92,6 @@ export default async function LevelPage({ params, searchParams }: Props) {
           </p>
         ) : null}
       </header>
-
-      <GenreTags
-        genres={summary.genres}
-        selectedSlug={genre?.slug}
-        hrefFor={(slug) => levelHref(level, { sort, genre: slug })}
-      />
 
       <div className="flex justify-end">
         <SortLinks sort={sort} hrefFor={(value) => levelHref(level, { genre: genre?.slug, sort: value })} />
@@ -118,6 +117,6 @@ export default async function LevelPage({ params, searchParams }: Props) {
         total={list.total}
         hrefFor={(p) => levelHref(level, { sort, genre: genre?.slug, page: p })}
       />
-    </main>
+    </CatalogShell>
   );
 }

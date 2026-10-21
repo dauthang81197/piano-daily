@@ -4,7 +4,8 @@ import { hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/catalog/empty-state';
-import { GenreTags } from '@/components/catalog/genre-tags';
+import { CatalogShell } from '@/components/catalog/catalog-shell';
+import { FilterSidebar } from '@/components/catalog/filter-sidebar';
 import { LevelLinks } from '@/components/catalog/level-links';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
@@ -12,10 +13,13 @@ import { SearchFilters } from '@/components/catalog/search-filters';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
 import { buttonClasses } from '@/components/ui/button';
+import { FileMusic, Upload } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchFacets, fetchSearch } from '@/lib/catalog';
+import { activeFilterCount } from '@/lib/filter-groups';
+import { loadFilterGroups } from '@/lib/filter-data';
 import {
   parseFormat,
   parseGenre,
@@ -99,19 +103,30 @@ export default async function SearchPage({ params, searchParams }: Props) {
   if (composer) active.push({ key: 'composer', label: facets.composers.find((c) => c.slug === composer)?.name ?? composer });
   if (format) active.push({ key: 'format', label: card(`formats.${format}`) });
 
-  return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
-      <header className="flex flex-col gap-4">
-        <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
-        <p className="text-body-lg text-on-surface-variant">{t('total', { count: list.total })}</p>
-        <SearchFilters q={q} level={level} composer={composer} format={format} genre={genre} composers={facets.composers} />
-      </header>
+  const groups = await loadFilterGroups(state, facets);
+  const convert = await getTranslations('Nav');
 
-      <GenreTags
-        genres={facets.genres}
-        selectedSlug={genre}
-        hrefFor={(slug) => searchHref({ ...state, genre: slug })}
-      />
+  return (
+    <CatalogShell filters={<FilterSidebar groups={groups} />} count={activeFilterCount(state)}>
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
+            <p className="text-body-lg text-on-surface-variant">{t('total', { count: list.total })}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/my-sheets/new" className={buttonClasses()}>
+              <Upload aria-hidden="true" className="size-5" />
+              {convert('postScore')}
+            </Link>
+            <Link href="/convert" className={buttonClasses({ variant: 'secondary' })}>
+              <FileMusic aria-hidden="true" className="size-5" />
+              {convert('convert')}
+            </Link>
+          </div>
+        </div>
+        <SearchFilters q={q} level={level} composer={composer} format={format} genre={genre} />
+      </header>
 
       <div className="flex justify-end">
         <SortLinks sort={sort} showRelevance={Boolean(q)} hrefFor={(value) => searchHref({ ...state, sort: value })} />
@@ -147,6 +162,6 @@ export default async function SearchPage({ params, searchParams }: Props) {
         total={list.total}
         hrefFor={(p) => searchHref({ ...state, page: p })}
       />
-    </main>
+    </CatalogShell>
   );
 }

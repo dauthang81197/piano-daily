@@ -4,6 +4,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { GenreIcon } from '@/components/catalog/genre-icon';
 import { EmptyState } from '@/components/catalog/empty-state';
+import { CatalogShell } from '@/components/catalog/catalog-shell';
+import { FilterSidebar } from '@/components/catalog/filter-sidebar';
 import { LevelLinks } from '@/components/catalog/level-links';
 import { AdSlotFrame } from '@/components/ads/ad-slot-frame';
 import { Pagination } from '@/components/catalog/pagination';
@@ -12,6 +14,8 @@ import { SortLinks } from '@/components/catalog/sort-links';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
 import { fetchGenre, fetchGenreSheets } from '@/lib/catalog';
+import { loadFilterGroups } from '@/lib/filter-data';
+import { activeFilterCount } from '@/lib/filter-groups';
 import { genreHref, parsePage, parseSort } from '@/lib/query';
 import { pageMetadata } from '@/lib/seo';
 
@@ -53,9 +57,11 @@ export default async function GenrePage({ params, searchParams }: Props) {
   if (page > 1 && list.items.length === 0) notFound();
 
   const t = await getTranslations('Genre');
+  const filterState = { genre: genre.slug };
+  const groups = await loadFilterGroups(filterState);
 
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-gutter px-margin-mobile py-section-gap md:px-margin-desktop">
+    <CatalogShell filters={<FilterSidebar groups={groups} />} count={activeFilterCount(filterState)}>
       <header className="flex flex-col gap-3">
         <h1 className="flex items-center gap-3 font-display text-display-lg-mobile text-primary md:text-display-lg">
           <GenreIcon icon={genre.icon} className="size-8 shrink-0 md:size-10" />
@@ -84,6 +90,6 @@ export default async function GenrePage({ params, searchParams }: Props) {
         total={list.total}
         hrefFor={(p) => genreHref(genre.slug, { sort, page: p })}
       />
-    </main>
+    </CatalogShell>
   );
 }

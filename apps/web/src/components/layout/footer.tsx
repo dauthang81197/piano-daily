@@ -2,6 +2,7 @@ import { isSiteYoutubeUrl } from '@piano-daily/shared';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { LEVELS } from '@/lib/levels';
+import { searchHref } from '@/lib/query';
 import { paymentsEnabled } from '@/lib/public-env';
 
 const footerLink =
@@ -12,7 +13,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
   const nav = useTranslations('Nav');
   return (
     <footer className="mt-section-gap border-t border-outline-variant bg-surface-container-low">
-      <div className="mx-auto grid max-w-7xl gap-gutter px-margin-mobile py-12 sm:grid-cols-2 lg:grid-cols-4 md:px-margin-desktop">
+      <div className="grid gap-gutter px-margin-mobile py-12 sm:grid-cols-2 lg:grid-cols-4 md:px-margin-desktop">
         <section>
           <h2 className="font-display text-headline-sm text-primary">{t('aboutTitle')}</h2>
           <p className="mt-3 text-body-md text-on-surface-variant">{t('about')}</p>
@@ -29,7 +30,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
           <ul className="mt-3 flex flex-col gap-1">
             {LEVELS.map((level) => (
               <li key={level}>
-                <Link href={`/level/${level}`} className={footerLink}>
+                <Link href={searchHref({ level })} className={footerLink}>
                   {nav(`levels.${level}`)}
                 </Link>
               </li>
@@ -61,7 +62,7 @@ export function Footer({ youtubeUrl = '', siteName = 'Piano Daily' }: { youtubeU
         </section>
       </div>
       <div className="border-t border-outline-variant">
-        <p className="mx-auto max-w-7xl px-margin-mobile py-4 text-caption text-on-surface-variant md:px-margin-desktop">
+        <p className="px-margin-mobile py-4 text-caption text-on-surface-variant md:px-margin-desktop">
           {t('rights', { year: new Date().getFullYear(), name: siteName || 'Piano Daily' })}
         </p>
       </div>

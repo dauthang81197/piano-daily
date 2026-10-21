@@ -24,7 +24,9 @@ describe('MobileMenu', () => {
 
     await userEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('link', { name: 'Beginner' })).toHaveAttribute('href', '/level/beginner');
+    expect(screen.getByRole('link', { name: 'Scores' })).toHaveAttribute('href', '/search');
+    expect(screen.getByRole('link', { name: 'Courses' })).toHaveAttribute('href', '/courses');
+    expect(screen.queryByRole('link', { name: 'Beginner' })).not.toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
     expect(button).toHaveAttribute('aria-expanded', 'false');

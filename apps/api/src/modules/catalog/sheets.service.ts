@@ -81,6 +81,7 @@ const SELECT = {
   updatedAt: true,
   composer: REF,
   series: REF,
+  uploader: { select: { id: true, name: true, email: true } },
   genres: { select: { genre: REF }, orderBy: { genre: { name: 'asc' } } },
   // File hiện hành phục vụ response (PDF/MIDI chỉ lấy metadata; key private không bao giờ ra khỏi service).
   files: {
@@ -114,6 +115,7 @@ const LIST_SELECT = {
   isHot: true,
   updatedAt: true,
   composer: REF,
+  uploader: { select: { name: true } },
 } as const satisfies Prisma.SheetSelect;
 
 type SheetRow = Prisma.SheetGetPayload<{ select: typeof SELECT }>;
@@ -173,8 +175,8 @@ async function toSheet(
   };
 }
 
-function toListItem({ level, status, updatedAt, ...row }: SheetListRow): SheetListItem {
-  return { ...row, level: level as Level, status: status as SheetStatus, updatedAt: updatedAt.toISOString() };
+function toListItem({ level, status, updatedAt, uploader, ...row }: SheetListRow): SheetListItem {
+  return { ...row, level: level as Level, status: status as SheetStatus, updatedAt: updatedAt.toISOString(), uploaderName: uploader?.name ?? null };
 }
 
 function validationFailed(details?: ValidationDetail[]): AppException {
@@ -328,6 +330,7 @@ export class SheetsService {
     }
     and.push(...sheetFilterConditions(query));
     if (query.status) and.push({ status: query.status });
+    if (query.uploadedBy === 'customers') and.push({ uploaderId: { not: null } });
     const where: Prisma.SheetWhereInput = and.length ? { AND: and } : {};
 
     const [rows, total] = await this.prisma.$transaction([
@@ -444,11 +447,11 @@ export class SheetsService {
   }
 
   /** Luôn tạo ở trạng thái DRAFT; slug sinh từ tiêu đề. */
-  async create(body: CreateSheetBody): Promise<Sheet> {
-    return this.cache.track(null, () => this.createRow(body), (sheet) => sheet.id);
+  async create(body: CreateSheetBody, opts: { uploaderId?: string } = {}): Promise<Sheet> {
+    return this.cache.track(null, () => this.createRow(body, opts.uploaderId), (sheet) => sheet.id);
   }
 
-  private async createRow(body: CreateSheetBody): Promise<Sheet> {
+  private async createRow(body: CreateSheetBody, uploaderId?: string): Promise<Sheet> {
     const genreIds = body.genreIds ?? [];
     const refs: Refs = { composerId: body.composerId, seriesId: body.seriesId ?? null, checkSeries: true, genreIds };
     await this.assertRefs(refs);
@@ -473,6 +476,7 @@ export class SheetsService {
               priceMidiCents: body.priceMidiCents ?? null,
               priceMp3Cents: body.priceMp3Cents ?? null,
               priceBundleCents: body.priceBundleCents ?? null,
+              uploaderId: uploaderId ?? null,
             },
             select: { id: true },
           });

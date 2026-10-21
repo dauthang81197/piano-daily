@@ -109,6 +109,12 @@ export function SheetDetail({
             </dd>
           </dl>
 
+          {sheet.uploader ? (
+            <p className="text-body-md text-on-surface-variant" data-testid="uploaded-by">
+              {t('uploadedBy', { name: sheet.uploader.name })}
+            </p>
+          ) : null}
+
           {sheet.genres.length > 0 ? (
             <ul aria-label={t('genres')} className="flex flex-wrap gap-2">
               {sheet.genres.map((genre) => (

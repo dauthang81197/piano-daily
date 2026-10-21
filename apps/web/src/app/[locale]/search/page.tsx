@@ -13,7 +13,7 @@ import { SearchFilters } from '@/components/catalog/search-filters';
 import { SheetGrid } from '@/components/catalog/sheet-grid';
 import { SortLinks } from '@/components/catalog/sort-links';
 import { buttonClasses } from '@/components/ui/button';
-import { FileMusic } from 'lucide-react';
+import { FileMusic, Upload } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { fetchAds } from '@/lib/ads';
 import { routing } from '@/i18n/routing';
@@ -114,10 +114,16 @@ export default async function SearchPage({ params, searchParams }: Props) {
             <h1 className="font-display text-display-lg-mobile text-primary md:text-display-lg">{t('title')}</h1>
             <p className="text-body-lg text-on-surface-variant">{t('total', { count: list.total })}</p>
           </div>
-          <Link href="/convert" className={buttonClasses({ variant: 'secondary' })}>
-            <FileMusic aria-hidden="true" className="size-5" />
-            {convert('convert')}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/my-sheets/new" className={buttonClasses()}>
+              <Upload aria-hidden="true" className="size-5" />
+              {convert('postScore')}
+            </Link>
+            <Link href="/convert" className={buttonClasses({ variant: 'secondary' })}>
+              <FileMusic aria-hidden="true" className="size-5" />
+              {convert('convert')}
+            </Link>
+          </div>
         </div>
         <SearchFilters q={q} level={level} composer={composer} format={format} genre={genre} />
       </header>

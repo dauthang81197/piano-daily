@@ -177,6 +177,29 @@ describe('Trang /sheets — bảng', () => {
     expect(requests(fetchMock, 'GET', '/admin/sheets').some(({ url }) => url.searchParams.get('status') === 'DRAFT')).toBe(true);
   });
 
+  it('cột "Người đăng": tên khách với bài do khách đăng, dấu "—" với bài của admin', async () => {
+    await signIn((url) =>
+      url.pathname === '/admin/sheets'
+        ? jsonResponse(200, page([{ ...LIST_ITEM, uploaderName: 'Khách A' }, { ...LIST_ITEM, id: 'other', title: 'Của admin', uploaderName: null }]))
+        : undefined,
+    );
+    render(<SheetsPage />);
+    const mine = await screen.findByRole('row', { name: /Für Elise/ });
+    expect(mine).toHaveTextContent('Khách A');
+    expect(screen.getByRole('row', { name: /Của admin/ })).toHaveTextContent('—');
+    expect(screen.getByRole('columnheader', { name: 'Người đăng' })).toBeInTheDocument();
+  });
+
+  it('bộ lọc "Nguồn: Do người dùng đăng" gửi uploadedBy=customers và về trang 1; mặc định không gửi', async () => {
+    const fetchMock = await signIn((url) => (url.pathname === '/admin/sheets' ? jsonResponse(200, page([LIST_ITEM])) : undefined));
+    render(<SheetsPage />);
+    await screen.findByRole('row', { name: /Für Elise/ });
+    expect(requests(fetchMock, 'GET', '/admin/sheets').every(({ url }) => !url.searchParams.has('uploadedBy'))).toBe(true);
+    const user = userEvent.setup();
+    await choose(user, 'Nguồn', 'Do người dùng đăng');
+    await waitFor(() => expect(requests(fetchMock, 'GET', '/admin/sheets').some(({ url }) => url.searchParams.get('uploadedBy') === 'customers' && url.searchParams.get('page') === '1')).toBe(true));
+  });
+
   it('keeps delete confirmation open and displays an error when deletion fails', async () => {
     const fetchMock = await signIn((url, init) => {
       if (url.pathname === `/admin/sheets/${SHEET.id}` && init.method === 'DELETE') {
@@ -622,5 +645,17 @@ describe('Trang sửa Sheet', () => {
     await signIn(() => undefined);
     render(<SheetEditPage id="khong-co" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tìm thấy Sheet');
+  });
+
+  it('Sheet do khách đăng: hiện tên và email người đăng ở trang sửa; Sheet của admin thì không', async () => {
+    await signIn((url) => (url.pathname === `/admin/sheets/${SHEET.id}` ? jsonResponse(200, { ...SHEET, uploader: { id: 'c1', name: 'Khách A', email: 'a@example.com' } }) : undefined));
+    const first = render(<SheetEditPage id={SHEET.id} />);
+    expect(await screen.findByTestId('sheet-uploader')).toHaveTextContent('Khách A');
+    expect(screen.getByTestId('sheet-uploader')).toHaveTextContent('a@example.com');
+    first.unmount();
+    await signIn((url) => (url.pathname === `/admin/sheets/${SHEET.id}` ? jsonResponse(200, SHEET) : undefined));
+    render(<SheetEditPage id={SHEET.id} />);
+    await screen.findByRole('heading', { name: SHEET.title });
+    expect(screen.queryByTestId('sheet-uploader')).toBeNull();
   });
 });

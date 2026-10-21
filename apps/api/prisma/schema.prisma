@@ -77,6 +77,7 @@ model Customer {
   subscriptions        Subscription[]
   subscriptionPayments SubscriptionPayment[]
   scoreConversions     ScoreConversion[]
+  uploadedSheets       Sheet[]           @relation("SheetUploader")
   refreshTokens        CustomerRefreshToken[]
   tokens               CustomerToken[]
   downloadLogs         DownloadLog[]
@@ -492,6 +493,8 @@ model Sheet {
   priceMp3Cents    Int?                     @map("price_mp3_cents")
   priceBundleCents Int?                     @map("price_bundle_cents")
   status           SheetStatus              @default(DRAFT)
+  /// Khách đã đăng bài (null: bài của admin/hệ thống, hoặc khách đã bị xoá).
+  uploaderId       String?                  @map("uploader_id") @db.Uuid
   firstPublishedAt DateTime?                @map("first_published_at") @db.Timestamptz(6)
   createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -499,6 +502,7 @@ model Sheet {
   searchVector     Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
 
   composer  Composer          @relation(fields: [composerId], references: [id], onDelete: Restrict)
+  uploader  Customer?         @relation("SheetUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
   series    Series?           @relation(fields: [seriesId], references: [id], onDelete: Restrict)
   genres    SheetGenre[]
   files     SheetFile[]
@@ -509,6 +513,7 @@ model Sheet {
   @@index([status])
   @@index([composerId])
   @@index([seriesId])
+  @@index([uploaderId])
   @@index([level])
   @@index([searchVector], type: Gin)
   @@map("sheets")

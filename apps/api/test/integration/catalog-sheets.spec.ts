@@ -422,6 +422,8 @@ describe('/admin/sheets (Postgres thật)', () => {
         composer: { id: beethoven.id, name: 'Beethoven' },
         isHot: false,
         updatedAt: elise.updatedAt,
+        // Trường đọc thêm cho cột "Người đăng" của admin: null với Sheet do admin tạo.
+        uploaderName: null,
       });
 
       // Không dấu / có dấu / hoa thường.

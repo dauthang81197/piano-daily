@@ -33,6 +33,8 @@ describe('validateEnv', () => {
       SCORE_RESULT_TTL_HOURS: 6,
       SCORE_MAX_CONCURRENT: 2,
       SCORE_JOB_TIMEOUT_MS: 11 * 60_000,
+      IMPORT_CONCURRENCY: 1,
+      IMPORT_RETRY_DELAY_MS: 30_000,
     });
   });
 

@@ -77,7 +77,7 @@ model Customer {
   subscriptions        Subscription[]
   subscriptionPayments SubscriptionPayment[]
   scoreConversions     ScoreConversion[]
-  uploadedSheets       Sheet[]           @relation("SheetUploader")
+  uploadedSheets       Sheet[]                @relation("SheetUploader")
   refreshTokens        CustomerRefreshToken[]
   tokens               CustomerToken[]
   downloadLogs         DownloadLog[]
@@ -408,8 +408,9 @@ model Composer {
   /// Cột generated (migration `catalog_search`): chỉ đọc bằng SQL thô trong repository tìm kiếm.
   searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
 
-  series Series[]
-  sheets Sheet[]
+  series        Series[]
+  sheets        Sheet[]
+  importBatches SheetImportBatch[]
 
   @@index([searchVector], type: Gin)
   @@map("composers")
@@ -501,14 +502,15 @@ model Sheet {
   /// Cột generated (migration `catalog_search`): chỉ đọc bằng SQL thô trong repository tìm kiếm.
   searchVector     Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
 
-  composer  Composer          @relation(fields: [composerId], references: [id], onDelete: Restrict)
-  uploader  Customer?         @relation("SheetUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
-  series    Series?           @relation(fields: [seriesId], references: [id], onDelete: Restrict)
-  genres    SheetGenre[]
-  files     SheetFile[]
-  views     SheetViewDedupe[]
-  downloads DownloadLog[]
-  orders    Order[]
+  composer    Composer          @relation(fields: [composerId], references: [id], onDelete: Restrict)
+  uploader    Customer?         @relation("SheetUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
+  importItems SheetImportItem[] @relation("SheetImportItemSheet")
+  series      Series?           @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  genres      SheetGenre[]
+  files       SheetFile[]
+  views       SheetViewDedupe[]
+  downloads   DownloadLog[]
+  orders      Order[]
 
   @@index([status])
   @@index([composerId])
@@ -798,4 +800,53 @@ model ScoreConversion {
   @@index([customerId, createdAt(sort: Desc)])
   @@index([expiresAt])
   @@map("score_conversions")
+}
+
+/// Đợt import Sheet hàng loạt của admin (PDF → MIDI → Sheet), chạy nền. Trạng thái đợt tính từ các dòng.
+model SheetImportBatch {
+  id          String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// Mặc định áp cho mọi Sheet của đợt.
+  level       Level     @default(INTERMEDIATE)
+  /// null: dùng Composer mặc định "Chưa rõ" (tìm hoặc tạo khi chạy).
+  composerId  String?   @map("composer_id") @db.Uuid
+  genreIds    String[]  @default([]) @map("genre_ids") @db.Uuid
+  /// true: đăng công khai ngay khi xong; false: để bản nháp.
+  publish     Boolean   @default(false)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  composer Composer?         @relation(fields: [composerId], references: [id], onDelete: SetNull)
+  items    SheetImportItem[]
+
+  @@index([createdAt(sort: Desc)])
+  @@map("sheet_import_batches")
+}
+
+model SheetImportItem {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  batchId      String    @map("batch_id") @db.Uuid
+  originalName String    @map("original_name")
+  /// PDF gốc (private) cho tới khi dòng xong hoặc bị xoá.
+  storageKey   String?   @map("storage_key")
+  /// `PENDING` | `PROCESSING` | `DONE` | `FAILED` | `CANCELLED` (CHECK ở DB).
+  status       String    @default("PENDING")
+  /// Khi `PROCESSING`: `CONVERTING` | `CREATING` | `ATTACHING` (CHECK ở DB).
+  step         String?
+  attempts     Int       @default(0)
+  errorCode    String?   @map("error_code")
+  errorMessage String?   @map("error_message")
+  sheetId      String?   @map("sheet_id") @db.Uuid
+  /// Không chạy trước thời điểm này (chờ trước khi thử lại).
+  runAfter     DateTime  @default(now()) @map("run_after") @db.Timestamptz(6)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  batch SheetImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sheet Sheet?           @relation("SheetImportItemSheet", fields: [sheetId], references: [id], onDelete: SetNull)
+
+  @@index([batchId, createdAt, id])
+  @@index([status, runAfter])
+  @@index([sheetId])
+  @@map("sheet_import_items")
 }

@@ -199,6 +199,10 @@ export const envSchema = z.object({
   SCORE_MAX_CONCURRENT: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(20).default(2)),
   /** Thời gian chờ tối đa một lần gọi `musicscore` (ms). */
   SCORE_JOB_TIMEOUT_MS: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(10_000).max(30 * 60_000).default(11 * 60_000)),
+  /** Import Sheet hàng loạt (admin): số dòng xử lý đồng thời (OCR nặng nên mặc định 1). */
+  IMPORT_CONCURRENCY: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(1).max(4).default(1)),
+  /** Chờ bao lâu (ms) trước khi thử lại dòng lỗi do dịch vụ chuyển nhạc; nhân với số lần đã thử. */
+  IMPORT_RETRY_DELAY_MS: z.preprocess(emptyAsUndefined, z.coerce.number().int().min(0).max(10 * 60_000).default(30_000)),
   SITE_URL: z.preprocess(
     emptyAsUndefined,
     z

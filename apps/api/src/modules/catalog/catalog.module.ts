@@ -32,6 +32,6 @@ import { SheetFileGcService } from './sheet-file-gc.service';
   imports: [MediaModule, IdentityModule, CustomersModule, SettingsModule, CacheInvalidatorModule, CoursesModule],
   controllers: [ComposersController, GenresController, SeriesController, SheetsController, SheetFilesController, MemberSheetsController, PublicSheetsController],
   providers: [PricingService, MemberSheetsService, FreeDownloadSource, PurchasableFilesSource, ComposersService, GenresService, SeriesService, SheetsService, PublicSheetsService, SheetSearchRepository, SheetFileGcService, SheetViewsRepository, SheetViewsService, SheetViewDedupeGcService],
-  exports: [FreeDownloadSource, PricingService, PurchasableFilesSource],
+  exports: [ComposersService, SheetsService, FreeDownloadSource, PricingService, PurchasableFilesSource],
 })
 export class CatalogModule {}

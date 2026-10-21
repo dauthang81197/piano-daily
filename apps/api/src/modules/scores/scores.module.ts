@@ -12,5 +12,6 @@ import { ScoresService } from './scores.service';
   imports: [CustomersModule, IdentityModule, MediaModule],
   controllers: [CustomerScoresController],
   providers: [MusicscoreClient, ScoreGcService, ScoresService],
+  exports: [MusicscoreClient],
 })
 export class ScoresModule {}

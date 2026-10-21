@@ -147,6 +147,10 @@ cd services/musicscore && npm ci && node src/server.ts   # cổng 3000
 
 Bỏ trống `MUSICSCORE_URL` thì tính năng tắt (API trả 503 `FEATURE_DISABLED`, trang `/convert` báo chưa mở khi gửi). Production: `docker-compose.prod.yml` mặc định `MUSICSCORE_URL=http://piano-musicscore:3000` (dịch vụ `musicscore` chạy project riêng cùng network NPM, không mở cổng ra ngoài); đặt `MUSICSCORE_URL=` (rỗng) để tắt. Biến tuỳ chọn khác: `SCORE_MAX_UPLOAD_MB` (20), `SCORE_MAX_CONCURRENT` (2), `SCORE_JOB_TIMEOUT_MS`.
 
+### Import Sheet hàng loạt (admin)
+
+Admin vào **Import Sheet** (`/imports`) → **Import mới**: chọn nhiều PDF (tối đa 50/đợt) và mặc định chung (Cấp độ mặc định *Trung cấp*, Composer mặc định "Chưa rõ", tuỳ chọn Genre và "Đăng luôn"). Mỗi PDF là một dòng; API chạy nền từng dòng: PDF → MIDI (cùng `musicscore`) → tạo Sheet → đính PDF + MIDI (có thumbnail, trang như upload tay). Trạng thái nằm ở hai bảng `sheet_import_batches` / `sheet_import_items`, nên đóng trình duyệt hay khởi động lại API vẫn chạy tiếp và trang đợt hiện file nào xong, đang chạy, lỗi (kèm nút Thử lại). Mặc định Sheet ở bản nháp; "Đăng luôn" đăng công khai và đặt miễn phí (Sheet công khai bắt buộc miễn phí hoặc có giá). Cần `MUSICSCORE_URL`; biến tuỳ chọn `IMPORT_CONCURRENCY` (1), `IMPORT_RETRY_DELAY_MS` (30000). PDF tạm lưu private tới khi dòng xong hoặc xoá đợt.
+
 ## CI/CD và deploy (GitHub Actions → Docker Hub → VPS)
 
 `.github/workflows/ci-cd.yml`: mọi PR chạy lint, typecheck, build và toàn bộ test (kể cả integration với Postgres/SeaweedFS). Push vào `develop` còn build 3 image (`<user>/piano-daily-{api,web,admin}:sha-<7 ký tự>` và `:latest`), đẩy lên Docker Hub rồi SSH vào VPS chạy `docker compose -f docker-compose.prod.yml up -d --wait`. API tự chạy `prisma migrate deploy` khi khởi động.

@@ -17,6 +17,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CoursesModule } from './modules/courses/courses.module';
+import { ImportsModule } from './modules/imports/imports.module';
 import { ScoresModule } from './modules/scores/scores.module';
 import { CommerceModule } from './modules/commerce/commerce.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -61,6 +62,7 @@ import { PrismaModule } from './prisma/prisma.module';
     BillingModule,
     CoursesModule,
     ScoresModule,
+    ImportsModule,
     CatalogModule,
     SettingsModule,
     AdsModule,

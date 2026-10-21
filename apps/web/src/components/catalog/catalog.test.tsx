@@ -122,33 +122,22 @@ describe('SortLinks', () => {
 });
 
 describe('SearchFilters', () => {
-  const composers = [{ id: 'c1', slug: 'bach', name: 'Bach', count: 2 }];
-
-  it('form GET tới /{locale}/search, giữ giá trị hiện tại và genre bằng input ẩn', () => {
-    const { container } = render(
-      withIntl(
-        <SearchFilters q="elise" level="beginner" composer="bach" format="midi" genre="jazz" composers={composers} />,
-      ),
-    );
+  it('form GET tới /{locale}/search chỉ có ô tìm kiếm; giữ Level, Genre, Composer, định dạng bằng input ẩn', () => {
+    const { container } = render(withIntl(<SearchFilters q="elise" level="beginner" composer="bach" format="midi" genre="jazz" />));
     const form = container.querySelector('form')!;
     expect(form).toHaveAttribute('action', '/en/search');
     expect(form).toHaveAttribute('method', 'get');
     expect(container.querySelector('input[name="q"]')).toHaveValue('elise');
-    expect(container.querySelector('select[name="level"]')).toHaveValue('beginner');
-    expect(container.querySelector('select[name="composer"]')).toHaveValue('bach');
-    expect(container.querySelector('select[name="format"]')).toHaveValue('midi');
+    expect(container.querySelector('select')).toBeNull();
+    expect(container.querySelector('input[type="hidden"][name="level"]')).toHaveValue('beginner');
     expect(container.querySelector('input[type="hidden"][name="genre"]')).toHaveValue('jazz');
-    expect(screen.getByRole('option', { name: 'Bach (2)' })).toBeInTheDocument();
+    expect(container.querySelector('input[type="hidden"][name="composer"]')).toHaveValue('bach');
+    expect(container.querySelector('input[type="hidden"][name="format"]')).toHaveValue('midi');
   });
 
-  it('không có genre thì không có input ẩn', () => {
-    const { container } = render(
-      withIntl(
-        <SearchFilters q={undefined} level={undefined} composer={undefined} format={undefined} genre={undefined} composers={[]} />,
-      ),
-    );
-    expect(container.querySelector('input[name="genre"]')).toBeNull();
-    expect(container.querySelector('select[name="level"]')).toHaveValue('');
+  it('không có bộ lọc thì không có input ẩn nào', () => {
+    const { container } = render(withIntl(<SearchFilters q={undefined} level={undefined} composer={undefined} format={undefined} genre={undefined} />));
+    expect(container.querySelectorAll('input[type="hidden"]')).toHaveLength(0);
   });
 });
 

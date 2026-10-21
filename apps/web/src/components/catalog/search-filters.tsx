@@ -1,16 +1,12 @@
-import { PUBLIC_FORMATS, type FacetItem, type PublicFormat } from '@piano-daily/shared';
+import type { PublicFormat } from '@piano-daily/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LEVELS, type LevelSlug } from '@/lib/levels';
-
-const select =
-  'w-full rounded-md border border-outline-variant bg-surface-bright px-3 py-2 text-body-md text-on-surface ' +
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary';
+import type { LevelSlug } from '@/lib/levels';
 
 /**
- * Form GET của trang Search: từ khoá, Level, Composer, định dạng. `genre` được giữ bằng input ẩn;
+ * Ô tìm kiếm của trang Bản nhạc (form GET). Các bộ lọc (Level, Genre, Composer, định dạng) giữ bằng input ẩn;
  * `sort` và `page` được đặt lại khi tìm mới.
  */
 export function SearchFilters({
@@ -19,18 +15,14 @@ export function SearchFilters({
   composer,
   format,
   genre,
-  composers,
 }: {
   q: string | undefined;
   level: LevelSlug | undefined;
   composer: string | undefined;
   format: PublicFormat | undefined;
   genre: string | undefined;
-  composers: FacetItem[];
 }) {
   const t = useTranslations('Search');
-  const nav = useTranslations('Nav');
-  const card = useTranslations('Card');
   const locale = useLocale();
   const id = useId();
   return (
@@ -54,48 +46,11 @@ export function SearchFilters({
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${id}-level`} className="text-caption text-on-surface-variant">
-            {t('levelLabel')}
-          </label>
-          <select id={`${id}-level`} name="level" defaultValue={level ?? ''} className={select}>
-            <option value="">{t('allLevels')}</option>
-            {LEVELS.map((value) => (
-              <option key={value} value={value}>
-                {nav(`levels.${value}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${id}-composer`} className="text-caption text-on-surface-variant">
-            {t('composerLabel')}
-          </label>
-          <select id={`${id}-composer`} name="composer" defaultValue={composer ?? ''} className={select}>
-            <option value="">{t('allComposers')}</option>
-            {composers.map((c) => (
-              <option key={c.id} value={c.slug}>
-                {c.name} ({c.count})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="col-span-2 flex flex-col gap-1 md:col-span-1">
-          <label htmlFor={`${id}-format`} className="text-caption text-on-surface-variant">
-            {t('formatLabel')}
-          </label>
-          <select id={`${id}-format`} name="format" defaultValue={format ?? ''} className={select}>
-            <option value="">{t('allFormats')}</option>
-            {PUBLIC_FORMATS.map((value) => (
-              <option key={value} value={value}>
-                {card(`formats.${value}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Bộ lọc nằm ở cột trái; tìm mới giữ nguyên chúng (và đặt lại `sort`/`page`). */}
+      {level ? <input type="hidden" name="level" value={level} /> : null}
       {genre ? <input type="hidden" name="genre" value={genre} /> : null}
+      {composer ? <input type="hidden" name="composer" value={composer} /> : null}
+      {format ? <input type="hidden" name="format" value={format} /> : null}
     </form>
   );
 }

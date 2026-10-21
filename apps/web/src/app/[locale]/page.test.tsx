@@ -77,7 +77,7 @@ describe('HomePage', () => {
     fetchTracks.mockResolvedValue([{ slug: 'a' }]);
     await renderHome();
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Beginner' })).toHaveAttribute('href', '/level/beginner');
+    expect(screen.getByRole('link', { name: 'Beginner' })).toHaveAttribute('href', '/search?level=beginner');
     expect(screen.getAllByText('12 pieces')).toHaveLength(4);
     expect(screen.getByTestId('grid').children).toHaveLength(6);
     expect(fetchSearch).toHaveBeenCalledWith({ sort: 'newest', page: 1 });

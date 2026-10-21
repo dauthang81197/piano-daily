@@ -19,7 +19,8 @@
     "pricing": "Bảng giá",
     "courses": "Khoá học",
     "skipToContent": "Bỏ qua tới nội dung",
-    "convert": "PDF sang MIDI"
+    "convert": "PDF sang MIDI",
+    "scores": "Bản nhạc"
   },
   "Search": {
     "label": "Tìm kiếm bản nhạc",
@@ -598,5 +599,16 @@
     },
     "elapsed": "Đã chạy {time}",
     "slowHint": "Lần này lâu hơn bình thường. Bạn có thể đợi thêm, hoặc xoá và thử lại."
+  },
+  "Filters": {
+    "title": "Bộ lọc",
+    "open": "Bộ lọc",
+    "groupLevel": "Độ khó",
+    "groupGenre": "Thể loại",
+    "groupComposer": "Tác giả",
+    "groupFormat": "Định dạng",
+    "showAll": "Xem tất cả ({count})",
+    "showLess": "Thu gọn",
+    "selected": "đang chọn"
   }
 }

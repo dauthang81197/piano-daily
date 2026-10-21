@@ -10,7 +10,7 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
   const t = useTranslations('Nav');
   return (
     <header className="sticky top-0 z-40 border-b border-outline-variant bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/85">
-      <div className="mx-auto max-w-7xl px-margin-mobile md:px-margin-desktop">
+      <div className="px-margin-mobile md:px-margin-desktop">
         <div className="flex items-center justify-between gap-4 py-3 md:gap-6">
           <Link
             href="/"
@@ -26,8 +26,9 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
               siteName
             )}
           </Link>
+          <PrimaryNav variant="bar" className="hidden shrink-0 md:flex" />
           <div className="hidden min-w-0 flex-1 justify-center md:flex">
-            <SearchForm compact className="w-full max-w-md" />
+            <SearchForm compact className="w-full max-w-xl" />
           </div>
           <div className="hidden shrink-0 items-center gap-3 md:flex">
             <LanguageSwitcher />
@@ -35,7 +36,6 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
           </div>
           <MobileMenu />
         </div>
-        <PrimaryNav variant="bar" className="-mx-3 hidden border-t border-outline-variant/60 py-1 md:flex" />
       </div>
     </header>
   );

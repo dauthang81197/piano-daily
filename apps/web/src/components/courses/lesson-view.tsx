@@ -70,7 +70,7 @@ export function LessonView({ lesson, order = [] }: { lesson: PublicLesson; order
       </nav>
       </div>
       {order.length >= 2 ? (
-        <aside className="w-full lg:sticky lg:top-40 lg:w-80 lg:shrink-0">
+        <aside className="w-full lg:sticky lg:top-24 lg:w-80 lg:shrink-0">
           <LessonOutline order={order} currentId={lesson.id} base={base} />
         </aside>
       ) : null}

@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { Card } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
+import { searchHref } from '@/lib/query';
 import { LEVELS, type LevelSlug } from '@/lib/levels';
 
 const ACCENT: Record<LevelSlug, string> = {
@@ -29,7 +30,7 @@ export function LevelCards({ counts }: { counts: readonly (number | null)[] }) {
                 className={`relative flex h-full flex-col gap-3 border-t-4 p-6 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-secondary ${ACCENT[level]}`}
               >
                 <h3 className="font-display text-headline-sm text-on-surface">
-                  <Link href={`/level/${level}`} className="after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none">
+                  <Link href={searchHref({ level })} className="after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none">
                     {nav(`levels.${level}`)}
                   </Link>
                 </h3>

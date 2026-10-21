@@ -20,7 +20,9 @@
     "courses": "Courses",
     "skipToContent": "Skip to content",
     "convert": "PDF to MIDI",
-    "scores": "Scores"
+    "scores": "Scores",
+    "mySheets": "My scores",
+    "postScore": "Post a score"
   },
   "Search": {
     "label": "Search sheet music",
@@ -185,7 +187,8 @@
     "audioTitle": "Download MIDI and MP3",
     "audioHint": "Use the MIDI file to practise in your own software and the MP3 file to listen to the performance again.",
     "pdfSidebarTitle": "PDF sheet music",
-    "purchaseDisabledNote": "Online purchases are temporarily unavailable. Please try again later."
+    "purchaseDisabledNote": "Online purchases are temporarily unavailable. Please try again later.",
+    "uploadedBy": "Posted by {name}"
   },
   "Player": {
     "title": "Listen",
@@ -610,5 +613,86 @@
     "showAll": "Show all ({count})",
     "showLess": "Show less",
     "selected": "selected"
+  },
+  "MySheets": {
+    "title": "My scores",
+    "intro": "The scores you have posted. Published scores are public right away; you can edit, unpublish or delete them at any time.",
+    "newCta": "Post a score",
+    "loadingPage": "Loading your scores",
+    "loginTitle": "Log in to post a score",
+    "loginBody": "You only need to be logged in to post your score.",
+    "login": "Log in",
+    "emptyTitle": "You have not posted any score yet",
+    "emptyHint": "Upload a PDF of your score to share it with everyone.",
+    "status": {
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "ARCHIVED": "Removed by admin"
+    },
+    "removedByAdmin": "This score was removed by an administrator, so you cannot post it again.",
+    "view": "View",
+    "edit": "Edit",
+    "publish": "Publish",
+    "unpublish": "Unpublish to draft",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this score? This cannot be undone.",
+    "deleteYes": "Delete for good",
+    "cancel": "Cancel",
+    "views": "{count, plural, one {# view} other {# views}}",
+    "pages": "{count, plural, one {# page} other {# pages}}",
+    "newTitle": "Post a score",
+    "editTitle": "Edit score",
+    "back": "Back to my scores",
+    "noticeFree": "Scores you post are always free and become public as soon as you press Post, with your name. Only post scores you have the right to share.",
+    "fields": {
+      "title": "Title",
+      "subtitle": "Subtitle (optional)",
+      "level": "Difficulty level",
+      "difficultyScore": "Difficulty score 0–100 (optional)",
+      "difficultyNote": "Difficulty note (optional)",
+      "composer": "Composer",
+      "composerHint": "Pick a suggestion or type a new composer name",
+      "genres": "Genres",
+      "description": "Description (optional)",
+      "lyrics": "Lyrics and chords (optional, Markdown)",
+      "youtube": "YouTube video link (optional)"
+    },
+    "files": {
+      "pdf": "Score PDF (required)",
+      "midi": "MIDI file (optional)",
+      "mp3": "MP3 file (optional)",
+      "pdfHint": "PDF up to {max} MB",
+      "midiHint": "MIDI up to {max} MB",
+      "mp3Hint": "MP3 up to {max} MB",
+      "choose": "Choose file",
+      "replace": "Replace file",
+      "remove": "Remove file",
+      "none": "No file yet",
+      "uploading": "Uploading… {percent}%",
+      "uploaded": "Uploaded",
+      "failed": "Upload failed"
+    },
+    "submit": "Post score",
+    "saveDraft": "Save as draft",
+    "save": "Save changes",
+    "saved": "Saved",
+    "working": "Working…",
+    "steps": {
+      "create": "Create the draft",
+      "upload": "Upload files",
+      "publish": "Publish"
+    },
+    "resume": "Retry from the unfinished step",
+    "needPdf": "Choose a PDF file to post.",
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "network": "Could not reach the server.",
+      "fileTooLarge": "The file is too large.",
+      "unsupported": "The file format is not supported.",
+      "processing": "The file could not be processed. Check it and try again.",
+      "forbidden": "You cannot do this.",
+      "notFound": "Score not found.",
+      "needPublishPdf": "Upload a processed PDF before posting."
+    }
   }
 }

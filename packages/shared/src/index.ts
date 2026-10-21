@@ -7,6 +7,7 @@ export * from './file';
 export * from './order';
 export * from './slug';
 export * from './sheet';
+export * from './member-sheet';
 export * from './courses';
 export * from './scores';
 export * from './pricing';

@@ -77,6 +77,11 @@ export function SheetEditPage({ id }: { id: string }) {
     <section className="flex flex-col gap-6">
       <BackLink />
       <h1 className="font-display text-headline-md text-primary">{sheet ? sheet.title : 'Sửa Sheet'}</h1>
+      {sheet?.uploader && (
+        <p className="text-sm text-muted-foreground" data-testid="sheet-uploader">
+          Do người dùng đăng: <span className="font-medium text-foreground">{sheet.uploader.name}</span> ({sheet.uploader.email}). Admin sửa, ẩn (Archived) hoặc xoá được như mọi Sheet.
+        </p>
+      )}
       <FormError>{error}</FormError>
       {!sheet && !error && <p className="text-muted-foreground">Đang tải…</p>}
       {/* Upload xong chỉ cập nhật dữ liệu Sheet của trang; form giữ nguyên các trường đang sửa (không đổi key). */}

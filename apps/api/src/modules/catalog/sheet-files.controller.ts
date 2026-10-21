@@ -33,14 +33,14 @@ import { UuidParamPipe } from './catalog.helpers';
 import { SheetsService } from './sheets.service';
 
 /** Phần của `Express.Multer.File` mà route dùng (multer lưu trong bộ nhớ). */
-interface MulterFile {
+export interface MulterFile {
   buffer: Buffer;
   originalname: string;
 }
 
 /** Field text của multipart: `type` (Story 1.7: `PDF`, `MIDI` hoặc `MP3`). Field lạ bị bỏ qua. */
-const uploadBodySchema = z.object({ type: uploadFileTypeSchema }, { error: 'Thiếu field type.' });
-type UploadBody = z.output<typeof uploadBodySchema>;
+export const uploadBodySchema = z.object({ type: uploadFileTypeSchema }, { error: 'Thiếu field type.' });
+export type UploadBody = z.output<typeof uploadBodySchema>;
 
 /**
  * Multer (bộ nhớ) cho field `file`: trần cứng dùng chung `PDF_MAX_BYTES` (20MB) cho MỌI type — DoS guard
@@ -61,7 +61,7 @@ const MULTIPART_INVALID_MESSAGE =
  * (field file sai tên, quá nhiều file/part, multipart hỏng) thành 400 `VALIDATION_FAILED` tại `file`.
  */
 @Injectable()
-class SheetFileUploadInterceptor implements NestInterceptor {
+export class SheetFileUploadInterceptor implements NestInterceptor {
   private readonly multer = new MulterSheetFileInterceptor();
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
@@ -86,7 +86,7 @@ class SheetFileUploadInterceptor implements NestInterceptor {
  * (`removeFileTypeSchema`); sai thì 400 `VALIDATION_FAILED` tại `type`.
  */
 @Injectable()
-class RemoveFileTypeParamPipe implements PipeTransform<string, UploadableFileType> {
+export class RemoveFileTypeParamPipe implements PipeTransform<string, UploadableFileType> {
   transform(value: string): UploadableFileType {
     const result = removeFileTypeSchema.safeParse(value.toLowerCase());
     if (!result.success) {
@@ -132,7 +132,7 @@ export class SheetFilesController {
 }
 
 /** Tên file gốc (multer đọc UTF-8): bỏ ký tự điều khiển, cắt 255 code point (không tách cặp surrogate); rỗng thành `null`. */
-function decodeOriginalName(name: string | undefined): string | null {
+export function decodeOriginalName(name: string | undefined): string | null {
   if (!name) return null;
   const cleaned = [...name]
     .filter((ch) => ch.charCodeAt(0) >= 0x20 && ch.charCodeAt(0) !== 0x7f)

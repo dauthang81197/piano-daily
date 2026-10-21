@@ -1,10 +1,11 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { layoutKeyboard, NoteIndex } from '@/lib/midi/keyboard-layout';
 import type { ParsedNotes } from '@/lib/midi/note-json';
 import { baseBpm, DEFAULT_BPM, rateForBpm, START_BPM, stepBpm } from '@/lib/midi/bpm';
+import { clampTranspose, shiftNotes } from '@/lib/midi/transpose';
 import { PlayerCore, type AudioPort } from '@/lib/midi/player-core';
 import { fetchNoteJson } from '@/lib/midi/fetch-note-json';
 import { canShowHands } from '@/lib/midi/hands/capabilities';
@@ -20,6 +21,9 @@ import {
 } from '@/lib/midi/scene3d/view-settings';
 import { closeAudioContext, createToneAudio, hasWebAudio, unlockAudioContext } from '@/lib/midi/tone-audio';
 import { withTimeout, withTimeoutDispose } from '@/lib/midi/with-timeout';
+import { clearLoop, LOOP_OFF, type LoopState, loopRange, setPointA, setPointB, toggleLoop } from '@/components/player/loop';
+import { LoopPanel } from '@/components/player/loop-panel';
+import { type MixerGains, MixerPanel } from '@/components/player/mixer-panel';
 import { PlayerProgress } from '@/components/player/player-progress';
 import { PlayerToolbar } from '@/components/player/player-toolbar';
 import {
@@ -135,6 +139,19 @@ export function MidiPlayer({
   const [viewPref, setViewPref] = useState<PlayerView | null>(null);
   const [dark, setDark] = useState(false);
   const [zoom, setZoom] = useState(1);
+  /** Dịch giọng, lặp và âm lượng từng tay: riêng cho từng bản nhạc, không nhớ giữa các lần mở. */
+  const [transpose, setTranspose] = useState(0);
+  const [loop, setLoopState] = useState<LoopState>(LOOP_OFF);
+  const [gains, setGains] = useState<MixerGains>({ left: 1, right: 1 });
+  const [muted, setMuted] = useState({ left: false, right: false });
+  const [mixerOpen, setMixerOpen] = useState(false);
+  const [loopOpen, setLoopOpen] = useState(false);
+  const panelIds = useId();
+  /** Giá trị mới nhất cho phần tạo lõi (chạy trong callback bất đồng bộ, tránh đọc state cũ). */
+  const latest = useRef({ transpose: 0, loop: LOOP_OFF as LoopState, gains: { left: 1, right: 1 } as MixerGains, muted: { left: false, right: false } });
+  useEffect(() => {
+    latest.current = { transpose, loop, gains, muted };
+  });
   const rootRef = useRef<HTMLElement>(null);
   const fullscreenButton = useRef<HTMLButtonElement>(null);
   const fullscreen = useFullscreen(rootRef);
@@ -183,8 +200,14 @@ export function MidiPlayer({
     return () => cancelAnimationFrame(raf);
   }, [playing, core]);
 
-  const layout = useMemo(() => layoutKeyboard(parsed?.notes ?? []), [parsed]);
-  const index = useMemo(() => new NoteIndex(parsed?.notes ?? []), [parsed]);
+  // Hình (phím, nốt rơi, khuông nhạc, bàn tay) luôn theo nốt đã dịch giọng; lõi âm thanh tự dịch lúc phát.
+  const viewNotes = useMemo(() => shiftNotes(parsed?.notes ?? [], transpose), [parsed, transpose]);
+  const rawLayout = useMemo(() => layoutKeyboard(viewNotes), [viewNotes]);
+  // Cảnh 3D dựng lại mỗi khi `layout` đổi: chỉ đổi khi dải phím thật sự đổi (dịch vài nửa cung thường giữ nguyên dải).
+  const rangeKey = `${rawLayout.keys[0]?.midi}-${rawLayout.keys[rawLayout.keys.length - 1]?.midi}`;
+  const layout = useMemo(() => rawLayout, [rangeKey]);
+  const notationData = useMemo(() => (parsed ? { notes: viewNotes, header: parsed.header } : null), [parsed, viewNotes]);
+  const index = useMemo(() => new NoteIndex(viewNotes), [viewNotes]);
   const frame = useMemo(() => index.window(position), [index, position]);
   const activeMidi = useMemo(() => new Set(frame.active.map((n) => n.midi)), [frame]);
   // Chỉ liệt kê nốt có phím trên bàn phím (nốt ngoài dải vẫn phát nhưng không có phím để sáng).
@@ -240,8 +263,14 @@ export function MidiPlayer({
     try {
       if (!audio || jsonResult.status === 'rejected') throw new Error('load');
       // `note-json` (kéo theo zod) chỉ nạp khi bấm phát, không nằm trong bundle ban đầu của trang.
-      const { parseNoteJson } = await import('@/lib/midi/note-json');
+      const [{ parseNoteJson }, { assignHands }] = await Promise.all([import('@/lib/midi/note-json'), import('@/lib/midi/hands/hand-split')]);
       const data = parseNoteJson(jsonResult.value);
+      let hands: ReturnType<typeof assignHands> | undefined;
+      try {
+        hands = assignHands(data.notes);
+      } catch {
+        // Không chia được tay thì mixer không có tác dụng, nhưng bài vẫn phát bình thường.
+      }
       if (!mounted.current) {
         audio.dispose();
         return;
@@ -250,6 +279,7 @@ export function MidiPlayer({
         notes: data.notes,
         duration: data.duration,
         audio,
+        hands,
         onEnd: () => {
           releaseClaim.current?.();
           if (!mounted.current) return;
@@ -261,6 +291,11 @@ export function MidiPlayer({
       const startRate = rateForBpm(baseBpm(data.header), START_BPM);
       next.setRate(startRate);
       setRate(startRate);
+      const now = latest.current;
+      next.setTranspose(now.transpose);
+      next.setHandGain('left', now.muted.left ? 0 : now.gains.left);
+      next.setHandGain('right', now.muted.right ? 0 : now.gains.right);
+      next.setLoop(loopRange(now.loop, data.duration));
       coreRef.current = next;
       setCore(next);
       setParsed(data);
@@ -330,6 +365,27 @@ export function MidiPlayer({
     const next = stepBpm(base, rate, delta);
     if (next !== null) onRate(next);
   };
+  const onTransposeStep = (delta: 1 | -1) => {
+    const next = clampTranspose(transpose + delta);
+    setTranspose(next);
+    coreRef.current?.setTranspose(next);
+  };
+  const onGain = (hand: 'left' | 'right', gain: number) => {
+    setGains((prev) => ({ ...prev, [hand]: gain }));
+    // Kéo thanh âm lượng thì tự bật lại tiếng của tay đó.
+    setMuted((prev) => ({ ...prev, [hand]: false }));
+    coreRef.current?.setHandGain(hand, gain);
+  };
+  const onToggleMute = (hand: 'left' | 'right') => {
+    const next = !muted[hand];
+    setMuted((prev) => ({ ...prev, [hand]: next }));
+    coreRef.current?.setHandGain(hand, next ? 0 : gains[hand]);
+  };
+  const applyLoop = (next: LoopState) => {
+    setLoopState(next);
+    coreRef.current?.setLoop(loopRange(next, parsed?.duration ?? 0));
+  };
+  const nowPosition = () => coreRef.current?.position() ?? position;
   const onRestart = () => {
     const c = coreRef.current;
     if (!c) return;
@@ -398,6 +454,16 @@ export function MidiPlayer({
         baseBpm={base}
         rate={rate}
         onBpmStep={onBpmStep}
+        transpose={transpose}
+        onTransposeStep={onTransposeStep}
+        loopOn={loop.on}
+        onToggleLoop={() => applyLoop(toggleLoop(loop))}
+        loopOptionsOpen={loopOpen}
+        loopPanelId={`${panelIds}-loop`}
+        onToggleLoopOptions={() => setLoopOpen((open) => !open)}
+        mixerOpen={mixerOpen}
+        mixerPanelId={`${panelIds}-mixer`}
+        onToggleMixer={() => setMixerOpen((open) => !open)}
         dark={dark}
         onToggleDark={onToggleDark}
         views={views}
@@ -410,7 +476,22 @@ export function MidiPlayer({
         fullscreenRef={fullscreenButton}
       />
 
-      <PlayerProgress position={position} duration={duration} disabled={phase !== 'ready'} clock={progressClock} onSeek={onSeek} />
+      <PlayerProgress position={position} duration={duration} disabled={phase !== 'ready'} clock={progressClock} onSeek={onSeek} loop={loopRange(loop, duration)} />
+
+      {loopOpen ? (
+        <LoopPanel
+          id={`${panelIds}-loop`}
+          state={loop}
+          position={position}
+          duration={duration}
+          disabled={phase !== 'ready'}
+          onSetA={() => applyLoop(setPointA(loop, nowPosition()))}
+          onSetB={() => applyLoop(setPointB(loop, nowPosition()))}
+          onClear={() => applyLoop(clearLoop())}
+        />
+      ) : null}
+
+      {mixerOpen ? <MixerPanel id={`${panelIds}-mixer`} gains={gains} muted={muted} onGain={onGain} onToggleMute={onToggleMute} /> : null}
 
       {phase === 'error' ? (
         <p role="alert" className="text-body-md text-error">
@@ -444,7 +525,7 @@ export function MidiPlayer({
           parsed ? (
             <Suspense fallback={null}>
               <NotationBoundary fallback={<p role="status" className="rounded-md bg-surface-container-low p-3 text-body-md text-on-surface-variant">{t('notationError')}</p>}>
-                <NotationView parsed={parsed} position={position} onSeek={onSeek} title={title} zoom={zoom} fill={fill} />
+                <NotationView parsed={notationData ?? parsed} position={position} onSeek={onSeek} title={title} zoom={zoom} fill={fill} />
               </NotationBoundary>
             </Suspense>
           ) : (
@@ -453,7 +534,7 @@ export function MidiPlayer({
         ) : use3d && parsed ? (
           <Suspense fallback={null}>
             <PianoView
-              notes={parsed.notes}
+              notes={viewNotes}
               layout={layout}
               playing={playing}
               position={position}

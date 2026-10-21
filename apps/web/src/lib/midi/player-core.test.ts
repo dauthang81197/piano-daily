@@ -256,4 +256,180 @@ describe('PlayerCore', () => {
     expect(h.audio.dispose).toHaveBeenCalled();
     expect(h.core.state).toBe('stopped');
   });
+
+  describe('dịch giọng', () => {
+    it('phát đúng tên nốt đã dịch, nốt vượt dải MIDI bị bỏ, đổi lúc đang phát áp dụng từ vị trí hiện tại', () => {
+      const h = harness([note(60, 0, 1), note(126, 0.2, 1), note(62, 3, 1)], 6);
+      h.core.setTranspose(3);
+      expect(h.core.transpose).toBe(3);
+      h.core.play();
+      h.advance(0.5);
+      expect(h.calls.map((c) => c.name)).toEqual(['D#4']); // 126+3 > 127: bị bỏ
+      h.calls.length = 0;
+      h.advance(2.0);
+      h.core.setTranspose(-12);
+      h.advance(1);
+      expect(h.calls.at(-1)!.name).toBe('D3');
+    });
+
+    it('kẹp −12..+12 và không đổi tên khi dịch 0', () => {
+      const h = harness([note(60, 0, 1)], 3);
+      h.core.setTranspose(99);
+      expect(h.core.transpose).toBe(12);
+      h.core.setTranspose(0);
+      h.core.play();
+      expect(h.calls[0]!.name).toBe('C4');
+    });
+
+    it('nốt đang ngân khi tua cũng theo giọng đã dịch', () => {
+      const h = harness([note(60, 0, 4)], 6);
+      h.core.setTranspose(2);
+      h.core.play();
+      h.calls.length = 0;
+      h.core.seek(1);
+      expect(h.calls[0]).toMatchObject({ name: 'D4', duration: 3 });
+    });
+  });
+
+  describe('mixer (âm lượng từng tay)', () => {
+    function handed() {
+      let clock = 100;
+      const calls: { name: string; velocity: number }[] = [];
+      const audio: AudioPort = {
+        now: () => clock,
+        triggerAttackRelease: (name, _d, _t, velocity) => calls.push({ name, velocity }),
+        releaseAll: vi.fn(),
+        dispose: vi.fn(),
+      };
+      const scheduler: SchedulerPort = { setInterval: () => 1, clearInterval: () => undefined };
+      const notes = [note(72, 0, 1), note(48, 0, 1), note(74, 3, 1)];
+      const core = new PlayerCore({ notes, duration: 6, audio, scheduler, hands: ['right', 'left', 'right'], lookahead: 5, leadIn: 0 });
+      return { core, calls, advance: (s: number) => (clock += s) };
+    }
+
+    it('giảm âm lượng nhân vào độ mạnh nốt của tay đó; tay kia giữ nguyên', () => {
+      const h = handed();
+      h.core.setHandGain('right', 0.5);
+      h.core.play();
+      const byName = Object.fromEntries(h.calls.map((c) => [c.name, c.velocity]));
+      expect(byName['C5']).toBeCloseTo(0.4);
+      expect(byName['C3']).toBeCloseTo(0.8);
+    });
+
+    it('tắt tiếng một tay: không phát nốt của tay đó (hình ảnh không bị ảnh hưởng vì nốt vẫn có trong lõi)', () => {
+      const h = handed();
+      h.core.setHandGain('left', 0);
+      h.core.play();
+      expect(h.calls.map((c) => c.name).sort()).toEqual(['C5', 'D5']);
+    });
+
+    it('đổi âm lượng khi đang phát: áp dụng ngay cho nốt chưa phát; kẹp 0..1; giá trị lạ về 1', () => {
+      const h = handed();
+      h.core.play();
+      h.calls.length = 0;
+      h.core.setHandGain('right', 0);
+      h.advance(2.9);
+      h.core.seek(2.9);
+      expect(h.calls.map((c) => c.name)).not.toContain('D5');
+      h.core.setHandGain('right', 5);
+      h.core.setHandGain('left', Number.NaN);
+      h.core.seek(0);
+      const velocities = h.calls.slice(-2).map((c) => c.velocity);
+      expect(velocities.every((v) => v <= 1 && v > 0)).toBe(true);
+    });
+
+    it('không có thông tin tay: mixer không có tác dụng', () => {
+      const h = harness([note(60, 0, 1)], 3);
+      h.core.setHandGain('right', 0);
+      h.core.setHandGain('left', 0);
+      h.core.play();
+      expect(h.calls).toHaveLength(1);
+    });
+  });
+
+  describe('lặp', () => {
+    it('lặp đoạn A–B liền mạch: nốt vòng sau nối đúng thời điểm, vị trí gập lại trong [A, B), không gọi onEnd', () => {
+      const h = harness([note(60, 0, 0.5), note(62, 1, 0.5), note(64, 2, 0.5), note(65, 3, 0.5)], 6);
+      h.core.setLoop({ start: 1, end: 3 });
+      h.core.seek(1);
+      h.core.play();
+      h.advance(2.05);
+      // Vòng 1: D4 (t=1) rồi E4 (t=2); sang vòng 2 D4 phải bắt đầu đúng lúc B (sau 2 giây tính từ lúc bắt đầu).
+      const d4 = h.calls.filter((c) => c.name === 'D4');
+      expect(d4.length).toBeGreaterThanOrEqual(2);
+      expect(d4[1]!.time - d4[0]!.time).toBeCloseTo(2);
+      expect(h.calls.map((c) => c.name)).not.toContain('F4'); // nốt sau B không phát
+      expect(h.core.position()).toBeGreaterThanOrEqual(1);
+      expect(h.core.position()).toBeLessThan(3);
+      h.advance(10);
+      expect(h.core.state).toBe('playing');
+      expect(h.onEnd).not.toHaveBeenCalled();
+      expect(h.core.position()).toBeGreaterThanOrEqual(1);
+      expect(h.core.position()).toBeLessThan(3);
+    });
+
+    it('lặp toàn bài: hết bài quay lại đầu và tiếp tục phát', () => {
+      const h = harness([note(60, 0, 1), note(62, 2, 1)], 3);
+      h.core.setLoop({ start: 0, end: 3 });
+      h.core.play();
+      h.advance(3.5);
+      expect(h.core.state).toBe('playing');
+      expect(h.calls.filter((c) => c.name === 'C4').length).toBeGreaterThanOrEqual(2);
+      expect(h.onEnd).not.toHaveBeenCalled();
+    });
+
+    it('nốt dài vắt qua điểm B bị cắt ở B; nốt ngân từ trước A được phát lại phần còn lại ở đầu mỗi vòng', () => {
+      const h = harness([note(60, 0, 5), note(62, 3.5, 2)], 8);
+      h.core.setLoop({ start: 2, end: 4 });
+      h.core.seek(2);
+      h.core.play();
+      // C4 (0..5) đang ngân tại A=2: phát phần còn lại tới B (2 giây), không phải tới 5.
+      expect(h.calls[0]).toMatchObject({ name: 'C4', duration: 2 });
+      // E: D4 bắt đầu 3.5, dài 2 nhưng bị cắt ở B=4 → 0.5 giây.
+      h.advance(1.6);
+      expect(h.calls.find((c) => c.name === 'D4')!.duration).toBeCloseTo(0.5);
+      h.advance(1.0);
+      const sustains = h.calls.filter((c) => c.name === 'C4');
+      expect(sustains.length).toBeGreaterThanOrEqual(2);
+      expect(sustains[1]!.duration).toBeCloseTo(2);
+    });
+
+    it('tốc độ khác 1: thời gian vòng lặp tính theo tốc độ', () => {
+      const h = harness([note(60, 0, 0.5)], 4);
+      h.core.setRate(2);
+      h.core.setLoop({ start: 0, end: 2 });
+      h.core.play();
+      h.advance(2.2);
+      const c4 = h.calls.filter((c) => c.name === 'C4');
+      expect(c4[1]!.time - c4[0]!.time).toBeCloseTo(1); // đoạn 2 giây bài ở 2× = 1 giây thực
+    });
+
+    it('tua tới sau B hoặc đặt vị trí ngoài đoạn: vào lại từ A; đoạn ngắn hơn 0.1 giây bị bỏ; tắt lặp thì chạy tới hết bài', () => {
+      const h = harness([note(60, 0, 1), note(62, 4, 1)], 6);
+      h.core.setLoop({ start: 1, end: 3 });
+      expect(h.core.loop).toEqual({ start: 1, end: 3 });
+      h.core.seek(4.5);
+      expect(h.core.position()).toBe(1);
+      h.core.setLoop({ start: 2, end: 2.05 });
+      expect(h.core.loop).toBeNull();
+      h.core.setLoop({ start: 1, end: 3 });
+      h.core.play();
+      h.advance(7);
+      expect(h.core.state).toBe('playing');
+      h.core.setLoop(null);
+      h.advance(10);
+      expect(h.core.state).toBe('stopped');
+      expect(h.onEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('bật lặp khi đang phát ở sau B: nhảy về A; thay đổi đoạn khi đang phát không làm mất nhịp', () => {
+      const h = harness([note(60, 0, 0.5), note(62, 1, 0.5), note(64, 5, 0.5)], 8);
+      h.core.play();
+      h.advance(4.5);
+      h.core.setLoop({ start: 0, end: 2 });
+      expect(h.core.position()).toBeCloseTo(0, 0);
+      h.advance(0.5);
+      expect(h.core.position()).toBeLessThan(2);
+    });
+  });
 });

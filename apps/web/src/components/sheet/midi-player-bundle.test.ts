@@ -63,9 +63,13 @@ describe('bundle ban đầu của MIDI player (NFR6)', () => {
 
   it('Tone.js và note-json chỉ được nạp bằng import() động', () => {
     expect(readFileSync(path.join(src, 'lib/midi/tone-audio.ts'), 'utf8')).toContain("await import('tone')");
-    expect(readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8')).toContain(
-      "await import('@/lib/midi/note-json')",
-    );
+    const player = readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8');
+    expect(player).toContain("import('@/lib/midi/note-json')");
+  });
+
+  it('bộ chia tay trái/phải (mixer) chỉ được nạp bằng import() động cùng note-json, không vào bundle ban đầu', () => {
+    expect(graph.files).not.toContain('lib/midi/hands/hand-split.ts');
+    expect(readFileSync(path.join(src, 'components/sheet/midi-player.tsx'), 'utf8')).toContain("import('@/lib/midi/hands/hand-split')");
   });
 
   it('cài đặt góc nhìn/màu và bảng của nó nằm trong bundle ban đầu mà không kéo three', () => {

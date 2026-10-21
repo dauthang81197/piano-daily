@@ -1,10 +1,11 @@
 'use client';
 
-import { Loader2, Maximize2, Minimize2, Moon, Music, Pause, Piano, Play, SkipBack, Sun, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronDown, Loader2, Maximize2, Minimize2, Moon, Music, Pause, Piano, Play, Repeat, SkipBack, SlidersHorizontal, Sun, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Ref } from 'react';
 import { ZOOM_MAX, ZOOM_MIN, type PlayerView } from './player-prefs';
 import { BpmControl } from './bpm-control';
+import { TransposeControl } from './transpose-control';
 import { iconButton } from './toolbar-styles';
 
 export interface PlayerToolbarProps {
@@ -20,6 +21,16 @@ export interface PlayerToolbarProps {
   baseBpm: number;
   rate: number;
   onBpmStep: (delta: 1 | -1) => void;
+  transpose: number;
+  onTransposeStep: (delta: 1 | -1) => void;
+  loopOn: boolean;
+  onToggleLoop: () => void;
+  loopOptionsOpen: boolean;
+  loopPanelId: string;
+  onToggleLoopOptions: () => void;
+  mixerOpen: boolean;
+  mixerPanelId: string;
+  onToggleMixer: () => void;
   dark: boolean;
   onToggleDark: () => void;
   /** Các chế độ khả dụng; chỉ một chế độ thì không hiện nút chuyển. */
@@ -56,10 +67,37 @@ export function PlayerToolbar(p: PlayerToolbarProps) {
           {p.loading ? <Loader2 aria-hidden="true" className="size-5 animate-spin" /> : p.playing ? <Pause aria-hidden="true" className="size-5" /> : <Play aria-hidden="true" className="size-5" />}
           {p.idle && !p.loading ? <span>{t('playPractice')}</span> : null}
         </button>
+        <button type="button" className={iconButton} aria-pressed={p.loopOn} aria-label={t('loopToggle')} onClick={p.onToggleLoop}>
+          <Repeat aria-hidden="true" className="size-5" />
+        </button>
+        <button
+          type="button"
+          className={`${iconButton} !size-8`}
+          aria-expanded={p.loopOptionsOpen}
+          aria-controls={p.loopOptionsOpen ? p.loopPanelId : undefined}
+          aria-label={t('loopOptions')}
+          onClick={p.onToggleLoopOptions}
+        >
+          <ChevronDown aria-hidden="true" className={`size-4 transition-transform motion-reduce:transition-none ${p.loopOptionsOpen ? 'rotate-180' : ''}`} />
+        </button>
         <span className="px-2 text-caption tabular-nums text-on-surface-variant">{p.clock}</span>
       </div>
 
-      <BpmControl base={p.baseBpm} rate={p.rate} disabled={!p.ready} onStep={p.onBpmStep} />
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={iconButton}
+          aria-pressed={p.mixerOpen}
+          aria-expanded={p.mixerOpen}
+          aria-controls={p.mixerOpen ? p.mixerPanelId : undefined}
+          aria-label={t('mixerToggle')}
+          onClick={p.onToggleMixer}
+        >
+          <SlidersHorizontal aria-hidden="true" className="size-5" />
+        </button>
+        <TransposeControl value={p.transpose} onStep={p.onTransposeStep} />
+        <BpmControl base={p.baseBpm} rate={p.rate} disabled={!p.ready} onStep={p.onBpmStep} />
+      </div>
 
       <div className="flex flex-wrap items-center gap-1">
         <button type="button" className={iconButton} aria-pressed={p.dark} aria-label={t('darkToggle')} onClick={p.onToggleDark}>

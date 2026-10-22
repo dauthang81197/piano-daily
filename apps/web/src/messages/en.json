@@ -22,7 +22,8 @@
     "convert": "PDF to MIDI",
     "scores": "Scores",
     "mySheets": "My scores",
-    "postScore": "Post a score"
+    "postScore": "Post a score",
+    "donate": "Donate"
   },
   "Search": {
     "label": "Search sheet music",
@@ -717,5 +718,16 @@
       "notFound": "Score not found.",
       "needPublishPdf": "Upload a processed PDF before posting."
     }
+  },
+  "Donate": {
+    "title": "Support Piano Daily",
+    "intro": "Piano Daily is a non-profit project. Every contribution helps keep the servers running and adds more sheet music. Scan the QR code with your banking app to donate.",
+    "qrAlt": "QR code to support Piano Daily",
+    "close": "Close",
+    "supportersTitle": "Supporters",
+    "loading": "Loading supporters…",
+    "error": "Could not load the supporters list.",
+    "retry": "Try again",
+    "empty": "Thank you for stopping by. Be the first to support us!"
   }
 }

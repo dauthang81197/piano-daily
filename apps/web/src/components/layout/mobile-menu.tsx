@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState } from 'react';
 import { HeaderAuth } from '@/components/auth/header-auth';
+import { DonateButton } from './donate-button';
 import { LanguageSwitcher } from './language-switcher';
 import { PrimaryNav } from './nav-links';
 import { SearchForm } from './search-form';
@@ -18,7 +19,8 @@ export function MobileMenu() {
   useEffect(() => {
     if (!open) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      // Esc đang đóng một hộp thoại (vd. Ủng hộ) thì chỉ đóng hộp thoại, giữ menu.
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) {
         setOpen(false);
         buttonRef.current?.focus();
       }
@@ -49,6 +51,7 @@ export function MobileMenu() {
           <PrimaryNav variant="stack" onNavigate={() => setOpen(false)} />
           <SearchForm className="mt-4" />
           <div className="mt-4 flex flex-wrap items-center gap-3">
+            <DonateButton />
             <LanguageSwitcher />
             <HeaderAuth />
           </div>

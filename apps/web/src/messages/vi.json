@@ -22,7 +22,8 @@
     "convert": "PDF sang MIDI",
     "scores": "Bản nhạc",
     "mySheets": "Bản nhạc của tôi",
-    "postScore": "Đăng bản nhạc"
+    "postScore": "Đăng bản nhạc",
+    "donate": "Ủng hộ"
   },
   "Search": {
     "label": "Tìm kiếm bản nhạc",
@@ -717,5 +718,16 @@
       "notFound": "Không tìm thấy bản nhạc của bạn.",
       "needPublishPdf": "Cần tải lên PDF đã xử lý xong trước khi đăng."
     }
+  },
+  "Donate": {
+    "title": "Ủng hộ Piano Daily",
+    "intro": "Piano Daily là dự án phi lợi nhuận. Mỗi đóng góp giúp mình duy trì máy chủ và bổ sung thêm bản nhạc. Quét mã QR bằng app ngân hàng để ủng hộ.",
+    "qrAlt": "Mã QR để ủng hộ Piano Daily",
+    "close": "Đóng",
+    "supportersTitle": "Người ủng hộ",
+    "loading": "Đang tải danh sách…",
+    "error": "Không tải được danh sách người ủng hộ.",
+    "retry": "Thử lại",
+    "empty": "Cảm ơn bạn đã ghé qua. Hãy là người ủng hộ đầu tiên!"
   }
 }

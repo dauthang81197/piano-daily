@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="QR placeholder">
+  <rect width="240" height="240" fill="#fff"/>
+  <rect x="8" y="8" width="224" height="224" fill="none" stroke="#999" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="120" y="116" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#555">Mã QR</text>
+  <text x="120" y="140" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#555">sẽ cập nhật</text>
+</svg>

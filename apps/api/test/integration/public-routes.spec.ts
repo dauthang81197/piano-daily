@@ -73,6 +73,7 @@ const PUBLIC_ROUTES = ['GET /health', 'POST /auth/login', 'POST /auth/refresh', 
   'GET /courses/:trackSlug',
   'GET /ads',
   'POST /ads/items/:id/click',
+  'GET /donors',
   'POST /internal/alerts',
 ];
 

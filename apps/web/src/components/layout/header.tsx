@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { HeaderAuth } from '@/components/auth/header-auth';
 import { Link } from '@/i18n/navigation';
+import { DonateButton } from './donate-button';
 import { LanguageSwitcher } from './language-switcher';
 import { MobileMenu } from './mobile-menu';
 import { PrimaryNav } from './nav-links';
@@ -31,6 +32,7 @@ export function Header({ siteName = 'Piano Daily', logoUrl = null }: { siteName?
             <SearchForm compact className="w-full max-w-xl" />
           </div>
           <div className="hidden shrink-0 items-center gap-3 md:flex">
+            <DonateButton />
             <LanguageSwitcher />
             <HeaderAuth />
           </div>

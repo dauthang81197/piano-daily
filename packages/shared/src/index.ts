@@ -19,3 +19,4 @@ export * from './report-range';
 export * from './analytics';
 export * from './internal-alert';
 export * from './sheet-import';
+export * from './donor';

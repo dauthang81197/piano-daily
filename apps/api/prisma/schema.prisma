@@ -850,3 +850,18 @@ model SheetImportItem {
   @@index([sheetId])
   @@map("sheet_import_items")
 }
+
+/// Người ủng hộ dự án, admin nhập tay (hộp thoại "Ủng hộ" ở web). `amount` null = không công khai số tiền.
+model Donor {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name      String
+  /// VND, số nguyên dương.
+  amount    Int?
+  message   String?
+  donatedAt DateTime @default(dbgenerated("CURRENT_DATE")) @map("donated_at") @db.Date
+  isVisible Boolean  @default(true) @map("is_visible")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([isVisible, donatedAt(sort: Desc)])
+  @@map("donors")
+}

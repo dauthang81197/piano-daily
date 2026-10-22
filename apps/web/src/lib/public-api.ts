@@ -7,11 +7,13 @@ import {
   type ErrorCode,
   errorResponseSchema,
   type PublicCommunity,
+  type PublicDonor,
   publicCommunitySchema,
+  publicDonorSchema,
   type Quote,
   quoteSchema,
 } from '@piano-daily/shared';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { publicApiUrl } from '@/lib/public-env';
 
 /** Mã lỗi phía client: danh mục của API cộng `NETWORK_ERROR` (không tới được máy chủ hoặc thiếu cấu hình). */
@@ -99,4 +101,9 @@ export function capturePaypalOrder(paypalOrderId: string): Promise<CaptureOrderR
 export function fetchCommunity(lessonId: string, cursor?: string | null, signal?: AbortSignal): Promise<PublicCommunity> {
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
   return request(`/courses/lessons/${encodeURIComponent(lessonId)}/community${query}`, publicCommunitySchema, signal ? { signal } : {});
+}
+
+/** Người ủng hộ đang hiện (admin nhập tay), mới nhất trước. */
+export function fetchDonors(signal?: AbortSignal): Promise<PublicDonor[]> {
+  return request('/donors', z.array(publicDonorSchema), signal ? { signal } : {});
 }

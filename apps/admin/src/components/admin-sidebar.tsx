@@ -1,13 +1,13 @@
 'use client';
 
-import { CreditCard, FileMusic, FileUp, GraduationCap, LayoutDashboard, type LucideIcon, Megaphone, Receipt, Settings, Tags } from 'lucide-react';
+import { CreditCard, FileMusic, FileUp, GraduationCap, Heart, LayoutDashboard, type LucideIcon, Megaphone, Receipt, Settings, Tags } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 export type AdminNavItem = { href: string; label: string; icon: LucideIcon };
 
-/** 9 mục điều hướng của khu quản trị (UX: sidebar admin). */
+/** 10 mục điều hướng của khu quản trị (UX: sidebar admin). */
 export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/sheets', label: 'Sheet', icon: FileMusic },
@@ -17,6 +17,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   { href: '/orders', label: 'Đơn hàng', icon: Receipt },
   { href: '/plans', label: 'Gói thuê bao', icon: CreditCard },
   { href: '/courses', label: 'Khoá học', icon: GraduationCap },
+  { href: '/donors', label: 'Người ủng hộ', icon: Heart },
   { href: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 
